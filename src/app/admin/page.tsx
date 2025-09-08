@@ -121,8 +121,8 @@ export default function AdminPage() {
     try {
       const playerData = {
         ...editForm,
-        strengths: editForm.strengths ? editForm.strengths.split(',').map((s: string) => s.trim()).filter((s: string) => s) : null,
-        areas_to_improve: editForm.areas_to_improve ? editForm.areas_to_improve.split(',').map((s: string) => s.trim()).filter((s: string) => s) : null
+        strengths: editForm.strengths ? editForm.strengths.split(',').map((s: string) => s.trim()).filter((s: string) => s) : undefined,
+        areas_to_improve: editForm.areas_to_improve ? editForm.areas_to_improve.split(',').map((s: string) => s.trim()).filter((s: string) => s) : undefined
       };
       
       // Remove stats from player data
