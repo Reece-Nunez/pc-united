@@ -26,7 +26,7 @@ export default function HighlightsAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [editingHighlight, setEditingHighlight] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editForm, setEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<Partial<HighlightWithPlayer>>({});
   const [newHighlightForm, setNewHighlightForm] = useState({
     player_id: '',
     title: '',
