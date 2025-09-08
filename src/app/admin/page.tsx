@@ -42,8 +42,8 @@ interface EditPlayerForm extends Omit<AdminPlayer, 'strengths' | 'areas_to_impro
     games_played: number;
     yellow_cards: number;
     red_cards: number;
-    saves: number;
-    clean_sheets: number;
+    saves?: number;
+    clean_sheets?: number;
   };
 }
 export default function AdminPage() {
