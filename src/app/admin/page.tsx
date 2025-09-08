@@ -25,6 +25,12 @@ interface AdminPlayer extends Player {
     saves?: number;
     clean_sheets?: number;
   }>;
+  highlights?: Array<{
+    id: number;
+    title: string;
+    highlight_date: string;
+    type: string;
+  }>;
 }
 export default function AdminPage() {
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
