@@ -75,7 +75,11 @@ export default function HighlightsAdmin() {
     if (!editingHighlight) return;
     
     try {
-      const { error } = await updateHighlight(editingHighlight, editForm);
+      const updateData = {
+        ...editForm,
+        video_url: editForm.video_url || undefined
+      };
+      const { error } = await updateHighlight(editingHighlight, updateData);
       if (error) throw error;
       
       await fetchData();
@@ -99,7 +103,7 @@ export default function HighlightsAdmin() {
         title: newHighlightForm.title,
         highlight_date: newHighlightForm.highlight_date,
         type: newHighlightForm.type,
-        video_url: newHighlightForm.video_url
+        video_url: newHighlightForm.video_url || undefined
       };
       
       const { error } = await createHighlight(highlightData);
