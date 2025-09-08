@@ -219,8 +219,8 @@ export default function AdminPage() {
         birth_year: newPlayerForm.birth_year,
         photo_url: newPlayerForm.photo_url,
         description: newPlayerForm.description,
-        strengths: newPlayerForm.strengths ? newPlayerForm.strengths.split(',').map(s => s.trim()).filter(s => s) : null,
-        areas_to_improve: newPlayerForm.areas_to_improve ? newPlayerForm.areas_to_improve.split(',').map(s => s.trim()).filter(s => s) : null,
+        strengths: newPlayerForm.strengths ? newPlayerForm.strengths.split(',').map(s => s.trim()).filter(s => s) : undefined,
+        areas_to_improve: newPlayerForm.areas_to_improve ? newPlayerForm.areas_to_improve.split(',').map(s => s.trim()).filter(s => s) : undefined,
         coach_notes: newPlayerForm.coach_notes
       };
       
