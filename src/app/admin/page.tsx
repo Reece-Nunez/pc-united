@@ -37,7 +37,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<Partial<AdminPlayer>>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPlayerForm, setNewPlayerForm] = useState({
     name: '',
@@ -143,7 +143,7 @@ export default function AdminPage() {
     setEditForm({});
   };
 
-  const handleFormChange = (field, value) => {
+  const handleFormChange = (field: string, value: any) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
       setEditForm(prev => ({
@@ -158,7 +158,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleNewPlayerChange = (field, value) => {
+  const handleNewPlayerChange = (field: string, value: any) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
       setNewPlayerForm(prev => ({
