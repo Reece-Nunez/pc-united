@@ -316,3 +316,404 @@ export async function deleteHighlight(id: number) {
     
   return { data, error };
 }
+
+// Team Content Types and Functions
+export interface News {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt?: string;
+  content: string;
+  featured_image?: string;
+  author?: string;
+  published: boolean;
+  publish_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Event {
+  id: number;
+  title: string;
+  description?: string;
+  event_date: string;
+  end_date?: string;
+  location?: string;
+  event_type: 'game' | 'practice' | 'tournament' | 'meeting' | 'social' | 'other';
+  featured_image?: string;
+  registration_required: boolean;
+  registration_link?: string;
+  max_participants?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Schedule {
+  id: number;
+  opponent: string;
+  game_date: string;
+  location: string;
+  home_game: boolean;
+  game_type: 'league' | 'friendly' | 'tournament' | 'playoff';
+  season?: string;
+  our_score?: number;
+  opponent_score?: number;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed';
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Announcement {
+  id: number;
+  title: string;
+  content: string;
+  announcement_type: 'general' | 'urgent' | 'celebration' | 'reminder';
+  priority: number;
+  active: boolean;
+  expires_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// News CRUD Functions
+export async function getNews() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('news')
+    .select('*')
+    .eq('published', true)
+    .order('publish_date', { ascending: false });
+    
+  return { data, error };
+}
+
+export async function getAllNews() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('news')
+    .select('*')
+    .order('created_at', { ascending: false });
+    
+  return { data, error };
+}
+
+export async function getNewsById(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('news')
+    .select('*')
+    .eq('id', id)
+    .single();
+    
+  return { data, error };
+}
+
+export async function createNews(news: Omit<News, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('news')
+    .insert([news])
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function updateNews(id: number, news: Partial<News>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('news')
+    .update(news)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function deleteNews(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('news')
+    .delete()
+    .eq('id', id);
+    
+  return { data, error };
+}
+
+// Events CRUD Functions
+export async function getEvents() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .gte('event_date', new Date().toISOString())
+    .order('event_date', { ascending: true });
+    
+  return { data, error };
+}
+
+export async function getAllEvents() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .order('event_date', { ascending: false });
+    
+  return { data, error };
+}
+
+export async function createEvent(event: Omit<Event, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('events')
+    .insert([event])
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function updateEvent(id: number, event: Partial<Event>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('events')
+    .update(event)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function deleteEvent(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', id);
+    
+  return { data, error };
+}
+
+// Schedule CRUD Functions
+export async function getSchedule() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('schedule')
+    .select('*')
+    .order('game_date', { ascending: true });
+    
+  return { data, error };
+}
+
+export async function createScheduleItem(schedule: Omit<Schedule, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('schedule')
+    .insert([schedule])
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function updateScheduleItem(id: number, schedule: Partial<Schedule>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('schedule')
+    .update(schedule)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function deleteScheduleItem(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('schedule')
+    .delete()
+    .eq('id', id);
+    
+  return { data, error };
+}
+
+// Announcements CRUD Functions
+export async function getActiveAnnouncements() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('active', true)
+    .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: false });
+    
+  return { data, error };
+}
+
+export async function getAllAnnouncements() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .order('created_at', { ascending: false });
+    
+  return { data, error };
+}
+
+export async function createAnnouncement(announcement: Omit<Announcement, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('announcements')
+    .insert([announcement])
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function updateAnnouncement(id: number, announcement: Partial<Announcement>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('announcements')
+    .update(announcement)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function deleteAnnouncement(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('announcements')
+    .delete()
+    .eq('id', id);
+    
+  return { data, error };
+}

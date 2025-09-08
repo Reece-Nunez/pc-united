@@ -148,3 +148,132 @@ CREATE POLICY "Allow read access to highlights" ON highlights FOR SELECT USING (
 CREATE POLICY "Allow all operations on players for authenticated users" ON players FOR ALL USING (true);
 CREATE POLICY "Allow all operations on player_stats for authenticated users" ON player_stats FOR ALL USING (true);
 CREATE POLICY "Allow all operations on highlights for authenticated users" ON highlights FOR ALL USING (true);
+
+-- Create news table
+CREATE TABLE IF NOT EXISTS news (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,
+  excerpt TEXT,
+  content TEXT NOT NULL,
+  featured_image TEXT,
+  author VARCHAR(100),
+  published BOOLEAN DEFAULT false,
+  publish_date TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Create events table
+CREATE TABLE IF NOT EXISTS events (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  event_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_date TIMESTAMP WITH TIME ZONE,
+  location VARCHAR(255),
+  event_type VARCHAR(50) CHECK (event_type IN ('game', 'practice', 'tournament', 'meeting', 'social', 'other')) NOT NULL,
+  featured_image TEXT,
+  registration_required BOOLEAN DEFAULT false,
+  registration_link TEXT,
+  max_participants INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Create schedule/games table
+CREATE TABLE IF NOT EXISTS schedule (
+  id BIGSERIAL PRIMARY KEY,
+  opponent VARCHAR(255) NOT NULL,
+  game_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  location VARCHAR(255) NOT NULL,
+  home_game BOOLEAN DEFAULT true,
+  game_type VARCHAR(50) CHECK (game_type IN ('league', 'friendly', 'tournament', 'playoff')) NOT NULL DEFAULT 'league',
+  season VARCHAR(20) DEFAULT '2024-2025',
+  our_score INTEGER,
+  opponent_score INTEGER,
+  status VARCHAR(20) CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled', 'postponed')) DEFAULT 'scheduled',
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Create announcements table for general team announcements
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  announcement_type VARCHAR(50) CHECK (announcement_type IN ('general', 'urgent', 'celebration', 'reminder')) DEFAULT 'general',
+  priority INTEGER DEFAULT 1, -- 1=low, 2=medium, 3=high
+  active BOOLEAN DEFAULT true,
+  expires_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Create triggers for updated_at on new tables
+DROP TRIGGER IF EXISTS update_news_updated_at ON news;
+CREATE TRIGGER update_news_updated_at
+    BEFORE UPDATE ON news
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_events_updated_at ON events;
+CREATE TRIGGER update_events_updated_at
+    BEFORE UPDATE ON events
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_schedule_updated_at ON schedule;
+CREATE TRIGGER update_schedule_updated_at
+    BEFORE UPDATE ON schedule
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_announcements_updated_at ON announcements;
+CREATE TRIGGER update_announcements_updated_at
+    BEFORE UPDATE ON announcements
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for new tables
+ALTER TABLE news ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for new tables
+CREATE POLICY "Allow read access to news" ON news FOR SELECT USING (true);
+CREATE POLICY "Allow read access to events" ON events FOR SELECT USING (true);
+CREATE POLICY "Allow read access to schedule" ON schedule FOR SELECT USING (true);
+CREATE POLICY "Allow read access to announcements" ON announcements FOR SELECT USING (true);
+
+CREATE POLICY "Allow all operations on news for authenticated users" ON news FOR ALL USING (true);
+CREATE POLICY "Allow all operations on events for authenticated users" ON events FOR ALL USING (true);
+CREATE POLICY "Allow all operations on schedule for authenticated users" ON schedule FOR ALL USING (true);
+CREATE POLICY "Allow all operations on announcements for authenticated users" ON announcements FOR ALL USING (true);
+
+-- Insert sample data
+INSERT INTO news (title, slug, excerpt, content, author, published, publish_date) VALUES
+('Season Kickoff 2024-2025', 'season-kickoff-2024-2025', 'Get ready for an exciting new season with Ponca City United FC!', 'We are thrilled to announce the start of our 2024-2025 season! This year promises to be our best yet with new players, improved training facilities, and an exciting schedule of games. All players and families are invited to our season kickoff event this Saturday.', 'Coach Johnson', true, '2024-08-15 10:00:00-05'),
+('New Training Facility Opens', 'new-training-facility-opens', 'State-of-the-art training facility now available for all teams.', 'We are proud to announce the opening of our new indoor training facility. The facility features artificial turf, professional lighting, and climate control to ensure year-round training capabilities for all our teams.', 'Admin', true, '2024-08-20 14:30:00-05'),
+('Tournament Victory Celebration', 'tournament-victory-celebration', 'Our U-12 team brings home the championship trophy!', 'Congratulations to our U-12 team for their outstanding performance at the Regional Youth Tournament. The team showed incredible teamwork, skill, and sportsmanship throughout the tournament. We could not be more proud of their achievement!', 'Coach Martinez', true, '2024-09-01 09:00:00-05');
+
+INSERT INTO events (title, description, event_date, location, event_type) VALUES
+('Season Opening Ceremony', 'Join us for the official opening of the 2024-2025 season with team introductions and activities for the whole family.', '2024-09-15 18:00:00-05', 'Main Field - Ponca City United FC Complex', 'social'),
+('Parent-Coach Meeting', 'Important meeting to discuss season expectations, schedules, and team policies.', '2024-09-20 19:00:00-05', 'Clubhouse Conference Room', 'meeting'),
+('Fall Tournament', 'Multi-day tournament featuring teams from across the region.', '2024-10-12 08:00:00-05', 'Ponca City United FC Complex', 'tournament'),
+('Team Photo Day', 'Professional team and individual photos for all players.', '2024-09-25 16:00:00-05', 'Main Field', 'other');
+
+INSERT INTO schedule (opponent, game_date, location, home_game, game_type) VALUES
+('Thunder FC', '2024-09-21 10:00:00-05', 'Ponca City United FC Complex', true, 'league'),
+('Lightning Bolts', '2024-09-28 14:00:00-05', 'Lightning Sports Complex', false, 'league'),
+('Storm Chasers', '2024-10-05 11:00:00-05', 'Ponca City United FC Complex', true, 'league'),
+('Tornado FC', '2024-10-12 15:30:00-05', 'Regional Sports Park', false, 'tournament'),
+('Cyclone United', '2024-10-19 10:30:00-05', 'Ponca City United FC Complex', true, 'league'),
+('Hurricane FC', '2024-10-26 13:00:00-05', 'Hurricane Field', false, 'league');
+
+INSERT INTO announcements (title, content, announcement_type, priority) VALUES
+('Welcome Back Players!', 'Welcome to all returning players and families! We are excited to start another great season together.', 'general', 1),
+('Equipment Check Required', 'All players must have their equipment checked before the first game. Please bring all gear to practice this week.', 'reminder', 2),
+('Volunteer Opportunities', 'We are looking for parent volunteers to help with various team activities throughout the season. Please contact the coaching staff if interested.', 'general', 1);

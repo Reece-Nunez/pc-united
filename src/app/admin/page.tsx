@@ -349,6 +349,12 @@ export default function AdminPage() {
               >
                 Manage Highlights
               </Link>
+              <Link
+                href="/admin/team"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer inline-block"
+              >
+                Manage Team Content
+              </Link>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="bg-team-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer"
