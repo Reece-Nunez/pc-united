@@ -404,17 +404,16 @@ export default function TeamAdminPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-team-blue mb-2">Team Content Administration</h1>
-          <p className="text-gray-600">Manage news, events, schedules, and announcements for the team.</p>
+      <div className="max-w-7xl mx-auto py-6 md:py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-team-blue mb-2">Team Content Administration</h1>
+          <p className="text-gray-600 text-sm md:text-base">Manage news, events, schedules, and announcements for the team.</p>
         </div>
 
-
         {/* Tab Navigation */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <nav className="-mb-px flex flex-wrap gap-2 sm:gap-4 md:gap-8">
               {[
                 { id: 'news', label: 'News' },
                 { id: 'events', label: 'Events' },
@@ -424,7 +423,7 @@ export default function TeamAdminPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as ActiveTab)}
-                  className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                  className={`py-2 px-3 md:px-4 border-b-2 font-medium text-xs sm:text-sm md:text-base ${
                     activeTab === tab.id
                       ? 'border-team-blue text-team-blue'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -437,10 +436,10 @@ export default function TeamAdminPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
           {/* Form Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">
+          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
               {activeTab === 'news' && (editingNews ? 'Edit News Article' : 'Add New News Article')}
               {activeTab === 'events' && (editingEvent ? 'Edit Event' : 'Add New Event')}
               {activeTab === 'schedule' && (editingSchedule ? 'Edit Schedule Item' : 'Add New Schedule Item')}
@@ -535,11 +534,11 @@ export default function TeamAdminPage() {
                   </label>
                 </div>
 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50"
+                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50 text-sm md:text-base"
                   >
                     {editingNews ? 'Update Article' : 'Create Article'}
                   </button>
@@ -547,7 +546,7 @@ export default function TeamAdminPage() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -673,11 +672,11 @@ export default function TeamAdminPage() {
                   </>
                 )}
 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50"
+                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50 text-sm md:text-base"
                   >
                     {editingEvent ? 'Update Event' : 'Create Event'}
                   </button>
@@ -685,7 +684,7 @@ export default function TeamAdminPage() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -816,11 +815,11 @@ export default function TeamAdminPage() {
                   />
                 </div>
 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50"
+                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50 text-sm md:text-base"
                   >
                     {editingSchedule ? 'Update Schedule' : 'Create Schedule'}
                   </button>
@@ -828,7 +827,7 @@ export default function TeamAdminPage() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -912,11 +911,11 @@ export default function TeamAdminPage() {
                   </label>
                 </div>
 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50"
+                    className="flex-1 bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-team-blue disabled:opacity-50 text-sm md:text-base"
                   >
                     {editingAnnouncement ? 'Update Announcement' : 'Create Announcement'}
                   </button>
@@ -924,7 +923,7 @@ export default function TeamAdminPage() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -935,38 +934,38 @@ export default function TeamAdminPage() {
           </div>
 
           {/* List Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">
+          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
               {activeTab === 'news' && `News Articles (${news.length})`}
               {activeTab === 'events' && `Events (${events.length})`}
               {activeTab === 'schedule' && `Schedule Items (${schedule.length})`}
               {activeTab === 'announcements' && `Announcements (${announcements.length})`}
             </h2>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-3 md:space-y-4 max-h-64 sm:max-h-80 md:max-h-96 overflow-y-auto">
               {/* News List */}
               {activeTab === 'news' && news.map((article) => (
-                <div key={article.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+                <div key={article.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{article.title}</h3>
-                      {article.excerpt && <p className="text-sm text-gray-600 mt-1">{article.excerpt}</p>}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">{article.title}</h3>
+                      {article.excerpt && <p className="text-xs md:text-sm text-gray-600 mt-1">{article.excerpt}</p>}
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
                         <span>By: {article.author || 'Unknown'}</span>
                         <span>{article.published ? 'Published' : 'Draft'}</span>
                         <span>{article.publish_date ? new Date(article.publish_date).toLocaleDateString() : 'No date'}</span>
                       </div>
                     </div>
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                       <button
                         onClick={() => handleEdit('news', article)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete('news', article.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
                       >
                         Delete
                       </button>
@@ -977,28 +976,28 @@ export default function TeamAdminPage() {
 
               {/* Events List */}
               {activeTab === 'events' && events.map((event) => (
-                <div key={event.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+                <div key={event.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{event.title}</h3>
-                      {event.description && <p className="text-sm text-gray-600 mt-1">{event.description}</p>}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">{event.title}</h3>
+                      {event.description && <p className="text-xs md:text-sm text-gray-600 mt-1">{event.description}</p>}
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
                         <span className="capitalize">{event.event_type}</span>
                         <span>{new Date(event.event_date).toLocaleDateString()}</span>
                         {event.location && <span>{event.location}</span>}
                         {event.registration_required && <span>Registration Required</span>}
                       </div>
                     </div>
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                       <button
                         onClick={() => handleEdit('events', event)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete('events', event.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
                       >
                         Delete
                       </button>
@@ -1009,11 +1008,11 @@ export default function TeamAdminPage() {
 
               {/* Schedule List */}
               {activeTab === 'schedule' && schedule.map((game) => (
-                <div key={game.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+                <div key={game.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">vs {game.opponent}</h3>
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">vs {game.opponent}</h3>
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
                         <span>{new Date(game.game_date).toLocaleDateString()}</span>
                         <span>{game.location}</span>
                         <span>{game.home_game ? 'Home' : 'Away'}</span>
@@ -1021,22 +1020,22 @@ export default function TeamAdminPage() {
                         <span className="capitalize">{game.status.replace('_', ' ')}</span>
                         {game.our_score !== null && game.our_score !== undefined && 
                          game.opponent_score !== null && game.opponent_score !== undefined && (
-                          <span className="font-semibold">
+                          <span className="font-semibold text-xs sm:text-sm">
                             {game.our_score} - {game.opponent_score}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                       <button
                         onClick={() => handleEdit('schedule', game)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete('schedule', game.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
                       >
                         Delete
                       </button>
@@ -1047,12 +1046,12 @@ export default function TeamAdminPage() {
 
               {/* Announcements List */}
               {activeTab === 'announcements' && announcements.map((announcement) => (
-                <div key={announcement.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+                <div key={announcement.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{announcement.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{announcement.content}</p>
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">{announcement.title}</h3>
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">{announcement.content}</p>
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
                         <span className="capitalize">{announcement.announcement_type}</span>
                         <span>Priority: {announcement.priority === 1 ? 'Low' : announcement.priority === 2 ? 'Medium' : 'High'}</span>
                         <span>{announcement.active ? 'Active' : 'Inactive'}</span>
@@ -1061,16 +1060,16 @@ export default function TeamAdminPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                       <button
                         onClick={() => handleEdit('announcements', announcement)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete('announcements', announcement.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
                       >
                         Delete
                       </button>

@@ -335,29 +335,29 @@ export default function AdminPage() {
       <Header />
       
       {/* Admin Header */}
-      <section className="bg-team-blue text-white py-12">
+      <section className="bg-team-blue text-white py-8 md:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 space-y-4 lg:space-y-0">
             <div>
-              <h1 className="text-4xl font-bold mb-2">Player Admin Panel</h1>
-              <p className="text-blue-100">Edit player information, stats, and details. Changes are temporary and only saved in browser session.</p>
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2">Player Admin Panel</h1>
+              <p className="text-blue-100 text-sm md:text-base">Edit player information, stats, and details. Changes are temporary and only saved in browser session.</p>
             </div>
-            <div className="space-x-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Link
                 href="/admin/highlights"
-                className="bg-team-orange hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer inline-block"
+                className="bg-team-orange hover:bg-yellow-700 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition duration-300 cursor-pointer inline-block text-center text-sm md:text-base"
               >
                 Manage Highlights
               </Link>
               <Link
                 href="/admin/team"
-                className="bg-green-600 mb-3 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer inline-block"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition duration-300 cursor-pointer inline-block text-center text-sm md:text-base"
               >
                 Manage Team Content
               </Link>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="bg-team-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer"
+                className="bg-team-red hover:bg-red-700 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition duration-300 cursor-pointer text-sm md:text-base"
               >
                 {showAddForm ? 'Cancel' : 'Add New Player'}
               </button>
@@ -532,16 +532,16 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
                 <button
                   onClick={() => setShowAddForm(false)}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 cursor-pointer"
+                  className="px-4 md:px-6 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 cursor-pointer text-sm md:text-base"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddPlayer}
-                  className="px-6 py-2 bg-team-red text-white rounded hover:bg-red-700 cursor-pointer"
+                  className="px-4 md:px-6 py-2 bg-team-red text-white rounded hover:bg-red-700 cursor-pointer text-sm md:text-base"
                   disabled={!newPlayerForm.name || !newPlayerForm.jersey_number}
                 >
                   Add Player
@@ -561,18 +561,18 @@ export default function AdminPage() {
                 {editingPlayer === player.id ? (
                   // Edit Form
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-2xl font-bold text-team-blue">Editing: {player.name}</h3>
-                      <div className="space-x-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
+                      <h3 className="text-xl md:text-2xl font-bold text-team-blue">Editing: {player.name}</h3>
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                         <button
                           onClick={handleSave}
-                          className="bg-team-red text-white px-4 py-2 rounded hover:bg-red-700 cursor-pointer"
+                          className="bg-team-red text-white px-4 py-2 rounded hover:bg-red-700 cursor-pointer text-sm md:text-base"
                         >
                           Save Changes
                         </button>
                         <button
                           onClick={handleCancel}
-                          className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 cursor-pointer"
+                          className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 cursor-pointer text-sm md:text-base"
                         >
                           Cancel
                         </button>
@@ -758,35 +758,35 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   // Display Mode
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-6">
-                      <div className="relative w-16 h-16">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+                    <div className="flex items-start sm:items-center space-x-4 sm:space-x-6 flex-1">
+                      <div className="relative w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
                         <Image
                           src={player.photo_url || '/logo.png'}
                           alt={`${player.name} photo`}
                           fill
                           className="rounded-full object-cover border-2 border-team-blue"
                         />
-                        <div className="absolute -bottom-1 -right-1 bg-team-red text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs">
+                        <div className="absolute -bottom-1 -right-1 bg-team-red text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center font-bold text-xs">
                           {player.jersey_number}
                         </div>
                       </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-team-blue">{player.name}</h3>
-                        <p className="text-team-red font-semibold">{player.position}</p>
-                        <p className="text-sm text-gray-500">Born {player.birth_year} • {player.player_stats?.[0]?.games_played || 0} games</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-bold text-team-blue truncate">{player.name}</h3>
+                        <p className="text-team-red font-semibold text-sm sm:text-base">{player.position}</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Born {player.birth_year} • {player.player_stats?.[0]?.games_played || 0} games</p>
                       </div>
                     </div>
-                    <div className="space-x-3">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:ml-4">
                       <button
                         onClick={() => handleEdit(player)}
-                        className="bg-team-blue text-white px-4 py-2 rounded hover:bg-blue-700 cursor-pointer"
+                        className="bg-team-blue text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 cursor-pointer text-sm"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeletePlayer(player.id)}
-                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 cursor-pointer"
+                        className="bg-red-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-red-700 cursor-pointer text-sm"
                       >
                         Delete
                       </button>

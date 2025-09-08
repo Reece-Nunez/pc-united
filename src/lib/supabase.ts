@@ -52,6 +52,7 @@ export interface Registration {
   additional_info?: string;
   parent_signature: string;
   agrees_to_terms: boolean;
+  photo_permission: boolean;
   
   // Status and tracking
   registration_status?: string;

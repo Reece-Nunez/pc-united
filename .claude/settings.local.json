@@ -9,7 +9,9 @@
       "Bash(git rebase:*)",
       "Bash(git reset:*)",
       "Bash(git cherry-pick:*)",
-      "Read(//c/Users/reece/Downloads/**)"
+      "Read(//c/Users/reece/Downloads/**)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

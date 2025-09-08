@@ -119,7 +119,6 @@ export function generateMetadata(props: SEOProps = {}): Metadata {
     verification: {
       google: 'google-site-verification-code-here', // Replace with actual verification code
       yandex: 'yandex-verification-code-here', // Replace with actual verification code
-      bing: 'bing-verification-code-here', // Replace with actual verification code
     },
     category: 'Sports',
   };

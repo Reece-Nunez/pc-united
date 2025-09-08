@@ -27,15 +27,17 @@ export default function RegisterClient() {
     parent_last_name: '',
     parent_email: '',
     parent_phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zip_code: '',
+    parent_address: '',
+    parent_city: '',
+    parent_state: '',
+    parent_zip: '',
     emergency_contact_name: '',
     emergency_contact_phone: '',
-    medical_notes: '',
+    medical_conditions: '',
     photo_permission: false,
-    liability_waiver: false
+    agrees_to_terms: false,
+    parent_signature: '',
+    emergency_contact_relation: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,8 +69,8 @@ export default function RegisterClient() {
     }
 
     // Validate required fields
-    if (!formData.liability_waiver) {
-      toast.error('You must accept the liability waiver to register.');
+    if (!formData.agrees_to_terms) {
+      toast.error('You must agree to the terms and conditions to register.');
       return;
     }
 
@@ -97,15 +99,17 @@ export default function RegisterClient() {
         parent_last_name: '',
         parent_email: '',
         parent_phone: '',
-        address: '',
-        city: '',
-        state: '',
-        zip_code: '',
+        parent_address: '',
+        parent_city: '',
+        parent_state: '',
+        parent_zip: '',
         emergency_contact_name: '',
         emergency_contact_phone: '',
-        medical_notes: '',
+        medical_conditions: '',
         photo_permission: false,
-        liability_waiver: false
+        agrees_to_terms: false,
+        parent_signature: '',
+        emergency_contact_relation: ''
       });
       
       setCurrentSection(1);
@@ -383,9 +387,9 @@ export default function RegisterClient() {
                 <input
                   type="text"
                   id="address"
-                  name="address"
+                  name="parent_address"
                   required
-                  value={formData.address}
+                  value={formData.parent_address}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                 />
@@ -399,9 +403,9 @@ export default function RegisterClient() {
                   <input
                     type="text"
                     id="city"
-                    name="city"
+                    name="parent_city"
                     required
-                    value={formData.city}
+                    value={formData.parent_city}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
@@ -413,9 +417,9 @@ export default function RegisterClient() {
                   <input
                     type="text"
                     id="state"
-                    name="state"
+                    name="parent_state"
                     required
-                    value={formData.state}
+                    value={formData.parent_state}
                     onChange={handleInputChange}
                     defaultValue="Oklahoma"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
@@ -428,9 +432,9 @@ export default function RegisterClient() {
                   <input
                     type="text"
                     id="zip_code"
-                    name="zip_code"
+                    name="parent_zip"
                     required
-                    value={formData.zip_code}
+                    value={formData.parent_zip}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
@@ -442,7 +446,7 @@ export default function RegisterClient() {
           {/* Section 3: Emergency & Medical */}
           {currentSection === 3 && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label htmlFor="emergency_contact_name" className="block text-sm font-medium text-gray-700 mb-2">
                     Emergency Contact Name *
@@ -471,17 +475,37 @@ export default function RegisterClient() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
+                <div>
+                  <label htmlFor="emergency_contact_relation" className="block text-sm font-medium text-gray-700 mb-2">
+                    Relationship to Player *
+                  </label>
+                  <select
+                    id="emergency_contact_relation"
+                    name="emergency_contact_relation"
+                    required
+                    value={formData.emergency_contact_relation}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  >
+                    <option value="">Select relationship</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Guardian">Guardian</option>
+                    <option value="Grandparent">Grandparent</option>
+                    <option value="Sibling">Sibling</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label htmlFor="medical_notes" className="block text-sm font-medium text-gray-700 mb-2">
-                  Medical Notes & Allergies
+                <label htmlFor="medical_conditions" className="block text-sm font-medium text-gray-700 mb-2">
+                  Medical Conditions & Allergies
                 </label>
                 <textarea
-                  id="medical_notes"
-                  name="medical_notes"
+                  id="medical_conditions"
+                  name="medical_conditions"
                   rows={4}
-                  value={formData.medical_notes}
+                  value={formData.medical_conditions}
                   onChange={handleInputChange}
                   placeholder="Please list any medical conditions, allergies, medications, or special instructions..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
@@ -507,17 +531,34 @@ export default function RegisterClient() {
                 </label>
               </div>
 
+              <div>
+                <label htmlFor="parent_signature" className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent/Guardian Digital Signature *
+                </label>
+                <input
+                  type="text"
+                  id="parent_signature"
+                  name="parent_signature"
+                  required
+                  value={formData.parent_signature}
+                  onChange={handleInputChange}
+                  placeholder="Type your full name as your digital signature"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                />
+                <p className="text-xs text-gray-500 mt-1">By typing your name, you are providing your digital signature and agreeing to the terms below.</p>
+              </div>
+
               <div className="flex items-start">
                 <input
                   type="checkbox"
-                  id="liability_waiver"
-                  name="liability_waiver"
-                  checked={formData.liability_waiver}
+                  id="agrees_to_terms"
+                  name="agrees_to_terms"
+                  checked={formData.agrees_to_terms}
                   onChange={handleInputChange}
                   className="h-4 w-4 text-team-blue border-gray-300 rounded focus:ring-team-blue mt-1"
                   required
                 />
-                <label htmlFor="liability_waiver" className="ml-3 text-sm text-gray-700">
+                <label htmlFor="agrees_to_terms" className="ml-3 text-sm text-gray-700">
                   <strong>Liability Waiver (Required):</strong> I understand that soccer involves inherent risks and hereby release Ponca City United FC, its coaches, volunteers, and facilities from any liability for injuries that may occur during participation in club activities. I acknowledge that my child is physically fit to participate in soccer activities.
                 </label>
               </div>

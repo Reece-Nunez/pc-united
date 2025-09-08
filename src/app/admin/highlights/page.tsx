@@ -376,7 +376,7 @@ export default function HighlightsAdmin() {
                             type="text"
                             value={editForm.title || ''}
                             onChange={(e) => handleFormChange('title', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded"
+                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
                           />
                         </div>
                         <div>
@@ -385,7 +385,7 @@ export default function HighlightsAdmin() {
                             type="date"
                             value={editForm.highlight_date || ''}
                             onChange={(e) => handleFormChange('highlight_date', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded"
+                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
                           />
                         </div>
                         <div>
@@ -393,7 +393,7 @@ export default function HighlightsAdmin() {
                           <select
                             value={editForm.type || ''}
                             onChange={(e) => handleFormChange('type', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded"
+                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
                           >
                             <option value="goal">Goal</option>
                             <option value="assist">Assist</option>
