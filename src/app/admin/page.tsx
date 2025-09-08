@@ -47,6 +47,28 @@ interface EditPlayerForm extends Omit<AdminPlayer, 'strengths' | 'areas_to_impro
   };
   [key: string]: any;
 }
+
+interface NewPlayerForm {
+  name: string;
+  jersey_number: string;
+  position: string;
+  birth_year: number;
+  photo_url: string;
+  description: string;
+  strengths: string;
+  areas_to_improve: string;
+  coach_notes: string;
+  stats: {
+    goals: number;
+    assists: number;
+    games_played: number;
+    yellow_cards: number;
+    red_cards: number;
+    saves: number;
+    clean_sheets: number;
+  };
+  [key: string]: any;
+}
 export default function AdminPage() {
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +76,7 @@ export default function AdminPage() {
   const [editingPlayer, setEditingPlayer] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<EditPlayerForm>>({});
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newPlayerForm, setNewPlayerForm] = useState({
+  const [newPlayerForm, setNewPlayerForm] = useState<NewPlayerForm>({
     name: '',
     jersey_number: '',
     position: 'Forward',
