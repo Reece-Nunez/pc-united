@@ -32,12 +32,26 @@ interface AdminPlayer extends Player {
     type: string;
   }>;
 }
+
+interface EditPlayerForm extends Omit<AdminPlayer, 'strengths' | 'areas_to_improve'> {
+  strengths: string;
+  areas_to_improve: string;
+  stats: {
+    goals: number;
+    assists: number;
+    games_played: number;
+    yellow_cards: number;
+    red_cards: number;
+    saves: number;
+    clean_sheets: number;
+  };
+}
 export default function AdminPage() {
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<Partial<AdminPlayer>>({});
+  const [editForm, setEditForm] = useState<Partial<EditPlayerForm>>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPlayerForm, setNewPlayerForm] = useState({
     name: '',
