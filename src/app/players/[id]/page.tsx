@@ -1,180 +1,84 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import Link from "next/link";
+import { getPlayer, Player } from "@/lib/supabase";
 
-// Sample player data - in a real app this would come from a database
-const players = [
-  {
-    id: 1,
-    name: "Alex Johnson",
-    jerseyNumber: 10,
-    position: "Forward",
-    birthYear: 2016,
-    photo: "/logo.png",
-    stats: {
-      goals: 12,
-      assists: 8,
-      gamesPlayed: 15,
-      yellowCards: 1,
-      redCards: 0,
-      saves: 0,
-      cleanSheets: 0
-    },
-    highlights: [
-      { id: 1, title: "Amazing Goal vs Thunder FC", date: "2024-03-15", type: "goal" },
-      { id: 2, title: "Hat-trick Performance", date: "2024-02-28", type: "multiple" },
-      { id: 3, title: "Winning Goal in Tournament Final", date: "2024-01-20", type: "goal" }
-    ],
-    description: "Dynamic forward with excellent ball control and finishing ability. Shows great promise with natural goal-scoring instinct.",
-    strengths: ["Clinical finishing", "Ball control", "Speed", "Positioning"],
-    areasToImprove: ["Passing accuracy", "Defensive work rate"],
-    coachNotes: "Alex has shown tremendous improvement this season. Natural goal scorer with great instincts in the box."
-  },
-  {
-    id: 2,
-    name: "Sam Rodriguez",
-    jerseyNumber: 7,
-    position: "Midfielder",
-    birthYear: 2017,
-    photo: "/logo.png",
-    stats: {
-      goals: 5,
-      assists: 12,
-      gamesPlayed: 16,
-      yellowCards: 0,
-      redCards: 0,
-      saves: 0,
-      cleanSheets: 0
-    },
-    highlights: [
-      { id: 1, title: "Perfect Through Ball Assist", date: "2024-03-10", type: "assist" },
-      { id: 2, title: "Midfield Masterclass", date: "2024-02-15", type: "performance" }
-    ],
-    description: "Creative midfielder with great passing vision and work rate.",
-    strengths: ["Vision", "Passing accuracy", "Work rate", "Team play"],
-    areasToImprove: ["Shooting power", "Aerial ability"],
-    coachNotes: "Sam is the engine of our midfield. Excellent decision-making and always puts the team first."
-  },
-  {
-    id: 3,
-    name: "Jordan Smith",
-    jerseyNumber: 3,
-    position: "Defender",
-    birthYear: 2016,
-    photo: "/logo.png",
-    stats: {
-      goals: 2,
-      assists: 4,
-      gamesPlayed: 14,
-      yellowCards: 2,
-      redCards: 0,
-      saves: 0,
-      cleanSheets: 6
-    },
-    highlights: [
-      { id: 1, title: "Last-minute Goal Line Clearance", date: "2024-03-05", type: "defense" }
-    ],
-    description: "Solid defender with strong tackling and leadership qualities.",
-    strengths: ["Tackling", "Leadership", "Aerial ability", "Communication"],
-    areasToImprove: ["Pace", "Ball distribution"],
-    coachNotes: "Jordan is a natural leader on the field. Solid defender who organizes the backline well."
-  },
-  {
-    id: 4,
-    name: "Casey Williams",
-    jerseyNumber: 1,
-    position: "Goalkeeper",
-    birthYear: 2016,
-    photo: "/logo.png",
-    stats: {
-      goals: 0,
-      assists: 1,
-      gamesPlayed: 12,
-      yellowCards: 0,
-      redCards: 0,
-      saves: 45,
-      cleanSheets: 7
-    },
-    highlights: [
-      { id: 1, title: "Penalty Save in Final", date: "2024-03-20", type: "save" },
-      { id: 2, title: "Double Save vs Lightning FC", date: "2024-02-18", type: "save" },
-      { id: 3, title: "Clean Sheet Streak", date: "2024-01-15", type: "performance" },
-      { id: 4, title: "Long Range Assist", date: "2024-01-08", type: "assist" }
-    ],
-    description: "Reliable goalkeeper with quick reflexes and great communication.",
-    strengths: ["Reflexes", "Communication", "Distribution", "Positioning"],
-    areasToImprove: ["Coming for crosses", "Footwork"],
-    coachNotes: "Casey is incredibly reliable between the posts. Great shot-stopper with excellent distribution."
-  },
-  {
-    id: 5,
-    name: "Taylor Brown",
-    jerseyNumber: 11,
-    position: "Winger",
-    birthYear: 2017,
-    photo: "/logo.png",
-    stats: {
-      goals: 8,
-      assists: 6,
-      gamesPlayed: 13,
-      yellowCards: 0,
-      redCards: 0,
-      saves: 0,
-      cleanSheets: 0
-    },
-    highlights: [
-      { id: 1, title: "Solo Run and Finish", date: "2024-03-12", type: "goal" },
-      { id: 2, title: "Perfect Cross for Winning Goal", date: "2024-02-25", type: "assist" }
-    ],
-    description: "Speedy winger with excellent dribbling skills and crossing ability.",
-    strengths: ["Pace", "Dribbling", "Crossing", "1v1 situations"],
-    areasToImprove: ["Final ball", "Defensive tracking"],
-    coachNotes: "Taylor brings excitement to our attack. Natural winger with great pace and skill on the ball."
-  },
-  {
-    id: 6,
-    name: "Riley Davis",
-    jerseyNumber: 8,
-    position: "Midfielder",
-    birthYear: 2016,
-    photo: "/logo.png",
-    stats: {
-      goals: 6,
-      assists: 9,
-      gamesPlayed: 15,
-      yellowCards: 1,
-      redCards: 0,
-      saves: 0,
-      cleanSheets: 0
-    },
-    highlights: [
-      { id: 1, title: "Long Range Screamer", date: "2024-03-08", type: "goal" },
-      { id: 2, title: "Box-to-Box Performance", date: "2024-02-20", type: "performance" },
-      { id: 3, title: "Crucial Defensive Block", date: "2024-01-30", type: "defense" }
-    ],
-    description: "Versatile midfielder who can play both defensive and attacking roles.",
-    strengths: ["Versatility", "Long shots", "Work rate", "Ball winning"],
-    areasToImprove: ["Consistency", "Set piece delivery"],
-    coachNotes: "Riley is our Swiss Army knife - can play anywhere in midfield and always gives 100%."
-  }
-];
-
+interface PlayerWithDetails extends Player {
+  player_stats?: Array<{
+    goals: number;
+    assists: number;
+    games_played: number;
+    yellow_cards: number;
+    red_cards: number;
+    saves?: number;
+    clean_sheets?: number;
+  }>;
+  highlights?: Array<{
+    id: number;
+    title: string;
+    highlight_date: string;
+    type: string;
+  }>;
+}
 export default function PlayerProfile() {
   const params = useParams();
   const playerId = parseInt(params.id as string);
-  const player = players.find(p => p.id === playerId);
+  const [player, setPlayer] = useState<PlayerWithDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!player) {
+  useEffect(() => {
+    async function fetchPlayer() {
+      if (!playerId) {
+        setError('Invalid player ID');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await getPlayer(playerId);
+        if (error) {
+          setError(error.message);
+        } else if (data) {
+          setPlayer(data);
+        } else {
+          setError('Player not found');
+        }
+      } catch (err) {
+        setError('Failed to fetch player');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPlayer();
+  }, [playerId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="py-20 text-center">
+          <h1 className="text-4xl font-bold text-team-blue mb-4">Loading Player...</h1>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !player) {
     return (
       <div className="min-h-screen bg-white">
         <Header />
         <div className="py-20 text-center">
           <h1 className="text-4xl font-bold text-team-blue mb-4">Player Not Found</h1>
-          <Link href="/players" className="text-team-red hover:underline">← Back to Players</Link>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Link href="/players" className="text-team-red hover:underline cursor-pointer">← Back to Players</Link>
         </div>
         <Footer />
       </div>
@@ -197,7 +101,7 @@ export default function PlayerProfile() {
             <div>
               <div className="flex items-center mb-4">
                 <div className="bg-team-red text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-xl mr-4">
-                  {player.jerseyNumber}
+                  {player.jersey_number}
                 </div>
                 <div>
                   <h1 className="text-4xl md:text-5xl font-bold mb-2">{player.name}</h1>
@@ -208,18 +112,18 @@ export default function PlayerProfile() {
               <div className="flex items-center space-x-6 text-sm">
                 <div>
                   <span className="text-blue-100">Birth Year:</span>
-                  <span className="font-semibold ml-2">{player.birthYear}</span>
+                  <span className="font-semibold ml-2">{player.birth_year}</span>
                 </div>
                 <div>
                   <span className="text-blue-100">Games Played:</span>
-                  <span className="font-semibold ml-2">{player.stats.gamesPlayed}</span>
+                  <span className="font-semibold ml-2">{player.player_stats?.[0]?.games_played || 0}</span>
                 </div>
               </div>
             </div>
             <div className="flex justify-center">
               <div className="relative w-48 h-48">
                 <Image
-                  src={player.photo}
+                  src={player.photo_url || '/logo.png'}
                   alt={`${player.name} photo`}
                   fill
                   className="rounded-full object-cover border-4 border-white"
@@ -237,25 +141,25 @@ export default function PlayerProfile() {
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
             <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold text-team-blue mb-2">{player.stats.goals}</div>
+              <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.goals || 0}</div>
               <div className="text-gray-600">Goals</div>
             </div>
             <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold text-team-blue mb-2">{player.stats.assists}</div>
+              <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.assists || 0}</div>
               <div className="text-gray-600">Assists</div>
             </div>
             <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold text-team-blue mb-2">{player.stats.gamesPlayed}</div>
+              <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.games_played || 0}</div>
               <div className="text-gray-600">Games Played</div>
             </div>
             {player.position === 'Goalkeeper' ? (
               <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-3xl font-bold text-team-blue mb-2">{player.stats.saves}</div>
+                <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.saves || 0}</div>
                 <div className="text-gray-600">Saves</div>
               </div>
             ) : (
               <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-3xl font-bold text-team-blue mb-2">{player.highlights.length}</div>
+                <div className="text-3xl font-bold text-team-blue mb-2">{player.highlights?.length || 0}</div>
                 <div className="text-gray-600">Highlights</div>
               </div>
             )}
@@ -264,18 +168,20 @@ export default function PlayerProfile() {
           {player.position === 'Goalkeeper' && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-2xl font-bold text-team-blue mb-2">{player.stats.cleanSheets}</div>
+                <div className="text-2xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.clean_sheets || 0}</div>
                 <div className="text-gray-600">Clean Sheets</div>
               </div>
               <div className="bg-white rounded-lg p-6 text-center shadow-lg">
                 <div className="text-2xl font-bold text-team-blue mb-2">
-                  {player.stats.gamesPlayed > 0 ? (player.stats.saves / player.stats.gamesPlayed).toFixed(1) : '0.0'}
+                  {(player.player_stats?.[0]?.games_played || 0) > 0 ? 
+                    ((player.player_stats?.[0]?.saves || 0) / (player.player_stats?.[0]?.games_played || 1)).toFixed(1) : '0.0'}
                 </div>
                 <div className="text-gray-600">Saves per Game</div>
               </div>
               <div className="bg-white rounded-lg p-6 text-center shadow-lg">
                 <div className="text-2xl font-bold text-team-blue mb-2">
-                  {player.stats.gamesPlayed > 0 ? ((player.stats.cleanSheets / player.stats.gamesPlayed) * 100).toFixed(0) : '0'}%
+                  {(player.player_stats?.[0]?.games_played || 0) > 0 ? 
+                    (((player.player_stats?.[0]?.clean_sheets || 0) / (player.player_stats?.[0]?.games_played || 1)) * 100).toFixed(0) : '0'}%
                 </div>
                 <div className="text-gray-600">Clean Sheet %</div>
               </div>
@@ -290,7 +196,7 @@ export default function PlayerProfile() {
           <h2 className="text-3xl font-bold text-team-blue mb-12 text-center">Game Highlights</h2>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {player.highlights.map((highlight) => (
+            {player.highlights && player.highlights.length > 0 ? player.highlights.map((highlight) => (
               <div key={highlight.id} className="bg-gray-50 rounded-lg p-6 shadow-lg">
                 <div className="aspect-video bg-gray-300 rounded-lg mb-4 flex items-center justify-center">
                   <div className="text-center">
@@ -300,13 +206,17 @@ export default function PlayerProfile() {
                 </div>
                 <h3 className="text-lg font-bold text-team-blue mb-2">{highlight.title}</h3>
                 <div className="flex justify-between items-center text-sm text-gray-600">
-                  <span>{new Date(highlight.date).toLocaleDateString()}</span>
+                  <span>{new Date(highlight.highlight_date).toLocaleDateString()}</span>
                   <span className="bg-team-red text-white px-2 py-1 rounded text-xs">
                     {highlight.type.toUpperCase()}
                   </span>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="col-span-full text-center py-12">
+                <div className="text-gray-500">No highlights available yet.</div>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -320,32 +230,38 @@ export default function PlayerProfile() {
             <div className="bg-white rounded-lg p-8 shadow-lg">
               <h3 className="text-2xl font-bold text-team-blue mb-6">Strengths</h3>
               <ul className="space-y-3">
-                {player.strengths.map((strength, index) => (
+                {player.strengths && player.strengths.length > 0 ? player.strengths.map((strength, index) => (
                   <li key={index} className="flex items-center">
                     <span className="text-team-red mr-3">✓</span>
                     <span className="text-gray-700">{strength}</span>
                   </li>
-                ))}
+                )) : (
+                  <li className="text-gray-500">No strengths recorded yet.</li>
+                )}
               </ul>
             </div>
             
             <div className="bg-white rounded-lg p-8 shadow-lg">
               <h3 className="text-2xl font-bold text-team-blue mb-6">Areas to Improve</h3>
               <ul className="space-y-3">
-                {player.areasToImprove.map((area, index) => (
+                {player.areas_to_improve && player.areas_to_improve.length > 0 ? player.areas_to_improve.map((area, index) => (
                   <li key={index} className="flex items-center">
                     <span className="text-team-orange mr-3">→</span>
                     <span className="text-gray-700">{area}</span>
                   </li>
-                ))}
+                )) : (
+                  <li className="text-gray-500">No areas for improvement recorded yet.</li>
+                )}
               </ul>
             </div>
           </div>
           
-          <div className="mt-12 bg-white rounded-lg p-8 shadow-lg">
-            <h3 className="text-2xl font-bold text-team-blue mb-4">Coach's Notes</h3>
-            <p className="text-gray-700 text-lg leading-relaxed">{player.coachNotes}</p>
-          </div>
+          {player.coach_notes && (
+            <div className="mt-12 bg-white rounded-lg p-8 shadow-lg">
+              <h3 className="text-2xl font-bold text-team-blue mb-4">Coach's Notes</h3>
+              <p className="text-gray-700 text-lg leading-relaxed">{player.coach_notes}</p>
+            </div>
+          )}
         </div>
       </section>
       

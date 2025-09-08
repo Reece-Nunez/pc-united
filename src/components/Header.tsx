@@ -13,6 +13,7 @@ export default function Header() {
                 alt="Ponca City United FC Logo"
                 width={40}
                 height={40}
+                sizes="40px"
                 className="mr-3"
               />
               <span className="text-white font-bold text-xl">Ponca City United FC</span>

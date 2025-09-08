@@ -91,3 +91,228 @@ export async function getRegistrations() {
     
   return { data, error };
 }
+
+// Player Management Types and Functions
+export interface Player {
+  id: number;
+  name: string;
+  jersey_number: number;
+  position: string;
+  birth_year: number;
+  photo_url?: string;
+  description?: string;
+  strengths?: string[];
+  areas_to_improve?: string[];
+  coach_notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PlayerStats {
+  id?: number;
+  player_id: number;
+  goals: number;
+  assists: number;
+  games_played: number;
+  yellow_cards: number;
+  red_cards: number;
+  saves?: number;
+  clean_sheets?: number;
+  season?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Highlight {
+  id: number;
+  player_id: number;
+  title: string;
+  description?: string;
+  highlight_date: string;
+  type: 'goal' | 'assist' | 'save' | 'defense' | 'performance' | 'multiple';
+  video_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Player CRUD Functions
+export async function getPlayers() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('players')
+    .select(`
+      *,
+      player_stats (*),
+      highlights (id, title, highlight_date, type)
+    `)
+    .order('jersey_number', { ascending: true });
+    
+  return { data, error };
+}
+
+export async function getPlayer(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('players')
+    .select(`
+      *,
+      player_stats (*),
+      highlights (id, title, highlight_date, type)
+    `)
+    .eq('id', id)
+    .single();
+    
+  return { data, error };
+}
+
+export async function createPlayer(player: Omit<Player, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('players')
+    .insert([player])
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function updatePlayer(id: number, player: Partial<Player>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('players')
+    .update(player)
+    .eq('id', id)
+    .select('*')
+    .single();
+    
+  return { data, error };
+}
+
+export async function deletePlayer(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('players')
+    .delete()
+    .eq('id', id);
+    
+  return { data, error };
+}
+
+// Player Stats CRUD Functions
+export async function createOrUpdatePlayerStats(stats: Omit<PlayerStats, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('player_stats')
+    .upsert([stats], { onConflict: 'player_id,season' })
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+// Highlights CRUD Functions
+export async function getHighlights() {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('highlights')
+    .select(`
+      *,
+      players (name)
+    `)
+    .order('highlight_date', { ascending: false });
+    
+  return { data, error };
+}
+
+export async function createHighlight(highlight: Omit<Highlight, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('highlights')
+    .insert([highlight])
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function updateHighlight(id: number, highlight: Partial<Highlight>) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('highlights')
+    .update(highlight)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export async function deleteHighlight(id: number) {
+  if (!isSupabaseConfigured) {
+    return { 
+      data: null, 
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    };
+  }
+  
+  const { data, error } = await supabase
+    .from('highlights')
+    .delete()
+    .eq('id', id);
+    
+  return { data, error };
+}
