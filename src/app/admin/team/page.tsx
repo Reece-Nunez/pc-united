@@ -1019,7 +1019,8 @@ export default function TeamAdminPage() {
                         <span>{game.home_game ? 'Home' : 'Away'}</span>
                         <span className="capitalize">{game.game_type}</span>
                         <span className="capitalize">{game.status.replace('_', ' ')}</span>
-                        {game.our_score !== null && game.opponent_score !== null && (
+                        {game.our_score !== null && game.our_score !== undefined && 
+                         game.opponent_score !== null && game.opponent_score !== undefined && (
                           <span className="font-semibold">
                             {game.our_score} - {game.opponent_score}
                           </span>

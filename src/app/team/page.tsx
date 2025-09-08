@@ -57,19 +57,22 @@ export default function TeamPage() {
   // Calculate team statistics
   const completedGames = schedule.filter(game => game.status === 'completed');
   const wins = completedGames.filter(game => 
-    (game.our_score !== null && game.opponent_score !== null) &&
+    (game.our_score !== null && game.our_score !== undefined && 
+     game.opponent_score !== null && game.opponent_score !== undefined) &&
     game.our_score > game.opponent_score
   ).length;
   const losses = completedGames.filter(game => 
-    (game.our_score !== null && game.opponent_score !== null) &&
+    (game.our_score !== null && game.our_score !== undefined && 
+     game.opponent_score !== null && game.opponent_score !== undefined) &&
     game.our_score < game.opponent_score
   ).length;
   const draws = completedGames.filter(game => 
-    (game.our_score !== null && game.opponent_score !== null) &&
+    (game.our_score !== null && game.our_score !== undefined && 
+     game.opponent_score !== null && game.opponent_score !== undefined) &&
     game.our_score === game.opponent_score
   ).length;
-  const totalGoalsFor = completedGames.reduce((sum, game) => sum + (game.our_score || 0), 0);
-  const totalGoalsAgainst = completedGames.reduce((sum, game) => sum + (game.opponent_score || 0), 0);
+  const totalGoalsFor = completedGames.reduce((sum, game) => sum + (game.our_score ?? 0), 0);
+  const totalGoalsAgainst = completedGames.reduce((sum, game) => sum + (game.opponent_score ?? 0), 0);
 
   if (loading) {
     return (
@@ -269,7 +272,9 @@ export default function TeamPage() {
                           </div>
                         </div>
                         
-                        {game.status === 'completed' && game.our_score !== null && game.opponent_score !== null && (
+                        {game.status === 'completed' && 
+                         game.our_score !== null && game.our_score !== undefined && 
+                         game.opponent_score !== null && game.opponent_score !== undefined && (
                           <div className="mt-4 md:mt-0 text-center">
                             <div className="text-2xl font-bold">
                               <span className={game.our_score > game.opponent_score ? 'text-green-600' : 'text-red-600'}>
