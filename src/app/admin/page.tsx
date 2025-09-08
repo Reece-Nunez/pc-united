@@ -45,6 +45,7 @@ interface EditPlayerForm extends Omit<AdminPlayer, 'strengths' | 'areas_to_impro
     saves?: number;
     clean_sheets?: number;
   };
+  [key: string]: any;
 }
 export default function AdminPage() {
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
