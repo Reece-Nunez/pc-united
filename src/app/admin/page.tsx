@@ -216,7 +216,7 @@ export default function AdminPage() {
         name: newPlayerForm.name,
         jersey_number: parseInt(newPlayerForm.jersey_number as string),
         position: newPlayerForm.position,
-        birth_year: parseInt(newPlayerForm.birth_year as string),
+        birth_year: newPlayerForm.birth_year,
         photo_url: newPlayerForm.photo_url,
         description: newPlayerForm.description,
         strengths: newPlayerForm.strengths ? newPlayerForm.strengths.split(',').map(s => s.trim()).filter(s => s) : null,
