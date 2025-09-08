@@ -351,7 +351,7 @@ export default function AdminPage() {
               </Link>
               <Link
                 href="/admin/team"
-                className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer inline-block"
+                className="bg-green-600 mb-3 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer inline-block"
               >
                 Manage Team Content
               </Link>
