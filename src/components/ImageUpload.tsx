@@ -86,7 +86,7 @@ export default function ImageUpload({
           <img 
             src={previewUrl} 
             alt="Preview" 
-            className="w-full h-48 object-cover rounded-lg border border-gray-300"
+            className="w-full h-32 sm:h-40 md:h-48 object-cover rounded-lg border border-gray-300"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.src = '/logo.png'; // Fallback image
@@ -95,7 +95,7 @@ export default function ImageUpload({
           <button
             type="button"
             onClick={clearImage}
-            className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700"
+            className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 md:w-8 md:h-8 flex items-center justify-center text-xs md:text-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             ×
           </button>
@@ -103,9 +103,9 @@ export default function ImageUpload({
       )}
 
       {/* Upload Options */}
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 md:p-6">
         <div className="text-center">
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {/* File Upload */}
             <div>
               <input
@@ -120,27 +120,27 @@ export default function ImageUpload({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {isUploading ? 'Uploading...' : 'Upload Image'}
               </button>
             </div>
 
-            <div className="text-gray-500">or</div>
+            <div className="text-gray-500 text-sm">or</div>
 
             {/* URL Input */}
             <div>
               <input
                 type="url"
                 placeholder="Enter image URL"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
                 onChange={(e) => handleUrlInput(e.target.value)}
                 defaultValue={currentImageUrl && !previewUrl ? currentImageUrl : ''}
               />
             </div>
 
             {!previewUrl && (
-              <p className="text-sm text-gray-500">
+              <p className="text-xs md:text-sm text-gray-500">
                 {placeholder}
               </p>
             )}
@@ -149,8 +149,8 @@ export default function ImageUpload({
       </div>
 
       <p className="text-xs text-gray-500">
-        Supported formats: JPG, PNG, GIF, WebP. Max size: 5MB. 
-        For best results, use images with a 16:9 aspect ratio (e.g., 1600×900px).
+        Supported formats: JPG, PNG, GIF, WebP. Max size: 5MB.<br className="sm:hidden" />
+        <span className="hidden sm:inline"> For best results, use images with a 16:9 aspect ratio (e.g., 1600×900px).</span>
       </p>
     </div>
   );
