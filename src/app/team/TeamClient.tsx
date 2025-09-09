@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from "next/image";
+import Script from "next/script";
 import {
   getNews,
   getEvents,
@@ -28,6 +29,140 @@ export default function TeamClient() {
     const dateStr = utcDateString.replace(/[+-]\d{2}:?\d{0,2}$|Z$/g, '');
     return new Date(dateStr);
   };
+
+  // Initialize GameChanger widget when script loads
+  const initializeGameChangerWidget = () => {
+    console.log('GameChanger script loaded, window.GC available:', !!(window as any).GC);
+    
+    if (typeof window !== 'undefined' && (window as any).GC) {
+      console.log('GameChanger object found, available methods:', Object.keys((window as any).GC));
+      
+      const targetElement = document.getElementById('gc-schedule-widget-y5h5');
+      console.log('Target element found:', !!targetElement);
+      
+      if (targetElement) {
+        try {
+          // Clear any existing content first
+          targetElement.innerHTML = '<div class="text-center text-gray-500 p-4">Loading GameChanger schedule...</div>';
+          
+          // Try different initialization approaches
+          const widgetConfigs = [
+            {
+              target: "#gc-schedule-widget-y5h5",
+              widgetId: "61f71200-adeb-4695-a7ea-a5f8a21138e1",
+              maxVerticalGamesVisible: 4,
+            },
+            {
+              target: "#gc-schedule-widget-y5h5",
+              widgetId: "61f71200-adeb-4695-a7ea-a5f8a21138e1",
+              maxGamesVisible: 4,
+            },
+            {
+              target: "#gc-schedule-widget-y5h5",
+              widgetId: "61f71200-adeb-4695-a7ea-a5f8a21138e1",
+              limit: 4,
+            }
+          ];
+          
+          // Try the first config
+          let widgetConfig = widgetConfigs[0];
+          console.log('Initializing widget with config:', widgetConfig);
+          
+          try {
+            (window as any).GC.team.schedule.init(widgetConfig);
+          } catch (initError) {
+            console.log('First config failed, trying alternative configs...', initError);
+            
+            // Try alternative configs
+            for (let i = 1; i < widgetConfigs.length; i++) {
+              try {
+                widgetConfig = widgetConfigs[i];
+                console.log('Trying config', i + 1, ':', widgetConfig);
+                (window as any).GC.team.schedule.init(widgetConfig);
+                break;
+              } catch (altError) {
+                console.log(`Config ${i + 1} also failed:`, altError);
+              }
+            }
+          }
+          
+          console.log('GameChanger widget initialized successfully');
+          
+          // Check if widget loaded successfully after delays
+          setTimeout(() => {
+            console.log('Checking widget content after 2 seconds...');
+            console.log('Target element innerHTML length:', targetElement.innerHTML.length);
+            console.log('Target element children count:', targetElement.children.length);
+            
+            // Look for any content that suggests the widget loaded
+            const hasRealContent = targetElement.innerHTML.length > 200 && 
+                                 !targetElement.innerHTML.includes('Loading GameChanger schedule');
+            
+            if (!hasRealContent) {
+              console.log('Widget still appears empty after 2 seconds, waiting longer...');
+              
+              setTimeout(() => {
+                console.log('Final check after 5 seconds...');
+                console.log('Target element innerHTML length:', targetElement.innerHTML.length);
+                console.log('Target element current content:', targetElement.innerHTML.substring(0, 100) + '...');
+                
+                const stillEmpty = targetElement.innerHTML.length < 200 || 
+                                 targetElement.innerHTML.includes('Loading GameChanger schedule');
+                
+                if (stillEmpty) {
+                  console.log('Widget failed to load, showing fallback message');
+                  targetElement.style.display = 'none';
+                  const fallbackElement = document.getElementById('gc-fallback-message');
+                  if (fallbackElement) {
+                    fallbackElement.classList.remove('hidden');
+                  }
+                } else {
+                  console.log('Widget loaded successfully - removing loading styling');
+                  // Remove the dashed border since content loaded
+                  targetElement.style.border = 'none';
+                  targetElement.style.minHeight = 'auto';
+                }
+              }, 3000);
+            } else {
+              console.log('Widget loaded successfully - removing loading styling');
+              // Remove the dashed border since content loaded
+              targetElement.style.border = 'none';
+              targetElement.style.minHeight = 'auto';
+            }
+          }, 2000);
+          
+        } catch (error) {
+          console.error('Error initializing GameChanger widget:', error);
+          // Show error in the widget area
+          if (targetElement) {
+            targetElement.innerHTML = `
+              <div class="text-center text-red-500 p-4">
+                <p>Error loading GameChanger widget</p>
+                <p class="text-xs mt-2">Check console for details</p>
+              </div>
+            `;
+          }
+        }
+      }
+    } else {
+      console.log('GameChanger object not found, retrying in 1 second...');
+      setTimeout(initializeGameChangerWidget, 1000);
+    }
+  };
+
+  // Also try to initialize when the schedule tab becomes active
+  useEffect(() => {
+    if (activeTab === 'schedule') {
+      // Small delay to ensure the DOM element exists
+      setTimeout(() => {
+        const widgetElement = document.getElementById('gc-schedule-widget-y5h5');
+        if (widgetElement && (window as any).GC) {
+          console.log('Schedule tab active, re-initializing widget...');
+          initializeGameChangerWidget();
+        }
+      }, 500);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     async function fetchTeamData() {
@@ -226,12 +361,46 @@ export default function TeamClient() {
           {activeTab === 'schedule' && (
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12 text-center">Game Schedule & Results</h2>
+              
+              {/* GameChanger Widget */}
+              <div className="mb-8 md:mb-12 bg-gray-50 rounded-lg p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                  <h3 className="text-lg md:text-xl font-semibold text-team-blue">Official Schedule</h3>
+                  <a 
+                    href="https://web.gc.com/teams/8Wt5HEmIzGY6?utm_source=Web&utm_campaign=team_share_link" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="bg-team-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base font-medium"
+                  >
+                    View on GameChanger →
+                  </a>
+                </div>
+                <div id="gc-schedule-widget-y5h5" style={{minHeight: '300px', border: '2px dashed #d1d5db', borderRadius: '4px'}}>
+                  <div className="text-center text-gray-500 p-4">
+                    <p>Loading GameChanger schedule...</p>
+                    <p className="text-xs mt-2">If this doesn't load, please check the browser console for errors</p>
+                  </div>
+                </div>
+                
+                {/* Fallback message if widget doesn't load */}
+                <div className="mt-4 hidden" id="gc-fallback-message">
+                  <div className="text-center text-gray-500 p-4 bg-gray-50 rounded border">
+                    <p>GameChanger widget is not displaying properly.</p>
+                    <p className="text-sm mt-2">Please use the "View on GameChanger" button above to see the full schedule.</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-4">
+                  Schedule powered by GameChanger. Click "View on GameChanger" for live scores, stats, and detailed game information.
+                </p>
+              </div>
+              
               {schedule.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="text-gray-500">No games scheduled yet.</div>
+                  <div className="text-gray-500">No additional games found in our database.</div>
                 </div>
               ) : (
                 <div className="space-y-4">
+                  <h3 className="text-lg md:text-xl font-semibold text-team-blue mb-4">Additional Schedule Information</h3>
                   {schedule.map((game) => (
                     <div key={game.id} className="bg-gray-50 rounded-lg p-4 md:p-6 shadow-lg">
                       <div className="flex flex-col md:flex-row md:items-center justify-between">
@@ -356,6 +525,13 @@ export default function TeamClient() {
           )}
         </div>
       </section>
+      
+      {/* GameChanger Widget Script */}
+      <Script 
+        src="https://widgets.gc.com/static/js/sdk.v1.js"
+        strategy="afterInteractive"
+        onLoad={initializeGameChangerWidget}
+      />
     </>
   );
 }
