@@ -50,6 +50,17 @@ export default function TeamAdminPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('news');
   const [loading, setLoading] = useState(false);
 
+  // Helper function to convert UTC date to local datetime-local format
+  const toLocalDateTimeString = (utcDateString: string): string => {
+    if (!utcDateString) return '';
+    const date = new Date(utcDateString);
+    // Get timezone offset in minutes and convert to milliseconds
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+    // Adjust for timezone and format as YYYY-MM-DDTHH:MM
+    const localDate = new Date(date.getTime() - timezoneOffset);
+    return localDate.toISOString().slice(0, 16);
+  };
+
   // Data states
   const [news, setNews] = useState<News[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -330,22 +341,22 @@ export default function TeamAdminPage() {
         setEditingEvent(item);
         setEventForm({ 
           ...item,
-          event_date: item.event_date ? new Date(item.event_date).toISOString().slice(0, 16) : '',
-          end_date: item.end_date ? new Date(item.end_date).toISOString().slice(0, 16) : ''
+          event_date: toLocalDateTimeString(item.event_date || ''),
+          end_date: toLocalDateTimeString(item.end_date || '')
         });
         break;
       case 'schedule':
         setEditingSchedule(item);
         setScheduleForm({ 
           ...item,
-          game_date: item.game_date ? new Date(item.game_date).toISOString().slice(0, 16) : ''
+          game_date: toLocalDateTimeString(item.game_date || '')
         });
         break;
       case 'announcements':
         setEditingAnnouncement(item);
         setAnnouncementForm({ 
           ...item,
-          expires_at: item.expires_at ? new Date(item.expires_at).toISOString().slice(0, 16) : ''
+          expires_at: toLocalDateTimeString(item.expires_at || '')
         });
         break;
     }
@@ -515,7 +526,7 @@ export default function TeamAdminPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Publish Date</label>
                   <input
                     type="datetime-local"
-                    value={newsForm.publish_date ? new Date(newsForm.publish_date).toISOString().slice(0, 16) : ''}
+                    value={toLocalDateTimeString(newsForm.publish_date || '')}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'publish_date', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />

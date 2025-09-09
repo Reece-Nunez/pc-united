@@ -22,6 +22,13 @@ export default function TeamClient() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('news');
 
+  // Helper function to parse UTC date as local time for display
+  const parseAsLocalTime = (utcDateString: string): Date => {
+    // Remove timezone info and treat as local time
+    const dateStr = utcDateString.replace(/[+-]\d{2}:?\d{0,2}$|Z$/g, '');
+    return new Date(dateStr);
+  };
+
   useEffect(() => {
     async function fetchTeamData() {
       try {
@@ -111,7 +118,7 @@ export default function TeamClient() {
                   <p className="text-gray-700 text-sm md:text-base">{announcement.content}</p>
                   <div className="mt-2 flex items-center justify-between text-xs md:text-sm text-gray-500">
                     <span className="capitalize">{announcement.announcement_type}</span>
-                    <span>{new Date(announcement.created_at!).toLocaleDateString()}</span>
+                    <span>{parseAsLocalTime(announcement.created_at!).toLocaleDateString()}</span>
                   </div>
                 </div>
               ))}
@@ -205,7 +212,7 @@ export default function TeamClient() {
                         )}
                         <div className="flex justify-between items-center text-xs md:text-sm text-gray-500">
                           <span>{article.author || 'Team Staff'}</span>
-                          <span>{new Date(article.publish_date!).toLocaleDateString()}</span>
+                          <span>{parseAsLocalTime(article.publish_date!).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
@@ -243,7 +250,7 @@ export default function TeamClient() {
                             </span>
                           </div>
                           <div className="text-gray-600 space-y-1 text-sm md:text-base">
-                            <p><strong>Date:</strong> {new Date(game.game_date).toLocaleDateString()} at {new Date(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p><strong>Date:</strong> {parseAsLocalTime(game.game_date).toLocaleDateString()} at {parseAsLocalTime(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                             <p><strong>Location:</strong> {game.location} {game.home_game ? '🏠' : '✈️'}</p>
                             <p><strong>Type:</strong> {game.game_type.toUpperCase()}</p>
                           </div>
@@ -326,8 +333,8 @@ export default function TeamClient() {
                           <p className="text-gray-600 mb-4 text-sm md:text-base line-clamp-3">{event.description}</p>
                         )}
                         <div className="space-y-2 text-xs md:text-sm text-gray-600">
-                          <p><strong>Date:</strong> {new Date(event.event_date).toLocaleDateString()}</p>
-                          <p><strong>Time:</strong> {new Date(event.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                          <p><strong>Date:</strong> {parseAsLocalTime(event.event_date).toLocaleDateString()}</p>
+                          <p><strong>Time:</strong> {parseAsLocalTime(event.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                           {event.location && <p><strong>Location:</strong> {event.location}</p>}
                           {event.registration_required && (
                             <div className="pt-2">
