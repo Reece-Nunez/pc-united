@@ -49,6 +49,8 @@ export const uploadToS3Direct = async (
       // Handle completion
       xhr.addEventListener('load', () => {
         console.log('📡 Direct upload completed, status:', xhr.status);
+        console.log('📄 Response headers:', xhr.getAllResponseHeaders());
+        console.log('📄 Response text (first 200 chars):', xhr.responseText?.substring(0, 200));
         
         if (xhr.status >= 200 && xhr.status < 300) {
           console.log('✅ Direct S3 upload successful:', publicUrl);
@@ -60,7 +62,8 @@ export const uploadToS3Direct = async (
             url: publicUrl
           });
         } else {
-          console.error('❌ Direct upload failed with status:', xhr.status);
+          console.error('❌ Direct upload failed with status:', xhr.status, xhr.statusText);
+          console.error('❌ Response text:', xhr.responseText);
           resolve({
             success: false,
             error: `Direct upload failed: ${xhr.status} ${xhr.statusText}`
@@ -79,18 +82,25 @@ export const uploadToS3Direct = async (
 
       // Handle timeouts
       xhr.addEventListener('timeout', () => {
-        console.error('❌ Direct upload timeout after 5 minutes');
+        console.error('❌ Direct upload timeout after 10 minutes');
         resolve({
           success: false,
-          error: 'Direct upload timeout after 5 minutes'
+          error: 'Direct upload timeout after 10 minutes - please try a smaller file or check your internet connection'
         });
       });
 
       // Start direct upload to S3
       console.log('📤 Uploading directly to S3...');
+      console.log('🔗 Presigned URL length:', presignedUrl.length);
+      console.log('📁 File type:', file.type);
+      console.log('📏 File size:', file.size, 'bytes');
+      
       xhr.open('PUT', presignedUrl);
-      xhr.timeout = 300000; // 5 minute timeout
+      xhr.timeout = 600000; // Increase to 10 minute timeout for large files
+      // Only set Content-Type - other headers are included in presigned URL
       xhr.setRequestHeader('Content-Type', file.type);
+      
+      console.log('🚀 Starting PUT request...');
       xhr.send(file);
     });
 

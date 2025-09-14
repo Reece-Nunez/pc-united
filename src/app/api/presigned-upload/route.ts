@@ -73,8 +73,10 @@ export async function POST(request: NextRequest) {
       ContentDisposition: 'inline',
     });
 
-    // Generate presigned URL (valid for 10 minutes)
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 600 });
+    // Generate presigned URL (valid for 20 minutes to allow for large uploads)
+    console.log('🔗 Generating presigned URL with 20 minute expiry...');
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 1200 });
+    console.log('🔗 Presigned URL generated successfully, length:', presignedUrl.length);
     
     // Construct the final public URL
     const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1';
