@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-// S3 Client Configuration
+// S3 Client Configuration - Amplify only allows S3_* prefixed variables
 const s3Client = new S3Client({
-  region: process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1',
+  region: process.env.S3_REGION || 'us-east-1',
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || '',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
   },
 });
 
-const BUCKET_NAME = process.env.S3_BUCKET_NAME || process.env.AWS_S3_BUCKET_NAME || 'pc-united';
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'pc-united';
 
 // Generate unique filename
 const generateUniqueFilename = (originalName: string, folder: string): string => {
@@ -31,11 +31,9 @@ export async function POST(request: NextRequest) {
   
   try {
     // Check if S3 is configured
-    const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
-    
-    if (!accessKeyId || !secretAccessKey) {
+    if (!process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
       console.error('❌ S3 credentials not configured - missing S3_ACCESS_KEY_ID or S3_SECRET_ACCESS_KEY');
+      console.log('Available env vars:', Object.keys(process.env).filter(k => k.startsWith('S3_')));
       return NextResponse.json(
         { success: false, error: 'S3 credentials not configured' },
         { status: 500 }
@@ -79,7 +77,7 @@ export async function POST(request: NextRequest) {
     console.log('🔗 Presigned URL generated successfully, length:', presignedUrl.length);
     
     // Construct the final public URL
-    const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1';
+    const region = process.env.S3_REGION || 'us-east-1';
     const publicUrl = `https://${BUCKET_NAME}.s3.${region}.amazonaws.com/${key}`;
 
     console.log(`✅ Generated presigned URL for: ${key}`);

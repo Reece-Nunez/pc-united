@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 
-// S3 Client Configuration
+// S3 Client Configuration - Amplify only allows S3_* prefixed variables
 const s3Client = new S3Client({
-  region: process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1',
+  region: process.env.S3_REGION || 'us-east-1',
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || '',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
   },
 });
 
-const BUCKET_NAME = process.env.S3_BUCKET_NAME || process.env.AWS_S3_BUCKET_NAME || 'pc-united';
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'pc-united';
 
 export async function GET() {
   console.log('🔍 Testing S3 connection...');
   
   try {
-    const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
-    const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1';
+    const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+    const region = process.env.S3_REGION || 'us-east-1';
     
     console.log('📋 Configuration check:');
     console.log('- Access Key ID:', accessKeyId ? `${accessKeyId.substring(0, 8)}...` : 'MISSING');
@@ -34,7 +34,8 @@ export async function GET() {
           hasAccessKey: !!accessKeyId,
           hasSecretKey: !!secretAccessKey,
           region,
-          bucket: BUCKET_NAME
+          bucket: BUCKET_NAME,
+          availableS3Vars: Object.keys(process.env).filter(k => k.startsWith('S3_'))
         }
       }, { status: 500 });
     }
@@ -51,7 +52,7 @@ export async function GET() {
       details: {
         region,
         bucket: BUCKET_NAME,
-        accessKeyPrefix: accessKeyId.substring(0, 8) + '...'
+        accessKeyPrefix: accessKeyId ? accessKeyId.substring(0, 8) + '...' : 'missing'
       }
     });
     
