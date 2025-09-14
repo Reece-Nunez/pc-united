@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",
+    "@aws-sdk/s3-request-presigner": "^3.888.0",
     "@supabase/supabase-js": "^2.57.2",
     "@types/video.js": "^7.3.58",
     "next": "15.5.2",

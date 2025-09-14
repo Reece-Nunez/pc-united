@@ -13,7 +13,7 @@ import {
   deleteHighlight,
   Highlight 
 } from "@/lib/supabase";
-import { uploadToS3, deleteFromS3, isS3Configured } from "@/lib/s3";
+import { uploadToS3, uploadToS3Direct, deleteFromS3, isS3Configured } from "@/lib/s3";
 
 interface HighlightWithPlayer extends Highlight {
   players?: {
@@ -102,9 +102,19 @@ export default function HighlightsAdmin() {
         setUploadingForEdit(true);
         setUploadProgress(0);
         
-        const result = await uploadToS3(editSelectedVideoFile, 'highlights', (progress) => {
+        // Try direct upload first (bypasses platform body size limits)
+        let result = await uploadToS3Direct(editSelectedVideoFile, 'highlights', (progress) => {
           setUploadProgress(progress);
         });
+        
+        // If direct upload fails, try the regular upload method as fallback
+        if (!result.success && editSelectedVideoFile.size < 50 * 1024 * 1024) { // Only try fallback for files < 50MB
+          console.log('🔄 Direct upload failed, trying regular upload as fallback');
+          setUploadProgress(0);
+          result = await uploadToS3(editSelectedVideoFile, 'highlights', (progress) => {
+            setUploadProgress(progress);
+          });
+        }
         
         if (result.success && result.url) {
           videoUrl = result.url;
@@ -159,9 +169,19 @@ export default function HighlightsAdmin() {
         setIsUploading(true);
         setUploadProgress(0);
         
-        const result = await uploadToS3(selectedVideoFile, 'highlights', (progress) => {
+        // Try direct upload first (bypasses platform body size limits)
+        let result = await uploadToS3Direct(selectedVideoFile, 'highlights', (progress) => {
           setUploadProgress(progress);
         });
+        
+        // If direct upload fails, try the regular upload method as fallback
+        if (!result.success && selectedVideoFile.size < 50 * 1024 * 1024) { // Only try fallback for files < 50MB
+          console.log('🔄 Direct upload failed, trying regular upload as fallback');
+          setUploadProgress(0);
+          result = await uploadToS3(selectedVideoFile, 'highlights', (progress) => {
+            setUploadProgress(progress);
+          });
+        }
         
         if (result.success && result.url) {
           videoUrl = result.url;

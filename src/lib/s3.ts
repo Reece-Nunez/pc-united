@@ -1,7 +1,109 @@
 // Upload types
 export type UploadFolder = 'highlights' | 'profile-pics' | 'team-images';
 
-// Upload file to S3 via API route with real progress tracking
+// Upload file to S3 using presigned URLs (bypasses platform body size limits)
+export const uploadToS3Direct = async (
+  file: File,
+  folder: UploadFolder,
+  onProgress?: (progress: number) => void
+): Promise<{ success: boolean; url?: string; error?: string }> => {
+  console.log('🚀 Starting direct S3 upload:', file.name, file.size, 'bytes');
+  
+  try {
+    // Step 1: Get presigned URL from our API
+    console.log('📝 Requesting presigned URL...');
+    const presignedResponse = await fetch('/api/presigned-upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        folder,
+      }),
+    });
+
+    if (!presignedResponse.ok) {
+      const error = await presignedResponse.json();
+      throw new Error(error.error || 'Failed to get presigned URL');
+    }
+
+    const { presignedUrl, publicUrl } = await presignedResponse.json();
+    console.log('✅ Got presigned URL');
+
+    // Step 2: Upload directly to S3 using presigned URL
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          console.log('📊 Upload progress:', percentComplete + '%');
+          onProgress(percentComplete);
+        }
+      });
+
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        console.log('📡 Direct upload completed, status:', xhr.status);
+        
+        if (xhr.status >= 200 && xhr.status < 300) {
+          console.log('✅ Direct S3 upload successful:', publicUrl);
+          if (onProgress) {
+            onProgress(100);
+          }
+          resolve({
+            success: true,
+            url: publicUrl
+          });
+        } else {
+          console.error('❌ Direct upload failed with status:', xhr.status);
+          resolve({
+            success: false,
+            error: `Direct upload failed: ${xhr.status} ${xhr.statusText}`
+          });
+        }
+      });
+
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        console.error('❌ Direct upload error occurred');
+        resolve({
+          success: false,
+          error: 'Network error during direct upload'
+        });
+      });
+
+      // Handle timeouts
+      xhr.addEventListener('timeout', () => {
+        console.error('❌ Direct upload timeout after 5 minutes');
+        resolve({
+          success: false,
+          error: 'Direct upload timeout after 5 minutes'
+        });
+      });
+
+      // Start direct upload to S3
+      console.log('📤 Uploading directly to S3...');
+      xhr.open('PUT', presignedUrl);
+      xhr.timeout = 300000; // 5 minute timeout
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.send(file);
+    });
+
+  } catch (error: any) {
+    console.error('❌ Direct upload setup error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to setup direct upload'
+    };
+  }
+};
+
+// Upload file to S3 via API route with real progress tracking (fallback method)
 export const uploadToS3 = async (
   file: File,
   folder: UploadFolder,

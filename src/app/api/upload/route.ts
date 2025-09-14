@@ -27,6 +27,7 @@ export const runtime = 'nodejs';
 // POST - Upload file to S3
 export async function POST(request: NextRequest) {
   console.log('🚀 S3 Upload API called');
+  console.log('📊 Request headers:', Object.fromEntries(request.headers.entries()));
   
   try {
     // Check if S3 is configured
