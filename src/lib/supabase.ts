@@ -150,7 +150,7 @@ export async function getPlayers() {
     .select(`
       *,
       player_stats (*),
-      highlights (id, title, highlight_date, type)
+      highlights (id, title, highlight_date, type, video_url)
     `)
     .order('jersey_number', { ascending: true });
     
@@ -170,7 +170,7 @@ export async function getPlayer(id: number) {
     .select(`
       *,
       player_stats (*),
-      highlights (id, title, highlight_date, type)
+      highlights (id, title, highlight_date, type, video_url)
     `)
     .eq('id', id)
     .single();

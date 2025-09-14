@@ -8,7 +8,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="bg-team-blue shadow-lg">
+    <nav className="bg-team-blue shadow-lg relative z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -35,6 +35,9 @@ export default function Header() {
             </Link>
             <Link href="/players" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
               Players
+            </Link>
+            <Link href="/coaches" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
+              Coaches
             </Link>
             <Link href="/team" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
               Team
@@ -72,6 +75,9 @@ export default function Header() {
               </Link>
               <Link href="/players" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
                 Players
+              </Link>
+              <Link href="/coaches" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
+                Coaches
               </Link>
               <Link href="/team" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
                 Team

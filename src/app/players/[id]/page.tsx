@@ -23,6 +23,7 @@ interface PlayerWithDetails extends Player {
     title: string;
     highlight_date: string;
     type: string;
+    video_url?: string;
   }>;
 }
 export default function PlayerProfile() {
@@ -31,6 +32,7 @@ export default function PlayerProfile() {
   const [player, setPlayer] = useState<PlayerWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [videoPreviews, setVideoPreviews] = useState<{[key: number]: string}>({});
 
   useEffect(() => {
     async function fetchPlayer() {
@@ -196,13 +198,29 @@ export default function PlayerProfile() {
           <h2 className="text-3xl font-bold text-team-blue mb-12 text-center">Game Highlights</h2>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {player.highlights && player.highlights.length > 0 ? player.highlights.map((highlight) => (
+            {player.highlights && player.highlights.length > 0 ? player.highlights.map((highlight) => {
+              console.log('🔍 Rendering highlight:', highlight.id, 'Video URL:', highlight.video_url);
+              return (
               <div key={highlight.id} className="bg-gray-50 rounded-lg p-6 shadow-lg">
-                <div className="aspect-video bg-gray-300 rounded-lg mb-4 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">🎥</div>
-                    <div className="text-gray-600">Video Highlight</div>
-                  </div>
+                <div className="aspect-video bg-gray-300 rounded-lg mb-4 overflow-hidden">
+                  {highlight.video_url ? (
+                    <video 
+                      src={highlight.video_url}
+                      className="w-full h-full rounded object-cover"
+                      controls
+                      preload="metadata"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">🎥</div>
+                        <div className="text-gray-600">Video Highlight</div>
+                        <div className="text-xs text-gray-500 mt-1">No video uploaded</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <h3 className="text-lg font-bold text-team-blue mb-2">{highlight.title}</h3>
                 <div className="flex justify-between items-center text-sm text-gray-600">
@@ -212,7 +230,8 @@ export default function PlayerProfile() {
                   </span>
                 </div>
               </div>
-            )) : (
+            );
+            }) : (
               <div className="col-span-full text-center py-12">
                 <div className="text-gray-500">No highlights available yet.</div>
               </div>

@@ -11,7 +11,10 @@
       "Bash(git cherry-pick:*)",
       "Read(//c/Users/reece/Downloads/**)",
       "Bash(npm run build:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

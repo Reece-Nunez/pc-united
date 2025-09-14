@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
-import { getPlayers, Player } from "@/lib/supabase";
+import { getPlayers, getSchedule, Player, Schedule } from "@/lib/supabase";
 
 interface PlayerWithStats extends Player {
   player_stats?: Array<{
@@ -20,27 +20,38 @@ interface PlayerWithStats extends Player {
 
 export default function PlayersClient() {
   const [players, setPlayers] = useState<PlayerWithStats[]>([]);
+  const [schedule, setSchedule] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<string>('All');
 
   useEffect(() => {
-    async function fetchPlayers() {
+    async function fetchData() {
       try {
-        const { data, error } = await getPlayers();
-        if (error) {
-          setError(error.message);
-        } else if (data) {
-          setPlayers(data);
+        const [playersResult, scheduleResult] = await Promise.all([
+          getPlayers(),
+          getSchedule()
+        ]);
+
+        if (playersResult.error) {
+          setError(playersResult.error.message);
+        } else if (playersResult.data) {
+          setPlayers(playersResult.data);
+        }
+
+        if (scheduleResult.error) {
+          console.error('Error fetching schedule:', scheduleResult.error);
+        } else if (scheduleResult.data) {
+          setSchedule(scheduleResult.data);
         }
       } catch (err) {
-        setError('Failed to fetch players');
+        setError('Failed to fetch data');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchPlayers();
+    fetchData();
   }, []);
 
   if (loading) {
@@ -70,6 +81,9 @@ export default function PlayersClient() {
     ? players 
     : players.filter(player => player.position === selectedPosition);
 
+  // Calculate actual completed games from schedule
+  const completedGames = schedule.filter(game => game.status === 'completed').length;
+
   return (
     <>
       {/* Team Stats Overview */}
@@ -94,7 +108,7 @@ export default function PlayersClient() {
             </div>
             <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
               <div className="text-2xl md:text-3xl font-bold text-team-blue mb-2">
-                {players.reduce((sum, player) => sum + (player.player_stats?.[0]?.games_played || 0), 0)}
+                {completedGames}
               </div>
               <div className="text-sm md:text-base text-gray-600">Games Played</div>
             </div>

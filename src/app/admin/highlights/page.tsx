@@ -13,6 +13,7 @@ import {
   deleteHighlight,
   Highlight 
 } from "@/lib/supabase";
+import { uploadToS3, deleteFromS3, isS3Configured } from "@/lib/s3";
 
 interface HighlightWithPlayer extends Highlight {
   players?: {
@@ -34,11 +35,30 @@ export default function HighlightsAdmin() {
     type: 'goal' as const,
     video_url: null as string | null
   });
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadingForEdit, setUploadingForEdit] = useState<boolean>(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [editSelectedVideoFile, setEditSelectedVideoFile] = useState<File | null>(null);
 
   // Fetch data on component mount
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Cleanup object URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      if (editPreviewUrl) {
+        URL.revokeObjectURL(editPreviewUrl);
+      }
+    };
+  }, [previewUrl, editPreviewUrl]);
 
   async function fetchData() {
     try {
@@ -75,9 +95,28 @@ export default function HighlightsAdmin() {
     if (!editingHighlight) return;
     
     try {
+      let videoUrl = editForm.video_url;
+      
+      // Upload to S3 if we have a selected video file
+      if (editSelectedVideoFile && isS3Configured()) {
+        setUploadingForEdit(true);
+        setUploadProgress(0);
+        
+        const result = await uploadToS3(editSelectedVideoFile, 'highlights', (progress) => {
+          setUploadProgress(progress);
+        });
+        
+        if (result.success && result.url) {
+          videoUrl = result.url;
+          toast.success('Video uploaded to S3 successfully!');
+        } else {
+          throw new Error(result.error || 'S3 upload failed');
+        }
+      }
+      
       const updateData = {
         ...editForm,
-        video_url: editForm.video_url || undefined
+        video_url: videoUrl || undefined
       };
       const { error } = await updateHighlight(editingHighlight, updateData);
       if (error) throw error;
@@ -85,25 +124,59 @@ export default function HighlightsAdmin() {
       await fetchData();
       setEditingHighlight(null);
       setEditForm({});
+      // Clean up preview URL and file
+      if (editPreviewUrl) {
+        URL.revokeObjectURL(editPreviewUrl);
+        setEditPreviewUrl(null);
+      }
+      setEditSelectedVideoFile(null);
       toast.success('Highlight updated successfully!');
     } catch (err: any) {
       toast.error('Error updating highlight: ' + err.message);
+    } finally {
+      setUploadingForEdit(false);
+      setUploadProgress(0);
     }
   };
 
   const handleCancel = () => {
     setEditingHighlight(null);
     setEditForm({});
+    // Clean up edit preview URL and file
+    if (editPreviewUrl) {
+      URL.revokeObjectURL(editPreviewUrl);
+      setEditPreviewUrl(null);
+    }
+    setEditSelectedVideoFile(null);
   };
 
   const handleAddHighlight = async () => {
     try {
+      let videoUrl = newHighlightForm.video_url;
+      
+      // Upload to S3 if we have a selected video file
+      if (selectedVideoFile && isS3Configured()) {
+        setIsUploading(true);
+        setUploadProgress(0);
+        
+        const result = await uploadToS3(selectedVideoFile, 'highlights', (progress) => {
+          setUploadProgress(progress);
+        });
+        
+        if (result.success && result.url) {
+          videoUrl = result.url;
+          toast.success('Video uploaded to S3 successfully!');
+        } else {
+          throw new Error(result.error || 'S3 upload failed');
+        }
+      }
+      
       const highlightData = {
         player_id: parseInt(newHighlightForm.player_id),
         title: newHighlightForm.title,
         highlight_date: newHighlightForm.highlight_date,
         type: newHighlightForm.type,
-        video_url: newHighlightForm.video_url || undefined
+        video_url: videoUrl || undefined
       };
       
       const { error } = await createHighlight(highlightData);
@@ -117,18 +190,39 @@ export default function HighlightsAdmin() {
         type: 'goal',
         video_url: null
       });
+      // Clean up preview URL and file
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+      setSelectedVideoFile(null);
       setShowAddForm(false);
       toast.success('Highlight added successfully!');
     } catch (err: any) {
       toast.error('Error adding highlight: ' + err.message);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const handleDeleteHighlight = async (highlightId: number) => {
     if (confirm('Are you sure you want to delete this highlight?')) {
       try {
+        // Find the highlight to delete
+        const highlightToDelete = highlights.find(h => h.id === highlightId);
+        
+        // Delete from database first
         const { error } = await deleteHighlight(highlightId);
         if (error) throw error;
+        
+        // If there's a video URL, try to delete from S3
+        if (highlightToDelete?.video_url && highlightToDelete.video_url.includes('s3.')) {
+          const deleteResult = await deleteFromS3(highlightToDelete.video_url);
+          if (!deleteResult.success) {
+            console.warn('Failed to delete video from S3:', deleteResult.error);
+          }
+        }
         
         await fetchData();
         toast.success('Highlight deleted successfully!');
@@ -138,20 +232,80 @@ export default function HighlightsAdmin() {
     }
   };
 
-  const handleVideoUpload = (file: File, isNewHighlight = false) => {
-    if (file && file.type.startsWith('video/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const videoUrl = e.target?.result as string;
-        if (isNewHighlight) {
-          setNewHighlightForm(prev => ({ ...prev, video_url: videoUrl }));
-        } else {
-          setEditForm(prev => ({ ...prev, video_url: videoUrl }));
+  const validateVideo = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      const objectUrl = URL.createObjectURL(file);
+      
+      video.onloadedmetadata = () => {
+        console.log('✅ Video validation successful:', {
+          duration: video.duration,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight
+        });
+        
+        // Check if video has actual video track (not just audio)
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          console.warn('⚠️ Video dimensions show 0x0 - this may be a browser rendering issue, not an invalid file');
+          // Don't block upload for now - let user proceed
+          // URL.revokeObjectURL(objectUrl);
+          // resolve(false);
+          // return;
         }
+        
+        URL.revokeObjectURL(objectUrl);
+        resolve(true);
       };
-      reader.readAsDataURL(file);
-    } else {
+      
+      video.onerror = (e) => {
+        console.error('❌ Video validation failed:', e);
+        URL.revokeObjectURL(objectUrl);
+        resolve(false);
+      };
+      
+      video.src = objectUrl;
+    });
+  };
+
+  const handleVideoSelect = async (file: File, isNewHighlight = false) => {
+    if (!file || !file.type.startsWith('video/')) {
       toast.error('Please select a valid video file.');
+      return;
+    }
+
+    console.log('🎬 Starting video processing:', file.name, file.size, 'bytes', file.type);
+
+    // Validate video file
+    const isValidVideo = await validateVideo(file);
+    if (!isValidVideo) {
+      toast.error('This video file has no video track (audio-only) or is corrupted. Please select a proper video file with both video and audio.');
+      return;
+    }
+
+    // Create immediate preview with object URL
+    const objectUrl = URL.createObjectURL(file);
+    console.log('📹 Created object URL:', objectUrl, 'for file:', file.name, file.type);
+    
+    if (isNewHighlight) {
+      // Clean up previous preview URL and file
+      if (previewUrl) {
+        console.log('🗑️ Cleaning up previous preview URL');
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(objectUrl);
+      setSelectedVideoFile(file);
+      console.log('✅ Set new preview URL and file for new highlight');
+      toast.success('Video selected! It will be uploaded when you click "Add Highlight"');
+    } else {
+      // Clean up previous preview URL and file
+      if (editPreviewUrl) {
+        console.log('🗑️ Cleaning up previous edit preview URL');
+        URL.revokeObjectURL(editPreviewUrl);
+      }
+      setEditPreviewUrl(objectUrl);
+      setEditSelectedVideoFile(file);
+      console.log('✅ Set new preview URL and file for edit');
+      toast.success('Video selected! It will be uploaded when you save changes');
     }
   };
 
@@ -224,7 +378,7 @@ export default function HighlightsAdmin() {
 
       {/* Add New Highlight Form */}
       {showAddForm && (
-        <section className="py-8 bg-gray-50">
+        <section className="py-8 bg-gray-50 relative z-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="bg-white rounded-lg p-8 shadow-lg">
               <h2 className="text-2xl font-bold text-team-blue mb-6">Add New Highlight</h2>
@@ -288,40 +442,93 @@ export default function HighlightsAdmin() {
                     <input
                       type="file"
                       accept="video/*"
-                      onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0], true)}
+                      onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0], true)}
                       className="w-full p-2 border border-gray-300 rounded"
+                      disabled={false}
                     />
                     <p className="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI (max 100MB)</p>
+                    
+                    {selectedVideoFile && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded">
+                        <div className="text-sm text-blue-700">
+                          📁 Selected: {selectedVideoFile.name}
+                        </div>
+                        <div className="text-xs text-blue-600">
+                          Will upload to S3 when you click "Add Highlight"
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
-                  {newHighlightForm.video_url && (
-                    <div>
+                  {(previewUrl || newHighlightForm.video_url) && (
+                    <div className="relative z-10">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Video Preview</label>
                       <video
-                        src={newHighlightForm.video_url}
+                        src={previewUrl || newHighlightForm.video_url || ''}
+                        className="w-full h-40 rounded border"
                         controls
-                        className="w-full h-40 bg-gray-200 rounded border"
+                        muted
+                        preload="metadata"
                       >
                         Your browser does not support the video tag.
                       </video>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Source: {previewUrl ? 'Local preview' : newHighlightForm.video_url ? 'S3 URL' : 'No source'}
+                      </div>
+                      <div className="text-xs text-blue-500 mt-1">
+                        URL: {previewUrl || newHighlightForm.video_url || 'None'}
+                      </div>
+                      {previewUrl && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          ⏳ Preview (video will be uploaded to S3 when you save)
+                        </p>
+                      )}
+                      {newHighlightForm.video_url && !previewUrl && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✅ Uploaded to S3
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Progress indicator for new highlight */}
+              {isUploading && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>
+                      {uploadProgress < 100 ? 'Uploading to S3...' : 'Upload Complete! Creating highlight...'}
+                    </span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-team-red h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end space-x-4">
                 <button
                   onClick={() => setShowAddForm(false)}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 cursor-pointer"
+                  disabled={isUploading}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddHighlight}
-                  className="px-6 py-2 bg-team-red text-white rounded hover:bg-red-700 cursor-pointer"
-                  disabled={!newHighlightForm.player_id || !newHighlightForm.title}
+                  className={`px-6 py-2 text-white rounded transition-colors ${
+                    isUploading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-team-red hover:bg-red-700 cursor-pointer'
+                  }`}
+                  disabled={!newHighlightForm.player_id || !newHighlightForm.title || isUploading}
                 >
-                  Add Highlight
+                  {isUploading ? 'Creating Highlight...' : 'Add Highlight'}
                 </button>
               </div>
             </div>
@@ -344,17 +551,43 @@ export default function HighlightsAdmin() {
                         <button
                           onClick={handleSave}
                           className="bg-team-red text-white px-4 py-2 rounded hover:bg-red-700 cursor-pointer"
+                          disabled={uploadingForEdit}
                         >
-                          Save Changes
+                          {uploadingForEdit ? 'Uploading...' : 'Save Changes'}
                         </button>
                         <button
                           onClick={handleCancel}
                           className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 cursor-pointer"
+                          disabled={uploadingForEdit}
                         >
                           Cancel
                         </button>
                       </div>
                     </div>
+                    
+                    {uploadingForEdit && (
+                      <div className="mb-4">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>
+                            {uploadProgress < 100 ? 'Uploading to S3...' : 'Upload Complete!'}
+                          </span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              uploadProgress === 100 ? 'bg-green-500' : 'bg-team-blue'
+                            }`}
+                            style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                        {uploadProgress === 100 && (
+                          <div className="text-xs text-green-600 mt-1">
+                            ✅ Successfully uploaded to S3
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-4">
@@ -411,21 +644,48 @@ export default function HighlightsAdmin() {
                           <input
                             type="file"
                             accept="video/*"
-                            onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0], false)}
+                            onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0], false)}
                             className="w-full p-2 border border-gray-300 rounded"
+                            disabled={false}
                           />
+                          
+                          {editSelectedVideoFile && (
+                            <div className="mt-2 p-2 bg-blue-50 rounded">
+                              <div className="text-sm text-blue-700">
+                                📁 Selected: {editSelectedVideoFile.name}
+                              </div>
+                              <div className="text-xs text-blue-600">
+                                Will upload to S3 when you save changes
+                              </div>
+                            </div>
+                          )}
                         </div>
                         
-                        {editForm.video_url && (
-                          <div>
+                        {(editPreviewUrl || editForm.video_url) && (
+                          <div className="relative z-10">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Current Video</label>
                             <video
-                              src={editForm.video_url}
+                              src={editPreviewUrl || editForm.video_url || ''}
+                              className="w-full h-40 rounded border"
                               controls
-                              className="w-full h-40 bg-gray-200 rounded border"
+                              muted
+                              preload="metadata"
                             >
                               Your browser does not support the video tag.
                             </video>
+                            <div className="text-xs text-blue-500 mt-1">
+                              URL: {editPreviewUrl || editForm.video_url || 'None'}
+                            </div>
+                            {editPreviewUrl && (
+                              <p className="text-xs text-orange-600 mt-1">
+                                ⏳ Preview (video will be uploaded to S3 when you save)
+                              </p>
+                            )}
+                            {editForm.video_url && !editPreviewUrl && (
+                              <p className="text-xs text-green-600 mt-1">
+                                ✅ Stored in S3
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

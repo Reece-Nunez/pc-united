@@ -8,11 +8,15 @@
     "start": "next start"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
     "@supabase/supabase-js": "^2.57.2",
+    "@types/video.js": "^7.3.58",
     "next": "15.5.2",
+    "next-video": "^2.3.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-hot-toast": "^2.6.0"
+    "react-hot-toast": "^2.6.0",
+    "video.js": "^8.23.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
