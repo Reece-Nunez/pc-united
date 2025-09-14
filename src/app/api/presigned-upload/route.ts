@@ -28,6 +28,7 @@ export const runtime = 'nodejs';
 // POST - Generate presigned URL for direct S3 upload
 export async function POST(request: NextRequest) {
   console.log('🚀 Presigned URL API called');
+  console.log('🔍 Full process.env dump (sanitized):', Object.keys(process.env));
   
   try {
     // Check if S3 is configured

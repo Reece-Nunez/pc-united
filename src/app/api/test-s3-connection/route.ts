@@ -14,6 +14,7 @@ const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'pc-united';
 
 export async function GET() {
   console.log('🔍 Testing S3 connection...');
+  console.log('🔍 Full process.env dump (sanitized):', Object.keys(process.env));
   
   try {
     const accessKeyId = process.env.S3_ACCESS_KEY_ID;
