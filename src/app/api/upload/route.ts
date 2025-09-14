@@ -3,14 +3,14 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 
 // S3 Client Configuration (server-side only)
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || '',
   },
 });
 
-const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || 'pc-united';
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || process.env.AWS_S3_BUCKET_NAME || 'pc-united';
 
 // Generate unique filename
 const generateUniqueFilename = (originalName: string, folder: string): string => {
@@ -31,15 +31,18 @@ export async function POST(request: NextRequest) {
   
   try {
     // Check if S3 is configured
-    console.log('🔍 Checking AWS credentials...');
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-      console.error('❌ AWS credentials not configured');
+    console.log('🔍 Checking S3 credentials...');
+    const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+    
+    if (!accessKeyId || !secretAccessKey) {
+      console.error('❌ S3 credentials not configured - missing S3_ACCESS_KEY_ID or S3_SECRET_ACCESS_KEY');
       return NextResponse.json(
-        { success: false, error: 'AWS credentials not configured' },
+        { success: false, error: 'S3 credentials not configured' },
         { status: 500 }
       );
     }
-    console.log('✅ AWS credentials found');
+    console.log('✅ S3 credentials found');
 
     console.log('📁 Parsing form data...');
     const formData = await request.formData();
@@ -133,7 +136,8 @@ export async function POST(request: NextRequest) {
     console.log('✅ S3 upload successful:', result);
 
     // Construct the public URL
-    const publicUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1';
+    const publicUrl = `https://${BUCKET_NAME}.s3.${region}.amazonaws.com/${fileName}`;
     console.log(`🌐 Public URL: ${publicUrl}`);
     
     return NextResponse.json({ 
