@@ -88,7 +88,9 @@ export default function HighlightsAdmin() {
 
   const handleEdit = (highlight: HighlightWithPlayer) => {
     setEditingHighlight(highlight.id);
-    setEditForm(highlight);
+    // Exclude the players field (from join) when setting edit form
+    const { players, ...highlightData } = highlight;
+    setEditForm(highlightData);
   };
 
   const handleSave = async () => {
