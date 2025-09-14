@@ -20,6 +20,10 @@ const generateUniqueFilename = (originalName: string, folder: string): string =>
   return `${folder}/${timestamp}-${randomString}.${extension}`;
 };
 
+// Configure route for large uploads
+export const maxDuration = 300; // 5 minutes
+export const runtime = 'nodejs';
+
 // POST - Upload file to S3
 export async function POST(request: NextRequest) {
   console.log('🚀 S3 Upload API called');
@@ -58,13 +62,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`📄 File details: ${file.name}, ${file.size} bytes, ${file.type}`);
     
-    // Check file size (limit to 100MB)
-    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+    // Check file size (limit to 200MB)
+    const maxSize = 200 * 1024 * 1024; // 200MB in bytes
     if (file.size > maxSize) {
       console.error(`❌ File too large: ${file.size} bytes > ${maxSize} bytes`);
       return NextResponse.json(
-        { success: false, error: `File too large. Maximum size is 100MB, received ${Math.round(file.size / 1024 / 1024)}MB` },
-        { status: 400 }
+        { success: false, error: `File too large. Maximum size is 200MB, received ${Math.round(file.size / 1024 / 1024)}MB` },
+        { status: 413 }
       );
     }
     

@@ -49,9 +49,21 @@ export const uploadToS3 = async (
       } else {
         console.error('❌ Upload failed with status:', xhr.status, xhr.statusText);
         let errorMessage = `Upload failed: ${xhr.status} ${xhr.statusText}`;
+        
+        // Provide more specific error messages
+        if (xhr.status === 408) {
+          errorMessage = 'Upload timeout - please try again with a smaller file or better internet connection';
+        } else if (xhr.status === 413) {
+          errorMessage = 'File too large - maximum size is 200MB';
+        } else if (xhr.status === 500) {
+          errorMessage = 'Server error during upload - please try again';
+        }
+        
         try {
           const errorResult = JSON.parse(xhr.responseText);
-          errorMessage = errorResult.error || errorMessage;
+          if (errorResult.error) {
+            errorMessage = errorResult.error;
+          }
         } catch (e) {
           // Use default error message
         }
@@ -74,10 +86,10 @@ export const uploadToS3 = async (
 
     // Handle timeouts
     xhr.addEventListener('timeout', () => {
-      console.error('❌ Upload timeout');
+      console.error('❌ Upload timeout after 5 minutes');
       resolve({
         success: false,
-        error: 'Upload timeout'
+        error: 'Upload timeout after 5 minutes - please try again with a smaller file or better internet connection'
       });
     });
 
