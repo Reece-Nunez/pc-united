@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import Link from "next/link";
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { 
-  getHighlights, 
+import AdminLayout from '@/components/AdminLayout';
+import {
+  getHighlights,
   getPlayers,
-  createHighlight, 
-  updateHighlight, 
+  createHighlight,
+  updateHighlight,
   deleteHighlight,
-  Highlight 
+  Highlight
 } from "@/lib/supabase";
 import { uploadToS3, uploadToS3Direct, deleteFromS3, isS3Configured } from "@/lib/s3";
 
@@ -20,7 +19,9 @@ interface HighlightWithPlayer extends Highlight {
     name: string;
   };
 }
-export default function HighlightsAdmin() {
+
+function HighlightsAdminContent() {
+  const searchParams = useSearchParams();
   const [highlights, setHighlights] = useState<HighlightWithPlayer[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,9 @@ export default function HighlightsAdmin() {
   const [editingHighlight, setEditingHighlight] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editForm, setEditForm] = useState<Partial<HighlightWithPlayer>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('All');
+  const [playerFilter, setPlayerFilter] = useState<string>('All');
   const [newHighlightForm, setNewHighlightForm] = useState({
     player_id: '',
     title: '',
@@ -43,6 +47,13 @@ export default function HighlightsAdmin() {
   const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [editSelectedVideoFile, setEditSelectedVideoFile] = useState<File | null>(null);
+
+  // Check URL params for actions
+  useEffect(() => {
+    if (searchParams.get('action') === 'add') {
+      setShowAddForm(true);
+    }
+  }, [searchParams]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -342,64 +353,99 @@ export default function HighlightsAdmin() {
     setNewHighlightForm(prev => ({ ...prev, [field]: value }));
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <div className="py-20 text-center">
-          <h1 className="text-4xl font-bold text-team-blue mb-4">Loading Highlights...</h1>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  // Filter highlights based on search and filters
+  const highlightTypes = ['All', 'goal', 'assist', 'save', 'defense', 'performance', 'multiple'];
+  const playerNames = ['All', ...Array.from(new Set(highlights.map(h => h.players?.name).filter(Boolean)))];
+
+  const filteredHighlights = highlights.filter(highlight => {
+    const matchesSearch = highlight.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      highlight.players?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = typeFilter === 'All' || highlight.type === typeFilter;
+    const matchesPlayer = playerFilter === 'All' || highlight.players?.name === playerFilter;
+    return matchesSearch && matchesType && matchesPlayer;
+  });
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <div className="py-20 text-center">
-          <h1 className="text-4xl font-bold text-team-blue mb-4">Error Loading Highlights</h1>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">Please ensure Supabase is properly configured.</p>
-          <button 
-            onClick={fetchData}
-            className="mt-4 bg-team-blue text-white px-6 py-2 rounded hover:bg-blue-700 cursor-pointer"
-          >
-            Retry
-          </button>
+      <AdminLayout>
+        <div className="p-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <h2 className="text-xl font-bold text-red-700 mb-2">Error Loading Highlights</h2>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={fetchData}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
         </div>
-        <Footer />
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
-      
-      {/* Admin Header */}
-      <section className="bg-team-blue text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <div className="flex items-center mb-4">
-                <Link href="/admin" className="text-blue-100 hover:text-white mr-4 cursor-pointer">
-                  ← Back to Admin
-                </Link>
-              </div>
-              <h1 className="text-4xl font-bold mb-2">Highlights & Videos</h1>
-              <p className="text-blue-100">Manage player highlights and upload game videos. Changes are temporary and only saved in browser session.</p>
-            </div>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="bg-team-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer"
-            >
-              {showAddForm ? 'Cancel' : 'Add New Highlight'}
-            </button>
+    <AdminLayout>
+      <div className="p-4 md:p-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Highlights</h1>
+            <p className="text-gray-600 mt-1">Manage player highlights and game videos</p>
           </div>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="mt-4 md:mt-0 bg-team-blue hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>{showAddForm ? 'Cancel' : 'Add Highlight'}</span>
+          </button>
         </div>
-      </section>
+
+        {/* Search and Filter */}
+        <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search highlights..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue text-sm"
+              >
+                {highlightTypes.map(type => (
+                  <option key={type} value={type}>{type === 'All' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                ))}
+              </select>
+              <select
+                value={playerFilter}
+                onChange={(e) => setPlayerFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue text-sm"
+              >
+                {playerNames.map(name => (
+                  <option key={name} value={name}>{name === 'All' ? 'All Players' : name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 mt-3">
+            Showing {filteredHighlights.length} of {highlights.length} highlights
+          </p>
+        </div>
 
       {/* Add New Highlight Form */}
       {showAddForm && (
@@ -586,11 +632,29 @@ export default function HighlightsAdmin() {
         </section>
       )}
 
-      {/* Highlights List */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-6">
-            {highlights.map((highlight) => (
+      {/* Loading State */}
+      {loading ? (
+        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading highlights...</p>
+        </div>
+      ) : filteredHighlights.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Highlights Found</h3>
+          <p className="text-gray-500">
+            {searchQuery || typeFilter !== 'All' || playerFilter !== 'All'
+              ? 'Try adjusting your search or filters'
+              : 'Add your first highlight to get started'
+            }
+          </p>
+        </div>
+      ) : (
+      /* Highlights List */
+      <div className="space-y-4">
+          {filteredHighlights.map((highlight) => (
               <div key={highlight.id} className="bg-gray-50 rounded-lg p-6 shadow-lg">
                 {editingHighlight === highlight.id ? (
                   // Edit Form
@@ -807,10 +871,23 @@ export default function HighlightsAdmin() {
               </div>
             ))}
           </div>
+      )}
+      </div>
+    </AdminLayout>
+  );
+}
+
+export default function HighlightsAdmin() {
+  return (
+    <Suspense fallback={
+      <AdminLayout>
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
         </div>
-      </section>
-      
-      <Footer />
-    </div>
+      </AdminLayout>
+    }>
+      <HighlightsAdminContent />
+    </Suspense>
   );
 }

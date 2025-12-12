@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ImageUpload from "@/components/ImageUpload";
+import AdminLayout from '@/components/AdminLayout';
 import toast from 'react-hot-toast';
 import { 
   getNews, 
@@ -46,8 +46,10 @@ interface AnnouncementForm extends Omit<Announcement, 'id' | 'created_at' | 'upd
   [key: string]: any;
 }
 
-export default function TeamAdminPage() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('news');
+function TeamAdminContent() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab') as ActiveTab | null;
+  const [activeTab, setActiveTab] = useState<ActiveTab>(tabParam || 'news');
   const [loading, setLoading] = useState(false);
 
   // Helper function to convert UTC date to local datetime-local format
@@ -412,12 +414,10 @@ export default function TeamAdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <div className="max-w-7xl mx-auto py-6 md:py-8 px-4 sm:px-6 lg:px-8">
+    <AdminLayout>
+      <div className="p-4 md:p-8">
         <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-team-blue mb-2">Team Content Administration</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Team Content</h1>
           <p className="text-gray-600 text-sm md:text-base">Manage news, events, schedules, and announcements for the team.</p>
         </div>
 
@@ -1114,8 +1114,21 @@ export default function TeamAdminPage() {
           </div>
         </div>
       </div>
+    </AdminLayout>
+  );
+}
 
-      <Footer />
-    </div>
+export default function TeamAdminPage() {
+  return (
+    <Suspense fallback={
+      <AdminLayout>
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </AdminLayout>
+    }>
+      <TeamAdminContent />
+    </Suspense>
   );
 }

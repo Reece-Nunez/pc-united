@@ -1,805 +1,312 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import Image from "next/image";
-import Link from "next/link";
-import toast from 'react-hot-toast';
-import { 
-  getPlayers, 
-  createPlayer, 
-  updatePlayer, 
-  deletePlayer, 
-  createOrUpdatePlayerStats,
-  Player 
-} from "@/lib/supabase";
+import Link from 'next/link';
+import AdminLayout from '@/components/AdminLayout';
+import { getPlayers, getHighlights, getNews, getSchedule } from '@/lib/supabase';
 
-interface AdminPlayer extends Player {
-  player_stats?: Array<{
-    goals: number;
-    assists: number;
-    games_played: number;
-    yellow_cards: number;
-    red_cards: number;
-    saves?: number;
-    clean_sheets?: number;
-  }>;
-  highlights?: Array<{
-    id: number;
-    title: string;
-    highlight_date: string;
-    type: string;
-  }>;
+interface DashboardStats {
+  players: number;
+  highlights: number;
+  news: number;
+  upcomingGames: number;
 }
 
-interface EditPlayerForm extends Omit<AdminPlayer, 'strengths' | 'areas_to_improve'> {
-  strengths: string;
-  areas_to_improve: string;
-  stats: {
-    goals: number;
-    assists: number;
-    games_played: number;
-    yellow_cards: number;
-    red_cards: number;
-    saves?: number;
-    clean_sheets?: number;
-  };
-  [key: string]: any;
+interface RecentItem {
+  id: number;
+  title: string;
+  type: 'player' | 'highlight' | 'news';
+  date: string;
+  link: string;
 }
 
-interface NewPlayerForm {
-  name: string;
-  jersey_number: string;
-  position: string;
-  birth_year: number;
-  photo_url: string;
-  description: string;
-  strengths: string;
-  areas_to_improve: string;
-  coach_notes: string;
-  stats: {
-    goals: number;
-    assists: number;
-    games_played: number;
-    yellow_cards: number;
-    red_cards: number;
-    saves: number;
-    clean_sheets: number;
-  };
-  [key: string]: any;
-}
-export default function AdminPage() {
-  const [players, setPlayers] = useState<AdminPlayer[]>([]);
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({ players: 0, highlights: 0, news: 0, upcomingGames: 0 });
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [editingPlayer, setEditingPlayer] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<Partial<EditPlayerForm>>({});
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newPlayerForm, setNewPlayerForm] = useState<NewPlayerForm>({
-    name: '',
-    jersey_number: '',
-    position: 'Forward',
-    birth_year: 2016,
-    photo_url: '/logo.png',
-    description: '',
-    strengths: '',
-    areas_to_improve: '',
-    coach_notes: '',
-    stats: {
-      goals: 0,
-      assists: 0,
-      games_played: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-      saves: 0,
-      clean_sheets: 0
-    }
-  });
 
-  // Fetch players on component mount
   useEffect(() => {
-    fetchPlayers();
+    async function fetchDashboardData() {
+      try {
+        const [playersResult, highlightsResult, newsResult, scheduleResult] = await Promise.all([
+          getPlayers(),
+          getHighlights(),
+          getNews(),
+          getSchedule()
+        ]);
+
+        const playerCount = playersResult.data?.length || 0;
+        const highlightCount = highlightsResult.data?.length || 0;
+        const newsCount = newsResult.data?.length || 0;
+        const upcomingGames = scheduleResult.data?.filter(
+          (game: any) => game.status === 'upcoming' || game.status === 'scheduled'
+        ).length || 0;
+
+        setStats({
+          players: playerCount,
+          highlights: highlightCount,
+          news: newsCount,
+          upcomingGames
+        });
+
+        // Create recent items from various sources
+        const recent: RecentItem[] = [];
+
+        // Add recent players
+        playersResult.data?.slice(0, 3).forEach((player: any) => {
+          recent.push({
+            id: player.id,
+            title: player.name,
+            type: 'player',
+            date: player.created_at || new Date().toISOString(),
+            link: `/admin/players?edit=${player.id}`
+          });
+        });
+
+        // Add recent highlights
+        highlightsResult.data?.slice(0, 3).forEach((highlight: any) => {
+          recent.push({
+            id: highlight.id,
+            title: highlight.title,
+            type: 'highlight',
+            date: highlight.created_at || new Date().toISOString(),
+            link: '/admin/highlights'
+          });
+        });
+
+        // Add recent news
+        newsResult.data?.slice(0, 3).forEach((article: any) => {
+          recent.push({
+            id: article.id,
+            title: article.title,
+            type: 'news',
+            date: article.created_at || new Date().toISOString(),
+            link: '/admin/team?tab=news'
+          });
+        });
+
+        // Sort by date and take top 6
+        recent.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setRecentItems(recent.slice(0, 6));
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
   }, []);
 
-  async function fetchPlayers() {
-    try {
-      setLoading(true);
-      const { data, error } = await getPlayers();
-      if (error) {
-        setError(error.message);
-      } else if (data) {
-        setPlayers(data);
-      }
-    } catch (err) {
-      setError('Failed to fetch players');
-    } finally {
-      setLoading(false);
+  const statCards = [
+    {
+      label: 'Total Players',
+      value: stats.players,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      color: 'bg-blue-500',
+      link: '/admin/players'
+    },
+    {
+      label: 'Highlights',
+      value: stats.highlights,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      ),
+      color: 'bg-orange-500',
+      link: '/admin/highlights'
+    },
+    {
+      label: 'News Articles',
+      value: stats.news,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+        </svg>
+      ),
+      color: 'bg-green-500',
+      link: '/admin/team?tab=news'
+    },
+    {
+      label: 'Upcoming Games',
+      value: stats.upcomingGames,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      color: 'bg-purple-500',
+      link: '/admin/team?tab=schedule'
     }
-  }
+  ];
 
-  const handleEdit = (player: AdminPlayer) => {
-    setEditingPlayer(player.id);
-    // Exclude highlights and player_stats from the edit form since they're handled separately
-    const { highlights, player_stats, ...playerData } = player;
-    setEditForm({
-      ...playerData,
-      strengths: player.strengths?.join(', ') || '',
-      areas_to_improve: player.areas_to_improve?.join(', ') || '',
-      stats: player.player_stats?.[0] || {
-        goals: 0,
-        assists: 0,
-        games_played: 0,
-        yellow_cards: 0,
-        red_cards: 0,
-        saves: 0,
-        clean_sheets: 0
-      }
-    });
-  };
-
-  const handleSave = async () => {
-    if (!editingPlayer) return;
-    
-    try {
-      const playerData = {
-        ...editForm,
-        strengths: editForm.strengths ? editForm.strengths.split(',').map((s: string) => s.trim()).filter((s: string) => s) : undefined,
-        areas_to_improve: editForm.areas_to_improve ? editForm.areas_to_improve.split(',').map((s: string) => s.trim()).filter((s: string) => s) : undefined
-      };
-      
-      // Remove stats from player data
-      const { stats, ...playerWithoutStats } = playerData;
-      
-      // Update player
-      const { error: playerError } = await updatePlayer(editingPlayer, playerWithoutStats);
-      if (playerError) throw playerError;
-      
-      // Update stats
-      if (stats) {
-        const { error: statsError } = await createOrUpdatePlayerStats({
-          player_id: editingPlayer,
-          ...stats,
-          season: '2024-2025'
-        });
-        if (statsError) throw statsError;
-      }
-      
-      // Refresh players list
-      await fetchPlayers();
-      setEditingPlayer(null);
-      setEditForm({});
-      toast.success('Player updated successfully!');
-    } catch (err: any) {
-      toast.error('Error updating player: ' + err.message);
+  const quickActions = [
+    {
+      title: 'Add New Player',
+      description: 'Register a new player to the roster',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      ),
+      link: '/admin/players?action=add',
+      color: 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700'
+    },
+    {
+      title: 'Add Highlight',
+      description: 'Upload a new game highlight video',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      ),
+      link: '/admin/highlights?action=add',
+      color: 'bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-700'
+    },
+    {
+      title: 'Write News Article',
+      description: 'Create a new news post',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      ),
+      link: '/admin/team?tab=news&action=add',
+      color: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700'
+    },
+    {
+      title: 'Add Game',
+      description: 'Schedule a new match',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      link: '/admin/team?tab=schedule&action=add',
+      color: 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700'
     }
-  };
+  ];
 
-  const handleCancel = () => {
-    setEditingPlayer(null);
-    setEditForm({});
-  };
-
-  const handleFormChange = (field: string, value: any) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setEditForm(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setEditForm(prev => ({ ...prev, [field]: value }));
-    }
-  };
-
-  const handleNewPlayerChange = (field: string, value: any) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setNewPlayerForm(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setNewPlayerForm(prev => ({ ...prev, [field]: value }));
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'player': return 'bg-blue-100 text-blue-800';
+      case 'highlight': return 'bg-orange-100 text-orange-800';
+      case 'news': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
-
-  const handleAddPlayer = async () => {
-    try {
-      const playerData = {
-        name: newPlayerForm.name,
-        jersey_number: parseInt(newPlayerForm.jersey_number as string),
-        position: newPlayerForm.position,
-        birth_year: newPlayerForm.birth_year,
-        photo_url: newPlayerForm.photo_url,
-        description: newPlayerForm.description,
-        strengths: newPlayerForm.strengths ? newPlayerForm.strengths.split(',').map(s => s.trim()).filter(s => s) : undefined,
-        areas_to_improve: newPlayerForm.areas_to_improve ? newPlayerForm.areas_to_improve.split(',').map(s => s.trim()).filter(s => s) : undefined,
-        coach_notes: newPlayerForm.coach_notes
-      };
-      
-      // Create player
-      const { data: createdPlayer, error: playerError } = await createPlayer(playerData);
-      if (playerError) throw playerError;
-      
-      // Create stats
-      if (createdPlayer && newPlayerForm.stats) {
-        const { error: statsError } = await createOrUpdatePlayerStats({
-          player_id: createdPlayer.id,
-          ...newPlayerForm.stats,
-          season: '2024-2025'
-        });
-        if (statsError) throw statsError;
-      }
-      
-      // Refresh players list and reset form
-      await fetchPlayers();
-      setNewPlayerForm({
-        name: '',
-        jersey_number: '',
-        position: 'Forward',
-        birth_year: 2016,
-        photo_url: '/logo.png',
-        description: '',
-        strengths: '',
-        areas_to_improve: '',
-        coach_notes: '',
-        stats: {
-          goals: 0,
-          assists: 0,
-          games_played: 0,
-          yellow_cards: 0,
-          red_cards: 0,
-          saves: 0,
-          clean_sheets: 0
-        }
-      });
-      setShowAddForm(false);
-      toast.success('Player added successfully!');
-    } catch (err: any) {
-      toast.error('Error adding player: ' + err.message);
-    }
-  };
-
-  const handleDeletePlayer = async (playerId: number) => {
-    if (confirm('Are you sure you want to delete this player?')) {
-      try {
-        const { error } = await deletePlayer(playerId);
-        if (error) throw error;
-        
-        await fetchPlayers();
-        toast.success('Player deleted successfully!');
-      } catch (err: any) {
-        toast.error('Error deleting player: ' + err.message);
-      }
-    }
-  };
-
-  const handlePhotoUpload = (file: File, isNewPlayer = false) => {
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const photoUrl = e.target?.result as string;
-        if (isNewPlayer) {
-          setNewPlayerForm(prev => ({ ...prev, photo_url: photoUrl }));
-        } else {
-          setEditForm(prev => ({ ...prev, photo_url: photoUrl }));
-        }
-      };
-      reader.readAsDataURL(file);
-    } else {
-      toast.error('Please select a valid image file.');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <div className="py-20 text-center">
-          <h1 className="text-4xl font-bold text-team-blue mb-4">Loading Players...</h1>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <div className="py-20 text-center">
-          <h1 className="text-4xl font-bold text-team-blue mb-4">Error Loading Players</h1>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">Please ensure Supabase is properly configured.</p>
-          <button 
-            onClick={fetchPlayers}
-            className="mt-4 bg-team-blue text-white px-6 py-2 rounded hover:bg-blue-700 cursor-pointer"
-          >
-            Retry
-          </button>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
-      
-      {/* Admin Header */}
-      <section className="bg-team-blue text-white py-8 md:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 space-y-4 lg:space-y-0">
+    <AdminLayout>
+      <div className="p-4 md:p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Welcome back! Here&apos;s an overview of your team.</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+          {statCards.map((stat) => (
+            <Link
+              key={stat.label}
+              href={stat.link}
+              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 md:p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {loading ? '...' : stat.value}
+                  </p>
+                </div>
+                <div className={`${stat.color} p-3 rounded-lg text-white`}>
+                  {stat.icon}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.title}
+                  href={action.link}
+                  className={`flex items-start space-x-3 p-4 rounded-lg border transition-colors ${action.color}`}
+                >
+                  <div className="flex-shrink-0 mt-0.5">{action.icon}</div>
+                  <div>
+                    <h3 className="font-medium">{action.title}</h3>
+                    <p className="text-sm opacity-80">{action.description}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Items */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Items</h2>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue"></div>
+              </div>
+            ) : recentItems.length > 0 ? (
+              <div className="space-y-3">
+                {recentItems.map((item) => (
+                  <Link
+                    key={`${item.type}-${item.id}`}
+                    href={item.link}
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getTypeColor(item.type)}`}>
+                        {item.type}
+                      </span>
+                      <span className="text-gray-900 font-medium truncate max-w-[200px]">{item.title}</span>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No recent items found</p>
+            )}
+          </div>
+        </div>
+
+        {/* Help Section */}
+        <div className="mt-8 bg-gradient-to-r from-team-blue to-blue-700 rounded-xl p-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2">Player Admin Panel</h1>
-              <p className="text-blue-100 text-sm md:text-base">Edit player information, stats, and details. Changes are temporary and only saved in browser session.</p>
+              <h2 className="text-xl font-semibold mb-2">Need Help?</h2>
+              <p className="text-blue-100">Use the sidebar to navigate between different sections of the admin panel.</p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Link
-                href="/admin/highlights"
-                className="bg-team-orange hover:bg-yellow-700 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition duration-300 cursor-pointer inline-block text-center text-sm md:text-base"
-              >
-                Manage Highlights
-              </Link>
-              <Link
-                href="/admin/team"
-                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition duration-300 cursor-pointer inline-block text-center text-sm md:text-base"
-              >
-                Manage Team Content
-              </Link>
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="bg-team-red hover:bg-red-700 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition duration-300 cursor-pointer text-sm md:text-base"
-              >
-                {showAddForm ? 'Cancel' : 'Add New Player'}
-              </button>
-            </div>
+            <Link
+              href="/"
+              className="mt-4 md:mt-0 inline-flex items-center space-x-2 bg-white text-team-blue px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+            >
+              <span>View Live Site</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </Link>
           </div>
         </div>
-      </section>
-
-      {/* Add New Player Form */}
-      {showAddForm && (
-        <section className="py-8 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white rounded-lg p-8 shadow-lg">
-              <h2 className="text-2xl font-bold text-team-blue mb-6">Add New Player</h2>
-              
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
-                {/* Basic Info */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-team-blue">Basic Information</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                    <input
-                      type="text"
-                      value={newPlayerForm.name}
-                      onChange={(e) => handleNewPlayerChange('name', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Jersey Number *</label>
-                    <input
-                      type="number"
-                      value={newPlayerForm.jersey_number}
-                      onChange={(e) => handleNewPlayerChange('jersey_number', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                    <select
-                      value={newPlayerForm.position}
-                      onChange={(e) => handleNewPlayerChange('position', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
-                    >
-                      <option value="Forward">Forward</option>
-                      <option value="Midfielder">Midfielder</option>
-                      <option value="Defender">Defender</option>
-                      <option value="Goalkeeper">Goalkeeper</option>
-                      <option value="Winger">Winger</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Birth Year</label>
-                    <input
-                      type="number"
-                      value={newPlayerForm.birth_year}
-                      onChange={(e) => handleNewPlayerChange('birth_year', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Player Photo</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0], true)}
-                      className="w-full p-2 border border-gray-300 rounded"
-                    />
-                    {newPlayerForm.photo_url && (
-                      <div className="mt-2">
-                        <Image
-                          src={newPlayerForm.photo_url}
-                          alt="Preview"
-                          width={60}
-                          height={60}
-                          className="rounded-full object-cover border-2 border-team-blue"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-team-blue">Initial Statistics</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
-                      <input
-                        type="number"
-                        value={newPlayerForm.stats.goals}
-                        onChange={(e) => handleNewPlayerChange('stats.goals', parseInt(e.target.value) || 0)}
-                        className="w-full p-2 border border-gray-300 rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Assists</label>
-                      <input
-                        type="number"
-                        value={newPlayerForm.stats.assists}
-                        onChange={(e) => handleNewPlayerChange('stats.assists', parseInt(e.target.value) || 0)}
-                        className="w-full p-2 border border-gray-300 rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Games Played</label>
-                      <input
-                        type="number"
-                        value={newPlayerForm.stats.games_played}
-                        onChange={(e) => handleNewPlayerChange('stats.games_played', parseInt(e.target.value) || 0)}
-                        className="w-full p-2 border border-gray-300 rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Yellow Cards</label>
-                      <input
-                        type="number"
-                        value={newPlayerForm.stats.yellow_cards}
-                        onChange={(e) => handleNewPlayerChange('stats.yellow_cards', parseInt(e.target.value) || 0)}
-                        className="w-full p-2 border border-gray-300 rounded"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description and Development */}
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    value={newPlayerForm.description}
-                    onChange={(e) => handleNewPlayerChange('description', e.target.value)}
-                    rows={3}
-                    className="w-full p-2 border border-gray-300 rounded"
-                    placeholder="Brief description of the player's playing style and abilities"
-                  />
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Strengths (comma separated)</label>
-                    <textarea
-                      value={newPlayerForm.strengths}
-                      onChange={(e) => handleNewPlayerChange('strengths', e.target.value)}
-                      rows={2}
-                      className="w-full p-2 border border-gray-300 rounded"
-                      placeholder="Speed, Ball control, Shooting"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Areas to Improve (comma separated)</label>
-                    <textarea
-                      value={newPlayerForm.areas_to_improve}
-                      onChange={(e) => handleNewPlayerChange('areas_to_improve', e.target.value)}
-                      rows={2}
-                      className="w-full p-2 border border-gray-300 rounded"
-                      placeholder="Passing accuracy, Defense"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Coach Notes</label>
-                  <textarea
-                    value={newPlayerForm.coach_notes}
-                    onChange={(e) => handleNewPlayerChange('coach_notes', e.target.value)}
-                    rows={3}
-                    className="w-full p-2 border border-gray-300 rounded"
-                    placeholder="Coach's observations and notes about the player"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
-                <button
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 md:px-6 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 cursor-pointer text-sm md:text-base"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddPlayer}
-                  className="px-4 md:px-6 py-2 bg-team-red text-white rounded hover:bg-red-700 cursor-pointer text-sm md:text-base"
-                  disabled={!newPlayerForm.name || !newPlayerForm.jersey_number}
-                >
-                  Add Player
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Players List */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-8">
-            {players.map((player) => (
-              <div key={player.id} className="bg-gray-50 rounded-lg p-6 shadow-lg">
-                {editingPlayer === player.id ? (
-                  // Edit Form
-                  <div className="space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
-                      <h3 className="text-xl md:text-2xl font-bold text-team-blue">Editing: {player.name}</h3>
-                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                        <button
-                          onClick={handleSave}
-                          className="bg-team-red text-white px-4 py-2 rounded hover:bg-red-700 cursor-pointer text-sm md:text-base"
-                        >
-                          Save Changes
-                        </button>
-                        <button
-                          onClick={handleCancel}
-                          className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 cursor-pointer text-sm md:text-base"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-6">
-                      {/* Basic Info */}
-                      <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-team-blue">Basic Information</h4>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                          <input
-                            type="text"
-                            value={editForm.name || ''}
-                            onChange={(e) => handleFormChange('name', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Jersey Number</label>
-                          <input
-                            type="number"
-                            value={editForm.jersey_number || ''}
-                            onChange={(e) => handleFormChange('jersey_number', parseInt(e.target.value))}
-                            className="w-full p-2 border border-gray-300 rounded"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                          <select
-                            value={editForm.position || ''}
-                            onChange={(e) => handleFormChange('position', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded"
-                          >
-                            <option value="Forward">Forward</option>
-                            <option value="Midfielder">Midfielder</option>
-                            <option value="Defender">Defender</option>
-                            <option value="Goalkeeper">Goalkeeper</option>
-                            <option value="Winger">Winger</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Birth Year</label>
-                          <input
-                            type="number"
-                            value={editForm.birth_year || ''}
-                            onChange={(e) => handleFormChange('birth_year', parseInt(e.target.value))}
-                            className="w-full p-2 border border-gray-300 rounded"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Player Photo</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0], false)}
-                            className="w-full p-2 border border-gray-300 rounded"
-                          />
-                          {editForm.photo_url && (
-                            <div className="mt-2">
-                              <Image
-                                src={editForm.photo_url}
-                                alt="Current photo"
-                                width={80}
-                                height={80}
-                                className="rounded-full object-cover border-2 border-team-blue"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-team-blue">Statistics</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
-                            <input
-                              type="number"
-                              value={editForm.stats?.goals || 0}
-                              onChange={(e) => handleFormChange('stats.goals', parseInt(e.target.value) || 0)}
-                              className="w-full p-2 border border-gray-300 rounded"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Assists</label>
-                            <input
-                              type="number"
-                              value={editForm.stats?.assists || 0}
-                              onChange={(e) => handleFormChange('stats.assists', parseInt(e.target.value) || 0)}
-                              className="w-full p-2 border border-gray-300 rounded"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Games Played</label>
-                            <input
-                              type="number"
-                              value={editForm.stats?.games_played || 0}
-                              onChange={(e) => handleFormChange('stats.games_played', parseInt(e.target.value) || 0)}
-                              className="w-full p-2 border border-gray-300 rounded"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Yellow Cards</label>
-                            <input
-                              type="number"
-                              value={editForm.stats?.yellow_cards || 0}
-                              onChange={(e) => handleFormChange('stats.yellow_cards', parseInt(e.target.value) || 0)}
-                              className="w-full p-2 border border-gray-300 rounded"
-                            />
-                          </div>
-                          {editForm.position === 'Goalkeeper' && (
-                            <>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Saves</label>
-                                <input
-                                  type="number"
-                                  value={editForm.stats?.saves || 0}
-                                  onChange={(e) => handleFormChange('stats.saves', parseInt(e.target.value) || 0)}
-                                  className="w-full p-2 border border-gray-300 rounded"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Clean Sheets</label>
-                                <input
-                                  type="number"
-                                  value={editForm.stats?.clean_sheets || 0}
-                                  onChange={(e) => handleFormChange('stats.clean_sheets', parseInt(e.target.value) || 0)}
-                                  className="w-full p-2 border border-gray-300 rounded"
-                                />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Description and Development */}
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea
-                          value={editForm.description || ''}
-                          onChange={(e) => handleFormChange('description', e.target.value)}
-                          rows={3}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Strengths (comma separated)</label>
-                          <textarea
-                            value={editForm.strengths || ''}
-                            onChange={(e) => handleFormChange('strengths', e.target.value)}
-                            rows={3}
-                            className="w-full p-2 border border-gray-300 rounded"
-                            placeholder="Clinical finishing, Ball control, Speed"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Areas to Improve (comma separated)</label>
-                          <textarea
-                            value={editForm.areas_to_improve || ''}
-                            onChange={(e) => handleFormChange('areas_to_improve', e.target.value)}
-                            rows={3}
-                            className="w-full p-2 border border-gray-300 rounded"
-                            placeholder="Passing accuracy, Defensive work rate"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Coach Notes</label>
-                        <textarea
-                          value={editForm.coach_notes || ''}
-                          onChange={(e) => handleFormChange('coach_notes', e.target.value)}
-                          rows={3}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // Display Mode
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-                    <div className="flex items-start sm:items-center space-x-4 sm:space-x-6 flex-1">
-                      <div className="relative w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
-                        <Image
-                          src={player.photo_url || '/logo.png'}
-                          alt={`${player.name} photo`}
-                          fill
-                          className="rounded-full object-cover border-2 border-team-blue"
-                        />
-                        <div className="absolute -bottom-1 -right-1 bg-team-red text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center font-bold text-xs">
-                          {player.jersey_number}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg sm:text-xl font-bold text-team-blue truncate">{player.name}</h3>
-                        <p className="text-team-red font-semibold text-sm sm:text-base">{player.position}</p>
-                        <p className="text-xs sm:text-sm text-gray-500">Born {player.birth_year} • {player.player_stats?.[0]?.games_played || 0} games</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:ml-4">
-                      <button
-                        onClick={() => handleEdit(player)}
-                        className="bg-team-blue text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 cursor-pointer text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeletePlayer(player.id)}
-                        className="bg-red-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-red-700 cursor-pointer text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      
-      <Footer />
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
