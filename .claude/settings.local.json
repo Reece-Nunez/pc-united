@@ -14,7 +14,12 @@
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
       "Bash(curl:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(git checkout:*)",
+      "Bash(node -e:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from "next/image";
+import Link from "next/link";
 import Script from "next/script";
 import {
   getNews,
@@ -327,7 +328,11 @@ export default function TeamClient() {
               ) : (
                 <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3">
                   {news.map((article) => (
-                    <div key={article.id} className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition duration-300">
+                    <Link
+                      key={article.id}
+                      href={`/team/news/${article.slug}`}
+                      className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition duration-300 block cursor-pointer"
+                    >
                       {article.featured_image && (
                         <div className="aspect-video bg-gray-300">
                           <Image
@@ -349,8 +354,11 @@ export default function TeamClient() {
                           <span>{article.author || 'Team Staff'}</span>
                           <span>{parseAsLocalTime(article.publish_date!).toLocaleDateString()}</span>
                         </div>
+                        <div className="mt-4 text-team-blue font-medium text-sm">
+                          Read more →
+                        </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}

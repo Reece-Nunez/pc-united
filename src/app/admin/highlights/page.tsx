@@ -33,7 +33,8 @@ export default function HighlightsAdmin() {
     title: '',
     highlight_date: new Date().toISOString().split('T')[0],
     type: 'goal' as const,
-    video_url: null as string | null
+    video_url: null as string | null,
+    assist_by: ''
   });
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -198,7 +199,8 @@ export default function HighlightsAdmin() {
         title: newHighlightForm.title,
         highlight_date: newHighlightForm.highlight_date,
         type: newHighlightForm.type,
-        video_url: videoUrl || undefined
+        video_url: videoUrl || undefined,
+        assist_by: newHighlightForm.assist_by || undefined
       };
       
       const { error } = await createHighlight(highlightData);
@@ -210,7 +212,8 @@ export default function HighlightsAdmin() {
         title: '',
         highlight_date: new Date().toISOString().split('T')[0],
         type: 'goal',
-        video_url: null
+        video_url: null,
+        assist_by: ''
       });
       // Clean up preview URL and file
       if (previewUrl) {
@@ -456,17 +459,39 @@ export default function HighlightsAdmin() {
                       <option value="multiple">Multiple</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assist By (optional)</label>
+                    <input
+                      type="text"
+                      value={newHighlightForm.assist_by}
+                      onChange={(e) => handleNewFormChange('assist_by', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded"
+                      placeholder="Player name who assisted"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Upload Video</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">External Video URL (GameChanger, YouTube, etc.)</label>
+                    <input
+                      type="url"
+                      value={newHighlightForm.video_url || ''}
+                      onChange={(e) => handleNewFormChange('video_url', e.target.value || null)}
+                      className="w-full p-2 border border-gray-300 rounded"
+                      placeholder="https://web.gc.com/teams/..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Paste a link from GameChanger, YouTube, or other video sites</p>
+                  </div>
+                  <div className="text-center text-gray-500 text-sm py-1">— OR —</div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Upload Video File</label>
                     <input
                       type="file"
                       accept="video/*"
                       onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0], true)}
                       className="w-full p-2 border border-gray-300 rounded"
-                      disabled={false}
+                      disabled={!!newHighlightForm.video_url}
                     />
                     <p className="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI (max 100MB)</p>
                     

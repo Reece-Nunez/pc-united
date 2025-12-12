@@ -132,6 +132,7 @@ export interface Highlight {
   highlight_date: string;
   type: 'goal' | 'assist' | 'save' | 'defense' | 'performance' | 'multiple';
   video_url?: string;
+  assist_by?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -428,6 +429,24 @@ export async function getNewsById(id: number) {
   return { data, error };
 }
 
+
+export async function getNewsBySlug(slug: string) {
+  if (!isSupabaseConfigured) {
+    return {
+      data: null,
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' }
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('news')
+    .select('*')
+    .eq('slug', slug)
+    .eq('published', true)
+    .single();
+
+  return { data, error };
+}
 export async function createNews(news: Omit<News, 'id' | 'created_at' | 'updated_at'>) {
   if (!isSupabaseConfigured) {
     return { 
