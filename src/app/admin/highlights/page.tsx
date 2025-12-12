@@ -461,13 +461,16 @@ export default function HighlightsAdmin() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assist By (optional)</label>
-                    <input
-                      type="text"
+                    <select
                       value={newHighlightForm.assist_by}
                       onChange={(e) => handleNewFormChange('assist_by', e.target.value)}
                       className="w-full p-2 border border-gray-300 rounded"
-                      placeholder="Player name who assisted"
-                    />
+                    >
+                      <option value="">No assist</option>
+                      {players.map(player => (
+                        <option key={player.id} value={player.name}>{player.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
