@@ -19,7 +19,8 @@
       "Bash(tree:*)",
       "Bash(git checkout:*)",
       "Bash(node -e:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(npx next build)"
     ],
     "deny": [],
     "ask": []

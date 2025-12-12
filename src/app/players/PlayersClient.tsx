@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
-import { getPlayers, getSchedule, Player, Schedule } from "@/lib/supabase";
+import { getPlayers, getSchedule, getHighlights, Player, Schedule } from "@/lib/supabase";
 
 interface PlayerWithStats extends Player {
   player_stats?: Array<{
@@ -18,9 +18,15 @@ interface PlayerWithStats extends Player {
   highlights?: Array<any>;
 }
 
+interface HighlightData {
+  id: number;
+  assist_by?: string;
+}
+
 export default function PlayersClient() {
   const [players, setPlayers] = useState<PlayerWithStats[]>([]);
   const [schedule, setSchedule] = useState<Schedule[]>([]);
+  const [allHighlights, setAllHighlights] = useState<HighlightData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<string>('All');
@@ -28,9 +34,10 @@ export default function PlayersClient() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [playersResult, scheduleResult] = await Promise.all([
+        const [playersResult, scheduleResult, highlightsResult] = await Promise.all([
           getPlayers(),
-          getSchedule()
+          getSchedule(),
+          getHighlights()
         ]);
 
         if (playersResult.error) {
@@ -43,6 +50,10 @@ export default function PlayersClient() {
           console.error('Error fetching schedule:', scheduleResult.error);
         } else if (scheduleResult.data) {
           setSchedule(scheduleResult.data);
+        }
+
+        if (highlightsResult.data) {
+          setAllHighlights(highlightsResult.data);
         }
       } catch (err) {
         setError('Failed to fetch data');
@@ -159,8 +170,10 @@ export default function PlayersClient() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
               {filteredPlayers.map((player) => {
                 const stats = player.player_stats?.[0];
-                const highlightsCount = player.highlights?.length || 0;
-                
+                const scoredHighlights = player.highlights?.length || 0;
+                const assistHighlights = allHighlights.filter(h => h.assist_by === player.name).length;
+                const highlightsCount = scoredHighlights + assistHighlights;
+
                 return (
                   <Link 
                     key={player.id}
