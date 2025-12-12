@@ -6,7 +6,16 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import Link from "next/link";
-import { getPlayer, Player } from "@/lib/supabase";
+import { getPlayer, getPlayerAssists, Player } from "@/lib/supabase";
+
+interface HighlightItem {
+  id: number;
+  title: string;
+  highlight_date: string;
+  type: string;
+  video_url?: string;
+  isAssist?: boolean;
+}
 
 interface PlayerWithDetails extends Player {
   player_stats?: Array<{
@@ -30,6 +39,7 @@ export default function PlayerProfile() {
   const params = useParams();
   const playerId = parseInt(params.id as string);
   const [player, setPlayer] = useState<PlayerWithDetails | null>(null);
+  const [allHighlights, setAllHighlights] = useState<HighlightItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [videoPreviews, setVideoPreviews] = useState<{[key: number]: string}>({});
@@ -48,6 +58,29 @@ export default function PlayerProfile() {
           setError(error.message);
         } else if (data) {
           setPlayer(data);
+
+          // Fetch assists for this player
+          const { data: assistsData } = await getPlayerAssists(data.name);
+
+          // Combine scored highlights and assists
+          const scoredHighlights: HighlightItem[] = (data.highlights || []).map((h: { id: number; title: string; highlight_date: string; type: string; video_url?: string }) => ({
+            ...h,
+            isAssist: false
+          }));
+
+          const assistHighlights: HighlightItem[] = (assistsData || [])
+            .filter((a: { id: number }) => !scoredHighlights.some(s => s.id === a.id)) // Avoid duplicates
+            .map((h: { id: number; title: string; highlight_date: string; type: string; video_url?: string }) => ({
+              ...h,
+              isAssist: true
+            }));
+
+          // Combine and sort by date
+          const combined = [...scoredHighlights, ...assistHighlights].sort(
+            (a, b) => new Date(b.highlight_date).getTime() - new Date(a.highlight_date).getTime()
+          );
+
+          setAllHighlights(combined);
         } else {
           setError('Player not found');
         }
@@ -198,7 +231,7 @@ export default function PlayerProfile() {
           <h2 className="text-3xl font-bold text-team-blue mb-12 text-center">Game Highlights</h2>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {player.highlights && player.highlights.length > 0 ? player.highlights.map((highlight) => {
+            {allHighlights.length > 0 ? allHighlights.map((highlight) => {
               // Determine video type based on URL
               const getVideoEmbed = (url: string) => {
                 // YouTube
@@ -305,8 +338,8 @@ export default function PlayerProfile() {
                 <h3 className="text-lg font-bold text-team-blue mb-2">{highlight.title}</h3>
                 <div className="flex justify-between items-center text-sm text-gray-600">
                   <span>{new Date(highlight.highlight_date).toLocaleDateString()}</span>
-                  <span className="bg-team-red text-white px-2 py-1 rounded text-xs">
-                    {highlight.type.toUpperCase()}
+                  <span className={`px-2 py-1 rounded text-xs text-white ${highlight.isAssist ? 'bg-green-600' : 'bg-team-red'}`}>
+                    {highlight.isAssist ? 'ASSIST' : highlight.type.toUpperCase()}
                   </span>
                 </div>
               </div>

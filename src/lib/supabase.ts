@@ -179,6 +179,23 @@ export async function getPlayer(id: number) {
   return { data, error };
 }
 
+export async function getPlayerAssists(playerName: string) {
+  if (!isSupabaseConfigured) {
+    return {
+      data: null,
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' }
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('highlights')
+    .select('id, title, highlight_date, type, video_url, assist_by')
+    .eq('assist_by', playerName)
+    .order('highlight_date', { ascending: false });
+
+  return { data, error };
+}
+
 export async function createPlayer(player: Omit<Player, 'id' | 'created_at' | 'updated_at'>) {
   if (!isSupabaseConfigured) {
     return { 
