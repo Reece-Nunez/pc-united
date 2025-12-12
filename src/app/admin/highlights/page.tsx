@@ -686,6 +686,19 @@ export default function HighlightsAdmin() {
                             <option value="multiple">Multiple</option>
                           </select>
                         </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Assist By (optional)</label>
+                          <select
+                            value={editForm.assist_by || ''}
+                            onChange={(e) => handleFormChange('assist_by', e.target.value)}
+                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
+                          >
+                            <option value="">No assist</option>
+                            {players.map(player => (
+                              <option key={player.id} value={player.name}>{player.name}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
 
                       <div className="space-y-4">
@@ -754,6 +767,9 @@ export default function HighlightsAdmin() {
                         </div>
                         <p className="text-gray-600">{highlight.players?.name}</p>
                         <p className="text-sm text-gray-500">{new Date(highlight.highlight_date).toLocaleDateString()}</p>
+                        {highlight.assist_by && (
+                          <p className="text-sm text-gray-600 mt-1">Assist by: <span className="font-medium">{highlight.assist_by}</span></p>
+                        )}
                         {highlight.video_url && (
                           <p className="text-xs text-green-600 mt-1">✓ Video uploaded</p>
                         )}
