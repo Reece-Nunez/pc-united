@@ -194,7 +194,7 @@ export default function PlayerProfile() {
               </div>
             ) : (
               <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-3xl font-bold text-team-blue mb-2">{player.highlights?.length || 0}</div>
+                <div className="text-3xl font-bold text-team-blue mb-2">{allHighlights.length}</div>
                 <div className="text-gray-600">Highlights</div>
               </div>
             )}
