@@ -196,22 +196,102 @@ export default function PlayerProfile() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-team-blue mb-12 text-center">Game Highlights</h2>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {player.highlights && player.highlights.length > 0 ? player.highlights.map((highlight) => {
-              console.log('🔍 Rendering highlight:', highlight.id, 'Video URL:', highlight.video_url);
-              return (
-              <div key={highlight.id} className="bg-gray-50 rounded-lg p-6 shadow-lg">
-                <div className="aspect-video bg-gray-300 rounded-lg mb-4 overflow-hidden">
-                  {highlight.video_url ? (
-                    <video 
-                      src={highlight.video_url}
+              // Determine video type based on URL
+              const getVideoEmbed = (url: string) => {
+                // YouTube
+                if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                  let videoId = '';
+                  if (url.includes('youtube.com/watch')) {
+                    videoId = new URL(url).searchParams.get('v') || '';
+                  } else if (url.includes('youtu.be/')) {
+                    videoId = url.split('youtu.be/')[1]?.split('?')[0] || '';
+                  } else if (url.includes('youtube.com/embed/')) {
+                    videoId = url.split('embed/')[1]?.split('?')[0] || '';
+                  }
+                  if (videoId) {
+                    return (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoId}`}
+                        className="w-full h-full rounded"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    );
+                  }
+                }
+
+                // GameChanger - link to external site
+                if (url.includes('gc.com') || url.includes('gamechanger.io')) {
+                  return (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 transition-all"
+                    >
+                      <div className="text-center text-white">
+                        <div className="text-4xl mb-2">🎮</div>
+                        <div className="font-semibold">Watch on GameChanger</div>
+                        <div className="text-xs mt-1 opacity-80">Click to open</div>
+                      </div>
+                    </a>
+                  );
+                }
+
+                // Vimeo
+                if (url.includes('vimeo.com')) {
+                  const vimeoId = url.split('vimeo.com/')[1]?.split('?')[0]?.split('/')[0] || '';
+                  if (vimeoId) {
+                    return (
+                      <iframe
+                        src={`https://player.vimeo.com/video/${vimeoId}`}
+                        className="w-full h-full rounded"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                      />
+                    );
+                  }
+                }
+
+                // Direct video file (S3, etc.)
+                if (url.includes('.mp4') || url.includes('.mov') || url.includes('.webm') || url.includes('s3.') || url.includes('amazonaws.com')) {
+                  return (
+                    <video
+                      src={url}
                       className="w-full h-full rounded object-cover"
                       controls
                       preload="metadata"
                     >
                       Your browser does not support the video tag.
                     </video>
+                  );
+                }
+
+                // Unknown URL - show as clickable link
+                return (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full h-full flex items-center justify-center bg-gradient-to-br from-team-blue to-blue-700 hover:from-blue-600 hover:to-blue-800 transition-all"
+                  >
+                    <div className="text-center text-white">
+                      <div className="text-4xl mb-2">🎥</div>
+                      <div className="font-semibold">Watch Video</div>
+                      <div className="text-xs mt-1 opacity-80">Click to open</div>
+                    </div>
+                  </a>
+                );
+              };
+
+              return (
+              <div key={highlight.id} className="bg-gray-50 rounded-lg p-6 shadow-lg">
+                <div className="aspect-video bg-gray-300 rounded-lg mb-4 overflow-hidden">
+                  {highlight.video_url ? (
+                    getVideoEmbed(highlight.video_url)
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <div className="text-center">

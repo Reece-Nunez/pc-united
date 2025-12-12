@@ -10,11 +10,11 @@ interface ImageUploadProps {
   placeholder?: string;
 }
 
-export default function ImageUpload({ 
-  currentImageUrl, 
-  onImageChange, 
-  className = '', 
-  placeholder = 'No image selected' 
+export default function ImageUpload({
+  currentImageUrl,
+  onImageChange,
+  className = '',
+  placeholder = 'No image selected'
 }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
@@ -39,28 +39,51 @@ export default function ImageUpload({
     setIsUploading(true);
 
     try {
-      // Create a preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setPreviewUrl(result);
-      };
-      reader.readAsDataURL(file);
+      // Create a preview URL immediately for better UX
+      const localPreviewUrl = URL.createObjectURL(file);
+      setPreviewUrl(localPreviewUrl);
 
-      // For now, we'll use a simple approach where we convert the image to a data URL
-      // In a production environment, you would upload to a service like Supabase Storage,
-      // AWS S3, Cloudinary, or similar
-      const reader2 = new FileReader();
-      reader2.onload = (e) => {
-        const result = e.target?.result as string;
-        onImageChange(result);
-        setIsUploading(false);
-      };
-      reader2.readAsDataURL(file);
+      // Get presigned URL from API
+      const presignedResponse = await fetch('/api/presigned-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          folder: 'images'
+        })
+      });
+
+      const presignedData = await presignedResponse.json();
+
+      if (!presignedData.success) {
+        throw new Error(presignedData.error || 'Failed to get upload URL');
+      }
+
+      // Upload directly to S3 using presigned URL
+      const uploadResponse = await fetch(presignedData.presignedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type,
+        },
+        body: file
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload image to S3');
+      }
+
+      // Use the public S3 URL
+      onImageChange(presignedData.publicUrl);
+      setPreviewUrl(presignedData.publicUrl);
+      toast.success('Image uploaded successfully!');
 
     } catch (error) {
       console.error('Error uploading image:', error);
       toast.error('Error uploading image. Please try again.');
+      setPreviewUrl(null);
+    } finally {
       setIsUploading(false);
     }
   };

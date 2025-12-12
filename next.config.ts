@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
     // Increase API timeout to 5 minutes for large uploads
     apiTimeout: 300000,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'pc-united.s3.us-east-1.amazonaws.com',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 export default withNextVideo(nextConfig);
