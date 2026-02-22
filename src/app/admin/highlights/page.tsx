@@ -276,8 +276,8 @@ function HighlightsAdminContent() {
         
         await fetchData();
         toast.success('Highlight deleted successfully!');
-        createAdminNotification({ type: 'highlight', title: 'Highlight Deleted', message: 'A highlight was removed.', link: '/admin/highlights' });
-        logActivity('delete', 'highlight', highlightId, userEmail);
+        createAdminNotification({ type: 'highlight', title: `Highlight Deleted: ${highlightToDelete?.title || 'Unknown'}`, message: `The highlight "${highlightToDelete?.title}" for ${highlightToDelete?.players?.name || 'unknown player'} was removed.`, link: '/admin/highlights' });
+        logActivity('delete', 'highlight', highlightToDelete?.title || highlightId, userEmail, { title: highlightToDelete?.title, player: highlightToDelete?.players?.name });
       } catch (err: any) {
         toast.error('Error deleting highlight: ' + err.message);
       }

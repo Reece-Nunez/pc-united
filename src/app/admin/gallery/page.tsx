@@ -67,8 +67,8 @@ function Content() {
       toast.error('Failed to save image');
     } else {
       toast.success('Image uploaded!');
-      logActivity('create', 'gallery', selectedFile.name, userEmail);
-      createAdminNotification({ type: 'gallery', title: 'Gallery Image Uploaded', message: 'A new image was added to the gallery.', link: '/admin/gallery' });
+      logActivity('create', 'gallery', title.trim() || selectedFile.name, userEmail, { title: title.trim(), category });
+      createAdminNotification({ type: 'gallery', title: `Gallery Image Uploaded: ${title.trim() || selectedFile.name}`, message: `A new ${category} image "${title.trim()}" was added to the gallery.`, link: '/admin/gallery' });
       setTitle('');
       setCategory('other');
       setSelectedFile(null);
@@ -87,7 +87,7 @@ function Content() {
       toast.error('Failed to delete');
     } else {
       toast.success('Image deleted');
-      logActivity('delete', 'gallery', image.id, userEmail);
+      logActivity('delete', 'gallery', image.title || image.id, userEmail, { title: image.title });
       setImages((prev) => prev.filter((i) => i.id !== image.id));
     }
   };

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-browser';
+import { createAdminNotification } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import ToastProvider from '@/components/ToastProvider';
 
@@ -34,11 +35,13 @@ export default function SignupPage() {
 
     const supabase = createClient();
     const role = accountType === 'parent' ? 'pending_parent' : 'pending';
+    const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.poncacityunited.com';
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: name, role, account_type: accountType },
+        emailRedirectTo: `${siteUrl}/admin/login`,
       },
     });
 
@@ -47,6 +50,21 @@ export default function SignupPage() {
       setLoading(false);
       return;
     }
+
+    const typeLabel = accountType === 'parent' ? 'Parent' : 'Coach';
+    createAdminNotification({
+      type: 'user_signup',
+      title: `New ${typeLabel} Signup: ${name}`,
+      message: `${name} (${email}) signed up as a ${typeLabel.toLowerCase()} and is waiting for approval.`,
+      link: '/admin/users',
+    });
+
+    // Send email notification to admins
+    fetch('/api/admin/notify-signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, accountType }),
+    }).catch(() => {}); // fire-and-forget, don't block signup flow
 
     toast.success('Account created! An admin must approve your access before you can sign in.');
     router.push('/admin/login');

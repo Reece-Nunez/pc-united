@@ -81,8 +81,9 @@ function Content() {
       const { error } = await updateSponsorshipStatus(id, newStatus);
       if (error) throw error;
       toast.success(`Status updated to ${newStatus}`);
-      logActivity('update', 'sponsorship', String(item.id), userEmail, { status: newStatus });
-      createAdminNotification({ type: 'sponsorship', title: 'Sponsorship Status Updated', message: 'Sponsorship status changed to ' + newStatus, link: '/admin/sponsorships' });
+      const businessName = item.business_name || 'Unknown';
+      logActivity('update', 'sponsorship', businessName, userEmail, { business: businessName, status: newStatus });
+      createAdminNotification({ type: 'sponsorship', title: `Sponsorship Updated: ${businessName}`, message: `${businessName}'s sponsorship status was changed to ${newStatus}.`, link: '/admin/sponsorships' });
       await fetchSponsorships();
     } catch (err: any) {
       toast.error('Failed to update status: ' + (err.message || 'Unknown error'));

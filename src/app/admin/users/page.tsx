@@ -48,7 +48,20 @@ export default function UsersAdminPage() {
 
   useEffect(() => { fetchUsers(); }, []);
 
+  const getRoleLabel = (role: string) => {
+    const labels: Record<string, string> = {
+      admin: 'Admin',
+      approved: 'Approved Coach',
+      parent: 'Parent',
+      pending: 'Pending',
+      pending_parent: 'Pending Parent',
+    };
+    return labels[role] || role;
+  };
+
   const updateRole = async (userId: string, role: string) => {
+    const user = users.find((u) => u.id === userId);
+    const userName = user?.full_name || user?.email || 'Unknown user';
     setUpdating(userId);
     try {
       const res = await fetch('/api/admin/users', {
@@ -61,8 +74,9 @@ export default function UsersAdminPage() {
         toast.error(data.error);
       } else {
         toast.success(`User ${role === 'approved' ? 'approved' : 'updated'}!`);
-        logActivity('update', 'user', userId, userEmail, { role });
-        createAdminNotification({ type: 'user_signup', title: 'User Role Updated', message: 'User role changed to ' + role, link: '/admin/users' });
+        const roleLabel = getRoleLabel(role);
+        logActivity('update', 'user', userName, userEmail, { name: userName, email: user?.email, newRole: roleLabel });
+        createAdminNotification({ type: 'user_signup', title: `${userName} — Role Changed`, message: `${userName}'s role was changed to ${roleLabel}.`, link: '/admin/users' });
         fetchUsers();
       }
     } catch {
@@ -73,7 +87,9 @@ export default function UsersAdminPage() {
   };
 
   const deleteUser = async (userId: string, email: string) => {
-    if (!confirm(`Remove ${email}? This cannot be undone.`)) return;
+    const user = users.find((u) => u.id === userId);
+    const userName = user?.full_name || email;
+    if (!confirm(`Remove ${userName} (${email})? This cannot be undone.`)) return;
     setUpdating(userId);
     try {
       const res = await fetch(`/api/admin/users?userId=${userId}`, { method: 'DELETE' });
@@ -82,8 +98,8 @@ export default function UsersAdminPage() {
         toast.error(data.error);
       } else {
         toast.success('User removed');
-        logActivity('delete', 'user', userId, userEmail);
-        createAdminNotification({ type: 'user_signup', title: 'User Deleted', message: 'A user account was removed.', link: '/admin/users' });
+        logActivity('delete', 'user', userName, userEmail, { name: userName, email });
+        createAdminNotification({ type: 'user_signup', title: `User Removed: ${userName}`, message: `${userName} (${email}) was removed from the system.`, link: '/admin/users' });
         setUsers((prev) => prev.filter((u) => u.id !== userId));
       }
     } catch {

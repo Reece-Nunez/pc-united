@@ -324,8 +324,15 @@ function TeamAdminContent() {
   };
 
   const handleDelete = async (type: ActiveTab, id: number) => {
+    // Look up the item name before deleting
+    let itemName = '';
+    if (type === 'news') itemName = news.find(n => n.id === id)?.title || '';
+    else if (type === 'events') itemName = events.find(e => e.id === id)?.title || '';
+    else if (type === 'schedule') itemName = schedule.find(s => s.id === id)?.opponent || '';
+    else if (type === 'announcements') itemName = announcements.find(a => a.id === id)?.title || '';
+
     if (!confirm(`Are you sure you want to delete this ${type.slice(0, -1)}?`)) return;
-    
+
     setLoading(true);
     try {
       let result;
@@ -343,12 +350,13 @@ function TeamAdminContent() {
           result = await deleteAnnouncement(id);
           break;
       }
-      
+
       if (result.error) throw new Error(result.error.message);
       toast.success(`${type.slice(0, -1)} deleted successfully!`);
       const entityType = type === 'events' ? 'event' : type === 'announcements' ? 'announcement' : type === 'news' ? 'news' : 'schedule';
-      logActivity('delete', entityType, id, userEmail);
-      createAdminNotification({ type: entityType, title: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} Deleted`, message: `A ${entityType} item (ID: ${id}) was deleted`, link: `/admin/team?tab=${type}` });
+      const displayName = type === 'schedule' ? `Game vs ${itemName}` : itemName;
+      logActivity('delete', entityType, displayName || id, userEmail, { name: itemName });
+      createAdminNotification({ type: entityType, title: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} Deleted: ${displayName || 'Unknown'}`, message: `"${displayName}" was deleted.`, link: `/admin/team?tab=${type}` });
       fetchAllData();
     } catch (error: any) {
       toast.error(error.message);
