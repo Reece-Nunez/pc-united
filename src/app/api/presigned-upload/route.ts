@@ -68,13 +68,16 @@ export async function POST(request: NextRequest) {
       Bucket: BUCKET_NAME,
       Key: key,
       ContentType: fileType,
+      ContentDisposition: 'inline',
+      CacheControl: 'max-age=31536000',
     });
 
     // Generate presigned URL (valid for 20 minutes to allow for large uploads)
+    // All headers in PutObjectCommand must be in signableHeaders AND sent by the browser
     console.log('🔗 Generating presigned URL with 20 minute expiry...');
     const presignedUrl = await getSignedUrl(s3Client, command, {
       expiresIn: 1200,
-      signableHeaders: new Set(['content-type']),
+      signableHeaders: new Set(['content-type', 'content-disposition', 'cache-control']),
     });
     console.log('🔗 Presigned URL generated successfully, length:', presignedUrl.length);
     

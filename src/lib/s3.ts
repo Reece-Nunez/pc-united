@@ -97,8 +97,11 @@ export const uploadToS3Direct = async (
       
       xhr.open('PUT', presignedUrl);
       xhr.timeout = 600000; // Increase to 10 minute timeout for large files
+      // Must match the headers in the presigned URL signature
       xhr.setRequestHeader('Content-Type', file.type);
-      
+      xhr.setRequestHeader('Content-Disposition', 'inline');
+      xhr.setRequestHeader('Cache-Control', 'max-age=31536000');
+
       console.log('🚀 Starting PUT request...');
       xhr.send(file);
     });
