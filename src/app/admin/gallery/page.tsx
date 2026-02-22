@@ -5,9 +5,10 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import AdminLayout from '@/components/AdminLayout';
 import DropZone from '@/components/admin/DropZone';
-import { getGalleryImages, createGalleryImage, deleteGalleryImage, GalleryImage } from '@/lib/supabase';
+import { getGalleryImages, createGalleryImage, deleteGalleryImage, GalleryImage, createAdminNotification } from '@/lib/supabase';
 import { uploadToS3Direct } from '@/lib/s3';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { logActivity } from '@/lib/audit';
 
 export default function GalleryAdminPage() {
   return (
@@ -66,6 +67,8 @@ function Content() {
       toast.error('Failed to save image');
     } else {
       toast.success('Image uploaded!');
+      logActivity('create', 'gallery', selectedFile.name, userEmail);
+      createAdminNotification({ type: 'gallery', title: 'Gallery Image Uploaded', message: 'A new image was added to the gallery.', link: '/admin/gallery' });
       setTitle('');
       setCategory('other');
       setSelectedFile(null);
@@ -84,6 +87,7 @@ function Content() {
       toast.error('Failed to delete');
     } else {
       toast.success('Image deleted');
+      logActivity('delete', 'gallery', image.id, userEmail);
       setImages((prev) => prev.filter((i) => i.id !== image.id));
     }
   };

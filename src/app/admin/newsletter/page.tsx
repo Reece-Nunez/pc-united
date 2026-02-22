@@ -9,12 +9,16 @@ import {
   updateNewsletterSubscriber,
   deleteNewsletterSubscriber,
   NewsletterSubscriber,
+  createAdminNotification,
 } from '@/lib/supabase';
+import { logActivity } from '@/lib/audit';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 function Content() {
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const userEmail = useCurrentUser();
 
   const fetchSubscribers = useCallback(async () => {
     try {
@@ -61,6 +65,7 @@ function Content() {
         toast.success(
           `Subscriber ${newActive ? 'activated' : 'deactivated'}`
         );
+        logActivity('update', 'newsletter_subscriber', subscriber.id, userEmail);
       }
     } catch {
       setSubscribers((prev) =>
@@ -91,6 +96,7 @@ function Content() {
       } else {
         setSubscribers((prev) => prev.filter((s) => s.id !== subscriber.id));
         toast.success('Subscriber deleted');
+        logActivity('delete', 'newsletter_subscriber', subscriber.id, userEmail);
       }
     } catch {
       toast.error('Failed to delete subscriber');

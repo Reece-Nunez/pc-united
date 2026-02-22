@@ -8,7 +8,10 @@ import {
   getSponsorships,
   updateSponsorshipStatus,
   Sponsorship,
+  createAdminNotification,
 } from '@/lib/supabase';
+import { logActivity } from '@/lib/audit';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 type SponsorshipWithStatus = Sponsorship & { status?: string };
 
@@ -48,6 +51,7 @@ function Content() {
   const [error, setError] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<SponsorshipWithStatus | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const userEmail = useCurrentUser();
 
   const fetchSponsorships = useCallback(async () => {
     try {
@@ -77,6 +81,8 @@ function Content() {
       const { error } = await updateSponsorshipStatus(id, newStatus);
       if (error) throw error;
       toast.success(`Status updated to ${newStatus}`);
+      logActivity('update', 'sponsorship', String(item.id), userEmail, { status: newStatus });
+      createAdminNotification({ type: 'sponsorship', title: 'Sponsorship Status Updated', message: 'Sponsorship status changed to ' + newStatus, link: '/admin/sponsorships' });
       await fetchSponsorships();
     } catch (err: any) {
       toast.error('Failed to update status: ' + (err.message || 'Unknown error'));

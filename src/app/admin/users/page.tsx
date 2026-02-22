@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import AdminLayout from '@/components/AdminLayout';
+import { createAdminNotification } from '@/lib/supabase';
+import { logActivity } from '@/lib/audit';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface AdminUser {
   id: string;
@@ -25,6 +28,7 @@ export default function UsersAdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const userEmail = useCurrentUser();
 
   const fetchUsers = async () => {
     try {
@@ -57,6 +61,8 @@ export default function UsersAdminPage() {
         toast.error(data.error);
       } else {
         toast.success(`User ${role === 'approved' ? 'approved' : 'updated'}!`);
+        logActivity('update', 'user', userId, userEmail, { role });
+        createAdminNotification({ type: 'user_signup', title: 'User Role Updated', message: 'User role changed to ' + role, link: '/admin/users' });
         fetchUsers();
       }
     } catch {
@@ -76,6 +82,8 @@ export default function UsersAdminPage() {
         toast.error(data.error);
       } else {
         toast.success('User removed');
+        logActivity('delete', 'user', userId, userEmail);
+        createAdminNotification({ type: 'user_signup', title: 'User Deleted', message: 'A user account was removed.', link: '/admin/users' });
         setUsers((prev) => prev.filter((u) => u.id !== userId));
       }
     } catch {

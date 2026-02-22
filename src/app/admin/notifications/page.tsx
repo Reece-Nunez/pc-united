@@ -29,6 +29,9 @@ const typeColors: Record<string, string> = {
   news: 'bg-teal-100 text-teal-800',
   gallery: 'bg-purple-100 text-purple-800',
   user_signup: 'bg-pink-100 text-pink-800',
+  event: 'bg-cyan-100 text-cyan-800',
+  schedule: 'bg-emerald-100 text-emerald-800',
+  announcement: 'bg-amber-100 text-amber-800',
 };
 
 const roleColors: Record<string, string> = {

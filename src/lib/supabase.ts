@@ -896,7 +896,7 @@ export async function deleteGalleryImage(id: number) {
 
 export interface AdminNotification {
   id: number;
-  type: 'registration' | 'sponsorship' | 'contact' | 'player' | 'highlight' | 'news' | 'gallery' | 'user_signup';
+  type: 'registration' | 'sponsorship' | 'contact' | 'player' | 'highlight' | 'news' | 'gallery' | 'user_signup' | 'event' | 'schedule' | 'announcement';
   title: string;
   message: string;
   link?: string;

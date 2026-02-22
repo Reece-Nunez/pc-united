@@ -10,8 +10,11 @@ import {
   createHighlight,
   updateHighlight,
   deleteHighlight,
-  Highlight
+  Highlight,
+  createAdminNotification,
 } from "@/lib/supabase";
+import { logActivity } from '@/lib/audit';
+import { createClient } from '@/lib/supabase-browser';
 import { uploadToS3, uploadToS3Direct, deleteFromS3, isS3Configured } from "@/lib/s3";
 
 interface HighlightWithPlayer extends Highlight {
@@ -47,6 +50,7 @@ function HighlightsAdminContent() {
   const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [editSelectedVideoFile, setEditSelectedVideoFile] = useState<File | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
 
   // Check URL params for actions
   useEffect(() => {
@@ -58,6 +62,10 @@ function HighlightsAdminContent() {
   // Fetch data on component mount
   useEffect(() => {
     fetchData();
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserEmail(user?.email || '');
+    });
   }, []);
 
   // Cleanup object URLs to prevent memory leaks
@@ -155,6 +163,7 @@ function HighlightsAdminContent() {
       }
       setEditSelectedVideoFile(null);
       toast.success('Highlight updated successfully!');
+      logActivity('update', 'highlight', editingHighlight, userEmail, { title: editForm.title });
     } catch (err: any) {
       toast.error('Error updating highlight: ' + err.message);
     } finally {
@@ -234,6 +243,8 @@ function HighlightsAdminContent() {
       setSelectedVideoFile(null);
       setShowAddForm(false);
       toast.success('Highlight added successfully!');
+      createAdminNotification({ type: 'highlight', title: 'Highlight Added: ' + newHighlightForm.title, message: 'New highlight video uploaded.', link: '/admin/highlights' });
+      logActivity('create', 'highlight', newHighlightForm.title, userEmail, { title: newHighlightForm.title });
     } catch (err: any) {
       toast.error('Error adding highlight: ' + err.message);
     } finally {
@@ -262,6 +273,8 @@ function HighlightsAdminContent() {
         
         await fetchData();
         toast.success('Highlight deleted successfully!');
+        createAdminNotification({ type: 'highlight', title: 'Highlight Deleted', message: 'A highlight was removed.', link: '/admin/highlights' });
+        logActivity('delete', 'highlight', highlightId, userEmail);
       } catch (err: any) {
         toast.error('Error deleting highlight: ' + err.message);
       }

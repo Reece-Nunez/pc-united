@@ -20,6 +20,9 @@ const notificationTypeIcons: Record<string, string> = {
   news: 'N',
   gallery: 'G',
   user_signup: 'U',
+  event: 'E',
+  schedule: 'S',
+  announcement: 'A',
 };
 
 const notificationTypeColors: Record<string, string> = {
@@ -31,6 +34,9 @@ const notificationTypeColors: Record<string, string> = {
   news: 'bg-teal-500',
   gallery: 'bg-purple-500',
   user_signup: 'bg-pink-500',
+  event: 'bg-cyan-500',
+  schedule: 'bg-emerald-500',
+  announcement: 'bg-amber-500',
 };
 
 function relativeTime(dateStr: string) {

@@ -5,10 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import ImageUpload from "@/components/ImageUpload";
 import AdminLayout from '@/components/AdminLayout';
 import toast from 'react-hot-toast';
-import { 
-  getNews, 
-  createNews, 
-  updateNews, 
+import {
+  getNews,
+  createNews,
+  updateNews,
   deleteNews,
   getEvents,
   createEvent,
@@ -22,11 +22,14 @@ import {
   createAnnouncement,
   updateAnnouncement,
   deleteAnnouncement,
-  News, 
-  Event, 
-  Schedule, 
-  Announcement 
+  createAdminNotification,
+  News,
+  Event,
+  Schedule,
+  Announcement
 } from "@/lib/supabase";
+import { logActivity } from '@/lib/audit';
+import { createClient } from '@/lib/supabase-browser';
 
 type ActiveTab = 'news' | 'events' | 'schedule' | 'announcements';
 
@@ -51,6 +54,7 @@ function TeamAdminContent() {
   const tabParam = searchParams.get('tab') as ActiveTab | null;
   const [activeTab, setActiveTab] = useState<ActiveTab>(tabParam || 'news');
   const [loading, setLoading] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
 
   // Helper function to convert UTC date to local datetime-local format
   const toLocalDateTimeString = (utcDateString: string): string => {
@@ -124,6 +128,10 @@ function TeamAdminContent() {
 
   useEffect(() => {
     fetchAllData();
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) setUserEmail(data.user.email);
+    });
   }, []);
 
   const fetchAllData = async () => {
@@ -170,11 +178,14 @@ function TeamAdminContent() {
         const result = await updateNews(editingNews.id, formData);
         if (result.error) throw new Error(result.error.message);
         toast.success('News article updated successfully!');
+        logActivity('update', 'news', editingNews.id, userEmail, { title: newsForm.title });
         setEditingNews(null);
       } else {
         const result = await createNews(formData);
         if (result.error) throw new Error(result.error.message);
         toast.success('News article created successfully!');
+        logActivity('create', 'news', result.data?.[0]?.id || newsForm.title, userEmail, { title: newsForm.title });
+        createAdminNotification({ type: 'news', title: 'News Published: ' + newsForm.title, message: newsForm.excerpt || newsForm.title, link: '/admin/team?tab=news' });
       }
       
       setNewsForm({
@@ -205,11 +216,14 @@ function TeamAdminContent() {
         const result = await updateEvent(editingEvent.id, eventForm);
         if (result.error) throw new Error(result.error.message);
         toast.success('Event updated successfully!');
+        logActivity('update', 'event', editingEvent.id, userEmail, { title: eventForm.title });
         setEditingEvent(null);
       } else {
         const result = await createEvent(eventForm);
         if (result.error) throw new Error(result.error.message);
         toast.success('Event created successfully!');
+        logActivity('create', 'event', result.data?.[0]?.id || eventForm.title, userEmail, { title: eventForm.title });
+        createAdminNotification({ type: 'event', title: 'New Event: ' + eventForm.title, message: eventForm.description || eventForm.title, link: '/admin/team?tab=events' });
       }
       
       setEventForm({
@@ -242,11 +256,14 @@ function TeamAdminContent() {
         const result = await updateScheduleItem(editingSchedule.id, scheduleForm);
         if (result.error) throw new Error(result.error.message);
         toast.success('Schedule item updated successfully!');
+        logActivity('update', 'schedule', editingSchedule.id, userEmail, { opponent: scheduleForm.opponent });
         setEditingSchedule(null);
       } else {
         const result = await createScheduleItem(scheduleForm);
         if (result.error) throw new Error(result.error.message);
         toast.success('Schedule item created successfully!');
+        logActivity('create', 'schedule', result.data?.[0]?.id || scheduleForm.opponent, userEmail, { opponent: scheduleForm.opponent });
+        createAdminNotification({ type: 'schedule', title: 'New Game: vs ' + scheduleForm.opponent, message: scheduleForm.opponent + ' - ' + scheduleForm.game_date, link: '/admin/team?tab=schedule' });
       }
       
       setScheduleForm({
@@ -279,11 +296,14 @@ function TeamAdminContent() {
         const result = await updateAnnouncement(editingAnnouncement.id, announcementForm);
         if (result.error) throw new Error(result.error.message);
         toast.success('Announcement updated successfully!');
+        logActivity('update', 'announcement', editingAnnouncement.id, userEmail, { title: announcementForm.title });
         setEditingAnnouncement(null);
       } else {
         const result = await createAnnouncement(announcementForm);
         if (result.error) throw new Error(result.error.message);
         toast.success('Announcement created successfully!');
+        logActivity('create', 'announcement', result.data?.[0]?.id || announcementForm.title, userEmail, { title: announcementForm.title });
+        createAdminNotification({ type: 'announcement', title: 'New Announcement: ' + announcementForm.title, message: announcementForm.content || announcementForm.title, link: '/admin/team?tab=announcements' });
       }
       
       setAnnouncementForm({
@@ -326,6 +346,9 @@ function TeamAdminContent() {
       
       if (result.error) throw new Error(result.error.message);
       toast.success(`${type.slice(0, -1)} deleted successfully!`);
+      const entityType = type === 'events' ? 'event' : type === 'announcements' ? 'announcement' : type === 'news' ? 'news' : 'schedule';
+      logActivity('delete', entityType, id, userEmail);
+      createAdminNotification({ type: entityType, title: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} Deleted`, message: `A ${entityType} item (ID: ${id}) was deleted`, link: `/admin/team?tab=${type}` });
       fetchAllData();
     } catch (error: any) {
       toast.error(error.message);
