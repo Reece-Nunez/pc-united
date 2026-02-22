@@ -68,8 +68,6 @@ export async function POST(request: NextRequest) {
       Bucket: BUCKET_NAME,
       Key: key,
       ContentType: fileType,
-      CacheControl: 'max-age=31536000',
-      ContentDisposition: 'inline',
     });
 
     // Generate presigned URL (valid for 20 minutes to allow for large uploads)

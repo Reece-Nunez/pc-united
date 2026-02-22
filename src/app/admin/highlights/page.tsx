@@ -146,10 +146,13 @@ function HighlightsAdminContent() {
         }
       }
       
+      // Only send fields that belong in the highlights table
+      const { id, created_at, players, ...cleanForm } = editForm as any;
       const updateData = {
-        ...editForm,
-        video_url: videoUrl || undefined
+        ...cleanForm,
+        video_url: videoUrl || editForm.video_url,
       };
+      console.log('📤 Updating highlight with video_url:', updateData.video_url);
       const { error } = await updateHighlight(editingHighlight, updateData);
       if (error) throw error;
       
