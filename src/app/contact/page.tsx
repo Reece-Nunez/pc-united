@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { EnvelopeIcon, PhoneIcon, MapPinIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 export default function ContactPage() {
   return (
@@ -34,7 +35,7 @@ export default function ContactPage() {
               <div className="space-y-6">
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                    <span className="text-white text-xl">📧</span>
+                    <EnvelopeIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-team-blue mb-1">Email Us</h3>
@@ -45,7 +46,7 @@ export default function ContactPage() {
                 
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                    <span className="text-white text-xl">📱</span>
+                    <PhoneIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-team-blue mb-1">Call or Text</h3>
@@ -56,7 +57,7 @@ export default function ContactPage() {
                 
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                    <span className="text-white text-xl">📍</span>
+                    <MapPinIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-team-blue mb-1">Practice Location</h3>
@@ -67,7 +68,7 @@ export default function ContactPage() {
 
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                    <span className="text-white text-xl">⚽</span>
+                    <CalendarIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-team-blue mb-1">Practice Schedule</h3>

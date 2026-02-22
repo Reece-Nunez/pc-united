@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
 import Registration from "@/components/Registration";
+import Sponsors from "@/components/Sponsors";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import { generateMetadata, generateSportsOrganizationLD } from "@/components/SEO";
@@ -41,6 +42,7 @@ export default function Home() {
       <Hero />
       <About />
       <Registration />
+      <Sponsors />
       <Contact />
       <Footer />
     </div>

@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import Link from "next/link";
+import { FireIcon, UserGroupIcon, ShieldCheckIcon, ViewfinderCircleIcon } from '@heroicons/react/24/outline';
 
 export default function AboutPage() {
   return (
@@ -71,7 +72,7 @@ export default function AboutPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="bg-white rounded-lg p-8 shadow-lg text-center">
               <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl font-bold">💪</span>
+                <FireIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-team-blue mb-3">Excellence</h3>
               <p className="text-gray-600">
@@ -81,7 +82,7 @@ export default function AboutPage() {
             
             <div className="bg-white rounded-lg p-8 shadow-lg text-center">
               <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl font-bold">🤝</span>
+                <UserGroupIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-team-blue mb-3">Teamwork</h3>
               <p className="text-gray-600">
@@ -91,7 +92,7 @@ export default function AboutPage() {
             
             <div className="bg-white rounded-lg p-8 shadow-lg text-center">
               <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl font-bold">⚡</span>
+                <ShieldCheckIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-team-blue mb-3">Respect</h3>
               <p className="text-gray-600">
@@ -101,7 +102,7 @@ export default function AboutPage() {
             
             <div className="bg-white rounded-lg p-8 shadow-lg text-center">
               <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl font-bold">🎯</span>
+                <ViewfinderCircleIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-team-blue mb-3">Growth</h3>
               <p className="text-gray-600">

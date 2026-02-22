@@ -9,7 +9,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        'team-blue': '#1e3a8a', // Dark blue
+        'team-blue': '#0f172a', // Navy blue
         'team-red': '#dc2626', // Red accent
         'team-orange': '#8f7f52', // Gray-orange secondary accent
         'team-gray': '#6b7280', // Additional gray tones

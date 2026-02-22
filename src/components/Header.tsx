@@ -2,20 +2,44 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+
+const navLinks = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/players', label: 'Players' },
+  { href: '/coaches', label: 'Coaches' },
+  { href: '/team', label: 'Team' },
+  { href: '/friends', label: 'Friends' },
+  { href: '/contact', label: 'Contact' },
+];
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [pathname]);
 
   const handleLogoTap = (e: React.MouseEvent) => {
     e.preventDefault();
     tapCountRef.current += 1;
 
-    // Reset tap count after 1 second of no taps
     if (tapTimerRef.current) {
       clearTimeout(tapTimerRef.current);
     }
@@ -23,98 +47,149 @@ export default function Header() {
       tapCountRef.current = 0;
     }, 1000);
 
-    // After 3 taps, go to admin
     if (tapCountRef.current >= 3) {
       tapCountRef.current = 0;
       router.push('/admin');
     }
   };
 
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    if (href.startsWith('/#')) return pathname === '/';
+    return pathname.startsWith(href);
+  };
+
   return (
-    <nav className="bg-team-blue shadow-lg relative z-50">
+    <nav
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-team-blue/85 backdrop-blur-lg shadow-lg border-b border-white/10'
+          : 'bg-team-blue'
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center cursor-pointer" onClick={handleLogoTap}>
-              <Image
-                src="/logo.png"
-                alt="Ponca City United FC Logo"
-                width={40}
-                height={40}
-                sizes="40px"
-                className="mr-3"
-              />
-              <span className="text-white font-bold text-xl">Ponca City United FC</span>
-            </Link>
-          </div>
-          
+        <div className={`flex items-center justify-between transition-all duration-300 ${
+          scrolled ? 'h-16' : 'h-20'
+        }`}>
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group" onClick={handleLogoTap}>
+            <Image
+              src="/logo.png"
+              alt="Ponca City United FC Logo"
+              width={48}
+              height={48}
+              sizes="48px"
+              className={`transition-all duration-300 ${scrolled ? 'w-9 h-9' : 'w-12 h-12'}`}
+            />
+            <span className="text-white font-bold text-lg sm:text-xl tracking-tight">
+              Ponca City <span className="text-team-red">United</span>
+            </span>
+          </Link>
+
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
-              Home
-            </Link>
-            <Link href="/about" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
-              About
-            </Link>
-            <Link href="/players" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
-              Players
-            </Link>
-            <Link href="/coaches" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
-              Coaches
-            </Link>
-            <Link href="/team" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
-              Team
-            </Link>
-            <Link href="/register" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
+          <div className="hidden lg:flex items-center gap-1">
+            {navLinks.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`relative px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  isActive(href)
+                    ? 'text-white'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                {label}
+                {/* Active indicator */}
+                {isActive(href) && (
+                  <motion.span
+                    layoutId="activeNav"
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-team-red rounded-full"
+                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  />
+                )}
+                {/* Hover underline */}
+                {!isActive(href) && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-team-red/60 rounded-full transition-all duration-200 group-hover:w-0 hover:w-5" />
+                )}
+              </Link>
+            ))}
+
+            {/* Register CTA */}
+            <Link
+              href="/register"
+              className={`ml-4 font-semibold text-sm rounded-full transition-all duration-300 ${
+                pathname === '/register'
+                  ? 'bg-white text-team-blue px-5 py-2'
+                  : 'bg-team-red hover:bg-red-600 text-white px-5 py-2 hover:shadow-lg hover:shadow-red-500/25'
+              }`}
+            >
               Register
             </Link>
-            <Link href="/contact" className="text-white hover:text-team-red transition duration-300 cursor-pointer">
-              Contact
-            </Link>
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-white hover:text-team-red focus:outline-none focus:text-team-red"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-              </svg>
-            </button>
-          </div>
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="lg:hidden relative w-10 h-10 flex items-center justify-center text-white focus:outline-none"
+            aria-label="Toggle menu"
+          >
+            <div className="w-6 h-5 relative flex flex-col justify-between">
+              <span
+                className={`block h-0.5 w-6 bg-white rounded-full transition-all duration-300 origin-center ${
+                  isMenuOpen ? 'rotate-45 translate-y-[9px]' : ''
+                }`}
+              />
+              <span
+                className={`block h-0.5 w-6 bg-white rounded-full transition-all duration-300 ${
+                  isMenuOpen ? 'opacity-0 scale-x-0' : ''
+                }`}
+              />
+              <span
+                className={`block h-0.5 w-6 bg-white rounded-full transition-all duration-300 origin-center ${
+                  isMenuOpen ? '-rotate-45 -translate-y-[9px]' : ''
+                }`}
+              />
+            </div>
+          </button>
         </div>
+      </div>
 
-        {/* Mobile Navigation Menu */}
+      {/* Mobile Navigation Menu */}
+      <AnimatePresence>
         {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-team-blue border-t border-blue-700">
-              <Link href="/" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
-                Home
-              </Link>
-              <Link href="/about" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
-                About
-              </Link>
-              <Link href="/players" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
-                Players
-              </Link>
-              <Link href="/coaches" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
-                Coaches
-              </Link>
-              <Link href="/team" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
-                Team
-              </Link>
-              <Link href="/register" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
-                Register
-              </Link>
-              <Link href="/contact" className="block px-3 py-2 text-white hover:text-team-red transition duration-300" onClick={() => setIsMenuOpen(false)}>
-                Contact
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="lg:hidden overflow-hidden bg-team-blue/95 backdrop-blur-lg border-t border-white/10"
+          >
+            <div className="px-4 py-4 space-y-1">
+              {navLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`block px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                    isActive(href)
+                      ? 'bg-white/10 text-white border-l-2 border-team-red'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {label}
+                </Link>
+              ))}
+              <Link
+                href="/register"
+                className="block mt-3 text-center bg-team-red hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition-colors duration-200"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Register Now
               </Link>
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </nav>
   );
 }

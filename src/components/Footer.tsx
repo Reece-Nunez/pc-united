@@ -29,6 +29,7 @@ export default function Footer() {
               <li><Link href="/about" className="hover:text-white transition duration-300 cursor-pointer">About</Link></li>
               <li><Link href="/players" className="hover:text-white transition duration-300 cursor-pointer">Players</Link></li>
               <li><Link href="/register" className="hover:text-white transition duration-300 cursor-pointer">Register</Link></li>
+              <li><Link href="/#sponsors" className="hover:text-white transition duration-300 cursor-pointer">Friends of the Team</Link></li>
               <li><Link href="/contact" className="hover:text-white transition duration-300 cursor-pointer">Contact</Link></li>
             </ul>
           </div>

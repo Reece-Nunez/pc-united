@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import RegisterClient from "./RegisterClient";
+import { ViewfinderCircleIcon, TrophyIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { generateMetadata } from "@/components/SEO";
 import { Metadata } from "next";
 
@@ -50,21 +51,21 @@ export default function RegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             <div className="text-center">
               <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl">⚽</span>
+                <ViewfinderCircleIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-lg font-semibold text-team-blue mb-2">Professional Coaching</h3>
               <p className="text-gray-600 text-sm md:text-base">Experienced coaches focused on skill development and fun</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl">🏆</span>
+                <TrophyIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-lg font-semibold text-team-blue mb-2">Competitive Play</h3>
               <p className="text-gray-600 text-sm md:text-base">Local and regional tournaments for all skill levels</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl">👥</span>
+                <UserGroupIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-lg font-semibold text-team-blue mb-2">Team Spirit</h3>
               <p className="text-gray-600 text-sm md:text-base">Building friendships and character through teamwork</p>

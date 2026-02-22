@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
 import { getPlayers, getSchedule, getHighlights, Player, Schedule } from "@/lib/supabase";
+import { ViewfinderCircleIcon } from '@heroicons/react/24/outline';
 
 interface PlayerWithStats extends Player {
   player_stats?: Array<{
@@ -157,7 +158,7 @@ export default function PlayersClient() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {filteredPlayers.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-6xl md:text-8xl text-gray-300 mb-4">⚽</div>
+              <div className="text-gray-300 mb-4"><ViewfinderCircleIcon className="w-24 h-24" /></div>
               <h3 className="text-xl md:text-2xl font-bold text-gray-600 mb-2">No Players Found</h3>
               <p className="text-gray-500">
                 {selectedPosition === 'All' 

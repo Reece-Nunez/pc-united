@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
+import { MegaphoneIcon, HomeIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import {
   getNews,
   getEvents,
@@ -239,7 +240,7 @@ export default function TeamClient() {
       {announcements.length > 0 && (
         <section className="py-6 md:py-8 bg-yellow-50 border-b border-yellow-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-xl md:text-2xl font-bold text-team-blue mb-4">📢 Important Announcements</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-team-blue mb-4 flex items-center gap-2"><MegaphoneIcon className="w-6 h-6" /> Important Announcements</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {announcements.slice(0, 3).map((announcement) => (
                 <div 
@@ -428,7 +429,7 @@ export default function TeamClient() {
                           </div>
                           <div className="text-gray-600 space-y-1 text-sm md:text-base">
                             <p><strong>Date:</strong> {parseAsLocalTime(game.game_date).toLocaleDateString()} at {parseAsLocalTime(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                            <p><strong>Location:</strong> {game.location} {game.home_game ? '🏠' : '✈️'}</p>
+                            <p className="flex items-center gap-1"><strong>Location:</strong> {game.location} {game.home_game ? <HomeIcon className="w-4 h-4" /> : <PaperAirplaneIcon className="w-4 h-4" />}</p>
                             <p><strong>Type:</strong> {game.game_type.toUpperCase()}</p>
                           </div>
                         </div>
