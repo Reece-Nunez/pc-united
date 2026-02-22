@@ -97,7 +97,7 @@ export const uploadToS3Direct = async (
       
       xhr.open('PUT', presignedUrl);
       xhr.timeout = 600000; // Increase to 10 minute timeout for large files
-      // Don't set Content-Type manually - it's already signed in the presigned URL
+      xhr.setRequestHeader('Content-Type', file.type);
       
       console.log('🚀 Starting PUT request...');
       xhr.send(file);

@@ -72,7 +72,10 @@ export async function POST(request: NextRequest) {
 
     // Generate presigned URL (valid for 20 minutes to allow for large uploads)
     console.log('🔗 Generating presigned URL with 20 minute expiry...');
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 1200 });
+    const presignedUrl = await getSignedUrl(s3Client, command, {
+      expiresIn: 1200,
+      signableHeaders: new Set(['content-type']),
+    });
     console.log('🔗 Presigned URL generated successfully, length:', presignedUrl.length);
     
     // Construct the final public URL
@@ -85,7 +88,8 @@ export async function POST(request: NextRequest) {
       success: true,
       presignedUrl,
       publicUrl,
-      key
+      key,
+      contentType: fileType,
     });
 
   } catch (error: any) {
