@@ -1,0 +1,9 @@
+{
+  "name": "transcode-video",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.500.0",
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
