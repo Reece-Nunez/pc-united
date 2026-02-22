@@ -155,15 +155,10 @@ export default async function NewsArticlePage({ params }: PageProps) {
           </p>
         )}
 
-        <div className="prose prose-lg max-w-none prose-headings:text-team-blue prose-a:text-team-blue">
-          {article.content.split('\n').map((paragraph: string, index: number) => (
-            paragraph.trim() && (
-              <p key={index} className="mb-4 text-gray-700 leading-relaxed">
-                {paragraph}
-              </p>
-            )
-          ))}
-        </div>
+        <div
+          className="prose prose-lg max-w-none prose-headings:text-team-blue prose-a:text-team-blue"
+          dangerouslySetInnerHTML={{ __html: article.content }}
+        />
       </article>
 
       {/* Back to News */}

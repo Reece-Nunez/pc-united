@@ -59,6 +59,20 @@ export interface Registration {
   payment_status?: string;
 }
 
+// Newsletter subscription
+export async function subscribeNewsletter(email: string) {
+  if (!isSupabaseConfigured) {
+    return { data: null, error: { message: 'Supabase is not configured.', code: '' } };
+  }
+
+  const { data, error } = await supabase
+    .from('newsletter_subscribers')
+    .insert([{ email }])
+    .select();
+
+  return { data, error };
+}
+
 // Sponsorship form type
 export interface Sponsorship {
   id?: string;
@@ -775,16 +789,165 @@ export async function updateAnnouncement(id: number, announcement: Partial<Annou
 
 export async function deleteAnnouncement(id: number) {
   if (!isSupabaseConfigured) {
-    return { 
-      data: null, 
-      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
+    return {
+      data: null,
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' }
     };
   }
-  
+
   const { data, error } = await supabase
     .from('announcements')
     .delete()
     .eq('id', id);
-    
+
   return { data, error };
 }
+
+// ===========================
+// Newsletter Subscribers
+// ===========================
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  active: boolean;
+  created_at: string;
+}
+
+export async function getNewsletterSubscribers() {
+  const { data, error } = await supabase
+    .from('newsletter_subscribers')
+    .select('*')
+    .order('created_at', { ascending: false });
+  return { data: data as NewsletterSubscriber[] | null, error };
+}
+
+export async function updateNewsletterSubscriber(id: string, updates: Partial<NewsletterSubscriber>) {
+  const { data, error } = await supabase
+    .from('newsletter_subscribers')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  return { data, error };
+}
+
+export async function deleteNewsletterSubscriber(id: string) {
+  const { data, error } = await supabase
+    .from('newsletter_subscribers')
+    .delete()
+    .eq('id', id);
+  return { data, error };
+}
+
+// ===========================
+// Sponsorship Management
+// ===========================
+
+export async function getSponsorships() {
+  const { data, error } = await supabase
+    .from('sponsorships')
+    .select('*')
+    .order('created_at', { ascending: false });
+  return { data: data as (Sponsorship & { status?: string })[] | null, error };
+}
+
+export async function updateSponsorshipStatus(id: number, status: string) {
+  const { data, error } = await supabase
+    .from('sponsorships')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single();
+  return { data, error };
+}
+
+// ===========================
+// Gallery Images
+// ===========================
+
+export interface GalleryImage {
+  id: number;
+  title: string;
+  image_url: string;
+  category: 'game' | 'practice' | 'event' | 'team' | 'other';
+  uploaded_by?: string;
+  created_at?: string;
+}
+
+export async function getGalleryImages(category?: string) {
+  let query = supabase.from('gallery_images').select('*').order('created_at', { ascending: false });
+  if (category && category !== 'all') query = query.eq('category', category);
+  const { data, error } = await query;
+  return { data: data as GalleryImage[] | null, error };
+}
+
+export async function createGalleryImage(image: Omit<GalleryImage, 'id' | 'created_at'>) {
+  const { data, error } = await supabase.from('gallery_images').insert([image]).select().single();
+  return { data, error };
+}
+
+export async function deleteGalleryImage(id: number) {
+  const { data, error } = await supabase.from('gallery_images').delete().eq('id', id);
+  return { data, error };
+}
+
+// ─── Admin Notifications ─────────────────────────────────────────────
+
+export interface AdminNotification {
+  id: number;
+  type: 'registration' | 'sponsorship' | 'contact' | 'player' | 'highlight' | 'news' | 'gallery' | 'user_signup';
+  title: string;
+  message: string;
+  link?: string;
+  read: boolean;
+  created_at: string;
+}
+
+export async function getAdminNotifications(limit = 50) {
+  const { data, error } = await supabase
+    .from('admin_notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  return { data: data as AdminNotification[] | null, error };
+}
+
+export async function getUnreadNotificationCount() {
+  const { count, error } = await supabase
+    .from('admin_notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('read', false);
+  return { count: count ?? 0, error };
+}
+
+export async function markNotificationRead(id: number) {
+  const { error } = await supabase
+    .from('admin_notifications')
+    .update({ read: true })
+    .eq('id', id);
+  return { error };
+}
+
+export async function markAllNotificationsRead() {
+  const { error } = await supabase
+    .from('admin_notifications')
+    .update({ read: true })
+    .eq('read', false);
+  return { error };
+}
+
+export async function createAdminNotification(notification: Omit<AdminNotification, 'id' | 'read' | 'created_at'>) {
+  const { data, error } = await supabase
+    .from('admin_notifications')
+    .insert([notification])
+    .select()
+    .single();
+  return { data, error };
+}
+
+export async function deleteAdminNotification(id: number) {
+  const { error } = await supabase.from('admin_notifications').delete().eq('id', id);
+  return { error };
+}
+

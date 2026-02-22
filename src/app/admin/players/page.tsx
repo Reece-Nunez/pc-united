@@ -13,6 +13,7 @@ import {
   createOrUpdatePlayerStats,
   Player
 } from "@/lib/supabase";
+import { createClient } from '@/lib/supabase-browser';
 
 interface AdminPlayer extends Player {
   player_stats?: Array<{
@@ -79,6 +80,7 @@ function PlayersAdminContent() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('All');
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [newPlayerForm, setNewPlayerForm] = useState<NewPlayerForm>({
     name: '',
     jersey_number: '',
@@ -116,6 +118,10 @@ function PlayersAdminContent() {
 
   useEffect(() => {
     fetchPlayers();
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserRole(user?.user_metadata?.role || null);
+    });
   }, []);
 
   async function fetchPlayers() {
@@ -367,6 +373,8 @@ function PlayersAdminContent() {
     );
   }
 
+  const isParent = userRole === 'parent';
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
@@ -374,17 +382,19 @@ function PlayersAdminContent() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Players</h1>
-            <p className="text-gray-600 mt-1">Manage your team roster</p>
+            <p className="text-gray-600 mt-1">{isParent ? 'View the team roster' : 'Manage your team roster'}</p>
           </div>
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="mt-4 md:mt-0 bg-team-blue hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center space-x-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>{showAddForm ? 'Cancel' : 'Add Player'}</span>
-          </button>
+          {!isParent && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="mt-4 md:mt-0 bg-team-blue hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>{showAddForm ? 'Cancel' : 'Add Player'}</span>
+            </button>
+          )}
         </div>
 
         {/* Search and Filter */}
@@ -749,20 +759,22 @@ function PlayersAdminContent() {
                           <div className="text-xs text-gray-500">Yellow</div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(player)}
-                          className="flex-1 bg-team-blue text-white py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeletePlayer(player.id)}
-                          className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      {!isParent && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(player)}
+                            className="flex-1 bg-team-blue text-white py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlayer(player.id)}
+                            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

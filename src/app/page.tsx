@@ -1,9 +1,12 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
+import Testimonials from "@/components/Testimonials";
 import Registration from "@/components/Registration";
 import Sponsors from "@/components/Sponsors";
 import Contact from "@/components/Contact";
+import NewsletterSignup from "@/components/NewsletterSignup";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 import Footer from "@/components/Footer";
 import { generateMetadata, generateSportsOrganizationLD } from "@/components/SEO";
 import { Metadata } from "next";
@@ -39,11 +42,14 @@ export default function Home() {
         }}
       />
       <Header />
+      <AnnouncementBanner />
       <Hero />
       <About />
+      <Testimonials />
       <Registration />
       <Sponsors />
       <Contact />
+      <NewsletterSignup />
       <Footer />
     </div>
   );

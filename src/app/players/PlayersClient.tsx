@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getPlayers, getSchedule, getHighlights, Player, Schedule } from "@/lib/supabase";
 import { ViewfinderCircleIcon } from '@heroicons/react/24/outline';
+import { PlayersLoadingSkeleton } from '@/components/Skeleton';
 
 interface PlayerWithStats extends Player {
   player_stats?: Array<{
@@ -67,12 +68,7 @@ export default function PlayersClient() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="py-20 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-        <h1 className="text-2xl md:text-4xl font-bold text-team-blue mb-4">Loading Players...</h1>
-      </div>
-    );
+    return <PlayersLoadingSkeleton />;
   }
 
   if (error) {

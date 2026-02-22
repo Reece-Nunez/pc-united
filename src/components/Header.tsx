@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/players', label: 'Players' },
   { href: '/coaches', label: 'Coaches' },
   { href: '/team', label: 'Team' },
+  { href: '/gallery', label: 'Gallery' },
   { href: '/friends', label: 'Friends' },
   { href: '/contact', label: 'Contact' },
 ];

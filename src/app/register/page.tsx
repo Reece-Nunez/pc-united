@@ -42,6 +42,25 @@ export default function RegisterPage() {
         </div>
       </section>
 
+      {/* Club Registration Banner */}
+      <section className="bg-blue-50 border-b border-blue-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left">
+            <p className="text-gray-700">
+              <strong>Official club registration</strong> is handled separately through the club.
+            </p>
+            <a
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-team-blue hover:bg-blue-800 text-white font-semibold px-5 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+            >
+              Register with the Club →
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Registration Benefits */}
       <section className="py-8 md:py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

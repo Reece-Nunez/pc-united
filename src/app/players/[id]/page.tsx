@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowLeftIcon, ShareIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { getPlayer, getPlayerAssists, Player } from "@/lib/supabase";
 
 interface HighlightItem {
@@ -43,6 +44,18 @@ export default function PlayerProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [videoPreviews, setVideoPreviews] = useState<{[key: number]: string}>({});
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title: player?.name || 'Player Profile', url }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     async function fetchPlayer() {
@@ -98,9 +111,34 @@ export default function PlayerProfile() {
     return (
       <div className="min-h-screen bg-white">
         <Header />
-        <div className="py-20 text-center">
-          <h1 className="text-4xl font-bold text-team-blue mb-4">Loading Player...</h1>
-        </div>
+        <section className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="animate-pulse grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="h-6 bg-white/20 rounded w-32 mb-6" />
+                <div className="h-10 bg-white/20 rounded w-3/4 mb-4" />
+                <div className="h-5 bg-white/20 rounded w-1/2 mb-6" />
+                <div className="h-4 bg-white/20 rounded w-full mb-2" />
+                <div className="h-4 bg-white/20 rounded w-5/6" />
+              </div>
+              <div className="flex justify-center">
+                <div className="w-48 h-48 rounded-full bg-white/20" />
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="animate-pulse grid grid-cols-2 md:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-lg p-6 shadow-lg">
+                  <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2" />
+                  <div className="h-4 bg-gray-200 rounded w-20 mx-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
         <Footer />
       </div>
     );
@@ -125,43 +163,54 @@ export default function PlayerProfile() {
       <Header />
       
       {/* Player Hero Section */}
-      <section className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white py-20">
+      <section className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-6">
-            <Link href="/players" className="text-blue-100 hover:text-white mr-4 cursor-pointer">
-              ← Back to Players
+          <div className="flex items-center justify-between mb-6">
+            <Link href="/players" className="inline-flex items-center gap-1.5 text-blue-100 hover:text-white transition-colors cursor-pointer text-sm md:text-base">
+              <ArrowLeftIcon className="w-4 h-4" /> Back to Roster
             </Link>
+            <button
+              onClick={handleShare}
+              className="inline-flex items-center gap-1.5 text-blue-100 hover:text-white transition-colors text-sm md:text-base"
+            >
+              {copied ? <CheckIcon className="w-4 h-4" /> : <ShareIcon className="w-4 h-4" />}
+              {copied ? 'Link Copied!' : 'Share'}
+            </button>
           </div>
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+            <div className="order-2 md:order-1">
               <div className="flex items-center mb-4">
-                <div className="bg-team-red text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-xl mr-4">
+                <div className="bg-team-red text-white rounded-full w-14 h-14 flex items-center justify-center font-bold text-2xl mr-4 shrink-0">
                   {player.jersey_number}
                 </div>
                 <div>
-                  <h1 className="text-4xl md:text-5xl font-bold mb-2">{player.name}</h1>
-                  <p className="text-xl text-team-red font-semibold">{player.position}</p>
+                  <h1 className="text-3xl md:text-5xl font-bold mb-1">{player.name}</h1>
+                  <p className="text-lg md:text-xl text-team-red font-semibold">{player.position}</p>
                 </div>
               </div>
-              <p className="text-lg text-blue-100 mb-6">{player.description}</p>
-              <div className="flex items-center space-x-6 text-sm">
-                <div>
-                  <span className="text-blue-100">Birth Year:</span>
-                  <span className="font-semibold ml-2">{player.birth_year}</span>
+              <p className="text-base md:text-lg text-blue-100 mb-6">{player.description}</p>
+              <div className="flex flex-wrap items-center gap-4 md:gap-6 text-sm">
+                <div className="bg-white/10 rounded-lg px-3 py-2">
+                  <span className="text-blue-200 text-xs">Birth Year</span>
+                  <span className="block font-semibold">{player.birth_year}</span>
                 </div>
-                <div>
-                  <span className="text-blue-100">Games Played:</span>
-                  <span className="font-semibold ml-2">{player.player_stats?.[0]?.games_played || 0}</span>
+                <div className="bg-white/10 rounded-lg px-3 py-2">
+                  <span className="text-blue-200 text-xs">Games Played</span>
+                  <span className="block font-semibold">{player.player_stats?.[0]?.games_played || 0}</span>
+                </div>
+                <div className="bg-white/10 rounded-lg px-3 py-2">
+                  <span className="text-blue-200 text-xs">Highlights</span>
+                  <span className="block font-semibold">{allHighlights.length}</span>
                 </div>
               </div>
             </div>
-            <div className="flex justify-center">
-              <div className="relative w-48 h-48">
+            <div className="flex justify-center order-1 md:order-2">
+              <div className="relative w-36 h-36 md:w-52 md:h-52">
                 <Image
                   src={player.photo_url || '/logo.png'}
                   alt={`${player.name} photo`}
                   fill
-                  className="rounded-full object-cover border-4 border-white"
+                  className="rounded-full object-cover border-4 border-white shadow-xl"
                 />
               </div>
             </div>
@@ -170,55 +219,87 @@ export default function PlayerProfile() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-12 md:py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-team-blue mb-12 text-center">Season Statistics</h2>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-            <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.goals || 0}</div>
-              <div className="text-gray-600">Goals</div>
+          <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12 text-center">Season Statistics</h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-12">
+            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+              <div className="text-2xl md:text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.goals || 0}</div>
+              <div className="text-sm md:text-base text-gray-600">Goals</div>
             </div>
-            <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.assists || 0}</div>
-              <div className="text-gray-600">Assists</div>
+            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+              <div className="text-2xl md:text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.assists || 0}</div>
+              <div className="text-sm md:text-base text-gray-600">Assists</div>
             </div>
-            <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-              <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.games_played || 0}</div>
-              <div className="text-gray-600">Games Played</div>
+            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+              <div className="text-2xl md:text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.games_played || 0}</div>
+              <div className="text-sm md:text-base text-gray-600">Games Played</div>
             </div>
             {player.position === 'Goalkeeper' ? (
-              <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.saves || 0}</div>
-                <div className="text-gray-600">Saves</div>
+              <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+                <div className="text-2xl md:text-3xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.saves || 0}</div>
+                <div className="text-sm md:text-base text-gray-600">Saves</div>
               </div>
             ) : (
-              <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-3xl font-bold text-team-blue mb-2">{allHighlights.length}</div>
-                <div className="text-gray-600">Highlights</div>
+              <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+                <div className="text-2xl md:text-3xl font-bold text-team-blue mb-2">{allHighlights.length}</div>
+                <div className="text-sm md:text-base text-gray-600">Highlights</div>
               </div>
             )}
           </div>
 
+          {/* Visual Stat Bars */}
+          {player.position !== 'Goalkeeper' && (
+            <div className="bg-white rounded-lg p-4 md:p-6 shadow-lg mb-8 md:mb-12">
+              <h3 className="text-lg font-semibold text-team-blue mb-4">Performance Breakdown</h3>
+              {(() => {
+                const goals = player.player_stats?.[0]?.goals || 0;
+                const assists = player.player_stats?.[0]?.assists || 0;
+                const games = player.player_stats?.[0]?.games_played || 0;
+                const maxVal = Math.max(goals, assists, games, 1);
+                const bars = [
+                  { label: 'Goals', value: goals, color: 'bg-team-red' },
+                  { label: 'Assists', value: assists, color: 'bg-blue-500' },
+                  { label: 'Games', value: games, color: 'bg-team-blue' },
+                ];
+                return bars.map((bar) => (
+                  <div key={bar.label} className="mb-3 last:mb-0">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600 font-medium">{bar.label}</span>
+                      <span className="font-bold text-gray-800">{bar.value}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-3">
+                      <div
+                        className={`${bar.color} h-3 rounded-full transition-all duration-700`}
+                        style={{ width: `${(bar.value / maxVal) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+
           {player.position === 'Goalkeeper' && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-2xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.clean_sheets || 0}</div>
-                <div className="text-gray-600">Clean Sheets</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+              <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+                <div className="text-xl md:text-2xl font-bold text-team-blue mb-2">{player.player_stats?.[0]?.clean_sheets || 0}</div>
+                <div className="text-sm md:text-base text-gray-600">Clean Sheets</div>
               </div>
-              <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-2xl font-bold text-team-blue mb-2">
-                  {(player.player_stats?.[0]?.games_played || 0) > 0 ? 
+              <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+                <div className="text-xl md:text-2xl font-bold text-team-blue mb-2">
+                  {(player.player_stats?.[0]?.games_played || 0) > 0 ?
                     ((player.player_stats?.[0]?.saves || 0) / (player.player_stats?.[0]?.games_played || 1)).toFixed(1) : '0.0'}
                 </div>
-                <div className="text-gray-600">Saves per Game</div>
+                <div className="text-sm md:text-base text-gray-600">Saves per Game</div>
               </div>
-              <div className="bg-white rounded-lg p-6 text-center shadow-lg">
-                <div className="text-2xl font-bold text-team-blue mb-2">
-                  {(player.player_stats?.[0]?.games_played || 0) > 0 ? 
+              <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
+                <div className="text-xl md:text-2xl font-bold text-team-blue mb-2">
+                  {(player.player_stats?.[0]?.games_played || 0) > 0 ?
                     (((player.player_stats?.[0]?.clean_sheets || 0) / (player.player_stats?.[0]?.games_played || 1)) * 100).toFixed(0) : '0'}%
                 </div>
-                <div className="text-gray-600">Clean Sheet %</div>
+                <div className="text-sm md:text-base text-gray-600">Clean Sheet %</div>
               </div>
             </div>
           )}
@@ -226,11 +307,11 @@ export default function PlayerProfile() {
       </section>
 
       {/* Highlights Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 md:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-team-blue mb-12 text-center">Game Highlights</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12 text-center">Game Highlights</h2>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
             {allHighlights.length > 0 ? allHighlights.map((highlight) => {
               // Determine video type based on URL
               const getVideoEmbed = (url: string) => {
@@ -354,9 +435,9 @@ export default function PlayerProfile() {
       </section>
 
       {/* Player Development Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-12 md:py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-team-blue mb-12 text-center">Player Development</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12 text-center">Player Development</h2>
           
           <div className="grid md:grid-cols-2 gap-12">
             <div className="bg-white rounded-lg p-8 shadow-lg">

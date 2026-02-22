@@ -12,6 +12,27 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Ponca City United FC",
   description: "Official website of Ponca City United FC soccer team. Join our youth soccer program in Ponca City, Oklahoma.",
+  metadataBase: new URL('https://poncacityunited.com'),
+  openGraph: {
+    title: 'Ponca City United FC',
+    description: 'Official website of Ponca City United FC soccer team. Join our youth soccer program in Ponca City, Oklahoma.',
+    url: '/',
+    siteName: 'Ponca City United FC',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Ponca City United FC' }],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Ponca City United FC',
+    description: 'Official website of Ponca City United FC soccer team.',
+    images: ['/og-image.png'],
+  },
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendContactFormNotification, ContactFormData } from '@/lib/email';
+import { createAdminNotification } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +33,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    await createAdminNotification({
+      type: 'contact',
+      title: `New Contact: ${body.name}`,
+      message: body.subject ? `${body.subject} — ${body.message.slice(0, 100)}` : body.message.slice(0, 150),
+    });
 
     return NextResponse.json(
       { message: 'Message sent successfully!' },

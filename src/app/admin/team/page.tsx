@@ -73,6 +73,7 @@ function TeamAdminContent() {
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
 
   const [newsForm, setNewsForm] = useState<NewsForm>({
@@ -449,7 +450,7 @@ function TeamAdminContent() {
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
           {/* Form Section */}
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 self-start">
             <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
               {activeTab === 'news' && (editingNews ? 'Edit News Article' : 'Add New News Article')}
               {activeTab === 'events' && (editingEvent ? 'Edit Event' : 'Add New Event')}
@@ -945,15 +946,15 @@ function TeamAdminContent() {
           </div>
 
           {/* List Section */}
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 flex flex-col">
             <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
               {activeTab === 'news' && `News Articles (${news.length})`}
               {activeTab === 'events' && `Events (${events.length})`}
-              {activeTab === 'schedule' && `Schedule Items (${schedule.length})`}
+              {activeTab === 'schedule' && `Upcoming & This Month (${schedule.filter((g) => { const d = new Date(g.game_date); const now = new Date(); return (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) || d >= now; }).length})`}
               {activeTab === 'announcements' && `Announcements (${announcements.length})`}
             </h2>
 
-            <div className="space-y-3 md:space-y-4 max-h-64 sm:max-h-80 md:max-h-96 overflow-y-auto">
+            <div className="space-y-3 md:space-y-4 flex-1 overflow-y-auto">
               {/* News List */}
               {activeTab === 'news' && news.map((article) => (
                 <div key={article.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
@@ -1018,42 +1019,84 @@ function TeamAdminContent() {
               ))}
 
               {/* Schedule List */}
-              {activeTab === 'schedule' && schedule.map((game) => (
-                <div key={game.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">vs {game.opponent}</h3>
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
-                        <span>{new Date(game.game_date).toLocaleDateString()}</span>
-                        <span>{game.location}</span>
-                        <span>{game.home_game ? 'Home' : 'Away'}</span>
-                        <span className="capitalize">{game.game_type}</span>
-                        <span className="capitalize">{game.status.replace('_', ' ')}</span>
-                        {game.our_score !== null && game.our_score !== undefined && 
-                         game.opponent_score !== null && game.opponent_score !== undefined && (
-                          <span className="font-semibold text-xs sm:text-sm">
-                            {game.our_score} - {game.opponent_score}
-                          </span>
-                        )}
+              {activeTab === 'schedule' && (() => {
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                const currentGames = schedule.filter((g) => {
+                  const d = new Date(g.game_date);
+                  return (d.getMonth() === currentMonth && d.getFullYear() === currentYear) || d >= now;
+                });
+                const pastGames = schedule.filter((g) => {
+                  const d = new Date(g.game_date);
+                  return d < now && !(d.getMonth() === currentMonth && d.getFullYear() === currentYear);
+                });
+
+                const renderGame = (game: typeof schedule[0]) => (
+                  <div key={game.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 text-sm md:text-base">vs {game.opponent}</h3>
+                        <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
+                          <span>{new Date(game.game_date).toLocaleDateString()}</span>
+                          <span>{game.location}</span>
+                          <span>{game.home_game ? 'Home' : 'Away'}</span>
+                          <span className="capitalize">{game.game_type}</span>
+                          <span className="capitalize">{game.status.replace('_', ' ')}</span>
+                          {game.our_score !== null && game.our_score !== undefined &&
+                           game.opponent_score !== null && game.opponent_score !== undefined && (
+                            <span className="font-semibold text-xs sm:text-sm">
+                              {game.our_score} - {game.opponent_score}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 sm:ml-4 flex-shrink-0">
+                        <button
+                          onClick={() => handleEdit('schedule', game)}
+                          className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete('schedule', game.id)}
+                          className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
-                      <button
-                        onClick={() => handleEdit('schedule', game)}
-                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete('schedule', game.id)}
-                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+
+                return (
+                  <>
+                    {currentGames.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">No upcoming games this month.</p>
+                    )}
+                    {currentGames.map(renderGame)}
+
+                    {pastGames.length > 0 && (
+                      <div className="pt-2">
+                        <button
+                          onClick={() => setShowArchive(!showArchive)}
+                          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 font-medium w-full"
+                        >
+                          <svg className={`w-4 h-4 transition-transform ${showArchive ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          Archive ({pastGames.length})
+                        </button>
+                        {showArchive && (
+                          <div className="space-y-3 mt-3">
+                            {pastGames.map(renderGame)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Announcements List */}
               {activeTab === 'announcements' && announcements.map((announcement) => (

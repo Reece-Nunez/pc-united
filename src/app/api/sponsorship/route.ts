@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { submitSponsorship, Sponsorship } from '@/lib/supabase';
+import { submitSponsorship, Sponsorship, createAdminNotification } from '@/lib/supabase';
 import { sendSponsorshipNotification, SponsorshipFormData } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
@@ -72,6 +72,13 @@ export async function POST(request: NextRequest) {
     if (!emailResult.success) {
       console.error('Failed to send sponsorship email:', emailResult.error);
     }
+
+    await createAdminNotification({
+      type: 'sponsorship',
+      title: `New Sponsorship: ${body.business_name}`,
+      message: `${body.contact_person} submitted a ${body.sponsorship_level} sponsorship ($${body.amount?.toLocaleString() || '0'}).`,
+      link: '/admin/sponsorships',
+    });
 
     return NextResponse.json(
       { message: 'Sponsorship submitted successfully!' },

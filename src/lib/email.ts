@@ -1,16 +1,36 @@
 import { resend } from './resend';
 import { render } from '@react-email/render';
+import { createClient } from '@supabase/supabase-js';
 import RegistrationEmail from '@/emails/RegistrationEmail';
 import ContactEmail from '@/emails/ContactEmail';
 import RegistrationConfirmationEmail from '@/emails/RegistrationConfirmationEmail';
 import SponsorshipEmail from '@/emails/SponsorshipEmail';
 import { Registration } from './supabase';
 
-const ADMIN_EMAILS = [
-  'vramirez@poncacityunited.com',
-  'jmckeachnie@poncacityunited.com',
-  'rnunez@poncacityunited.com'
-];
+async function getAdminEmails(): Promise<string[]> {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) return [];
+
+    const admin = createClient(url, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data } = await admin.auth.admin.listUsers();
+    if (!data?.users) return [];
+
+    return data.users
+      .filter((u) => {
+        const role = u.user_metadata?.role;
+        const emailNotifs = u.user_metadata?.email_notifications;
+        return (role === 'admin' || role === 'approved') && u.email && emailNotifs !== false;
+      })
+      .map((u) => u.email!);
+  } catch {
+    return [];
+  }
+}
 
 export interface ContactFormData {
   name: string;
@@ -72,9 +92,10 @@ export async function sendRegistrationNotification(registration: Registration, a
     console.log('Parent email will be sent to:', registration.parent_email);
 
     // Send email to coaches
+    const adminEmails = await getAdminEmails();
     const adminResult = await resend.emails.send({
       from: 'Ponca City United FC <noreply@poncacityunited.com>',
-      to: ADMIN_EMAILS,
+      to: adminEmails,
       replyTo: registration.parent_email,
       subject: `New Registration: ${playerName}`,
       html: adminEmailHtml,
@@ -135,9 +156,10 @@ export async function sendContactFormNotification(formData: ContactFormData) {
       ? `Contact Form: ${formData.subject} - ${formData.name}`
       : `Contact Form Message from ${formData.name}`;
 
+    const adminEmails = await getAdminEmails();
     const { data, error } = await resend.emails.send({
       from: 'Ponca City United FC <noreply@poncacityunited.com>',
-      to: ADMIN_EMAILS,
+      to: adminEmails,
       replyTo: formData.email,
       subject: subjectLine,
       html: emailHtml,
@@ -204,9 +226,10 @@ export async function sendSponsorshipNotification(formData: SponsorshipFormData)
       bronze: 'Bronze',
     };
 
+    const adminEmails = await getAdminEmails();
     const { data, error } = await resend.emails.send({
       from: 'Ponca City United FC <noreply@poncacityunited.com>',
-      to: ADMIN_EMAILS,
+      to: adminEmails,
       replyTo: formData.email,
       subject: `New Sponsorship: ${formData.business_name} — ${levelLabels[formData.sponsorship_level] || formData.sponsorship_level} ($${formData.amount.toLocaleString()})`,
       html: emailHtml,

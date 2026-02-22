@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendRegistrationNotification } from '@/lib/email';
-import { Registration } from '@/lib/supabase';
+import { Registration, createAdminNotification } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +21,13 @@ export async function POST(request: NextRequest) {
     console.log('Email result:', result);
 
     if (result.success) {
+      const playerName = `${registration.player_first_name} ${registration.player_last_name}`;
+      await createAdminNotification({
+        type: 'registration',
+        title: `New Registration: ${playerName}`,
+        message: `${playerName} (${ageGroup}) was registered by ${registration.parent_first_name} ${registration.parent_last_name}.`,
+        link: '/admin/players',
+      });
       return NextResponse.json({ success: true, data: result.data });
     } else {
       console.error('Email sending failed:', result.error);

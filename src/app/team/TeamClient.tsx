@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
-import { MegaphoneIcon, HomeIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { MegaphoneIcon, HomeIcon, PaperAirplaneIcon, CalendarIcon, ListBulletIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { TeamLoadingSkeleton } from '@/components/Skeleton';
 import {
   getNews,
   getEvents,
@@ -24,6 +25,38 @@ export default function TeamClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('news');
+  const [scheduleView, setScheduleView] = useState<'list' | 'calendar'>('list');
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  // Swipe gesture support for tabs
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const tabOrder = ['news', 'schedule', 'events'];
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const diff = touchStartX.current - touchEndX.current;
+    const minSwipe = 50;
+    if (Math.abs(diff) > minSwipe) {
+      const currentIdx = tabOrder.indexOf(activeTab);
+      if (diff > 0 && currentIdx < tabOrder.length - 1) {
+        setActiveTab(tabOrder[currentIdx + 1]);
+      } else if (diff < 0 && currentIdx > 0) {
+        setActiveTab(tabOrder[currentIdx - 1]);
+      }
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+  }, [activeTab]);
 
   // Helper function to parse UTC date as local time for display
   const parseAsLocalTime = (utcDateString: string): Date => {
@@ -216,12 +249,7 @@ export default function TeamClient() {
   const totalGoalsAgainst = completedGames.reduce((sum, game) => sum + (game.opponent_score ?? 0), 0);
 
   if (loading) {
-    return (
-      <div className="py-12 md:py-20 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-        <h1 className="text-2xl md:text-4xl font-bold text-team-blue mb-4">Loading Team Information...</h1>
-      </div>
-    );
+    return <TeamLoadingSkeleton />;
   }
 
   if (error) {
@@ -233,6 +261,24 @@ export default function TeamClient() {
       </div>
     );
   }
+
+  // Calendar helpers
+  const calendarYear = calendarMonth.getFullYear();
+  const calendarMon = calendarMonth.getMonth();
+  const daysInMonth = new Date(calendarYear, calendarMon + 1, 0).getDate();
+  const firstDayOfWeek = new Date(calendarYear, calendarMon, 1).getDay();
+  const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const gamesByDate: Record<string, typeof schedule> = {};
+  schedule.forEach((game) => {
+    const d = parseAsLocalTime(game.game_date);
+    if (d.getMonth() === calendarMon && d.getFullYear() === calendarYear) {
+      const key = d.getDate().toString();
+      if (!gamesByDate[key]) gamesByDate[key] = [];
+      gamesByDate[key].push(game);
+    }
+  });
+
+  const selectedGames = selectedDay ? (gamesByDate[selectedDay.toString()] || []) : [];
 
   return (
     <>
@@ -315,7 +361,12 @@ export default function TeamClient() {
       </section>
 
       {/* Content Sections */}
-      <section className="py-8 md:py-16 bg-white">
+      <section
+        className="py-8 md:py-16 bg-white"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* News Tab */}
@@ -369,7 +420,123 @@ export default function TeamClient() {
           {/* Schedule Tab */}
           {activeTab === 'schedule' && (
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12 text-center">Game Schedule & Results</h2>
+              <div className="flex flex-col sm:flex-row items-center justify-between mb-8 md:mb-12 gap-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-team-blue text-center sm:text-left">Game Schedule & Results</h2>
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setScheduleView('list')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      scheduleView === 'list' ? 'bg-white shadow text-team-blue' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <ListBulletIcon className="w-4 h-4" /> List
+                  </button>
+                  <button
+                    onClick={() => setScheduleView('calendar')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      scheduleView === 'calendar' ? 'bg-white shadow text-team-blue' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <CalendarIcon className="w-4 h-4" /> Calendar
+                  </button>
+                </div>
+              </div>
+
+              {/* Calendar View */}
+              {scheduleView === 'calendar' && (
+                <div className="mb-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <button onClick={() => setCalendarMonth(new Date(calendarYear, calendarMon - 1, 1))} className="p-2 hover:bg-gray-100 rounded-lg">
+                      <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <h3 className="text-lg font-semibold text-team-blue">
+                      {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h3>
+                    <button onClick={() => setCalendarMonth(new Date(calendarYear, calendarMon + 1, 1))} className="p-2 hover:bg-gray-100 rounded-lg">
+                      <ChevronRightIcon className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                      <div key={d} className="bg-gray-50 py-2 text-center text-xs font-semibold text-gray-500">{d}</div>
+                    ))}
+                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                      <div key={`empty-${i}`} className="bg-white p-2 min-h-[60px]" />
+                    ))}
+                    {calendarDays.map((day) => {
+                      const hasGames = !!gamesByDate[day.toString()];
+                      const isSelected = selectedDay === day;
+                      const today = new Date();
+                      const isToday = day === today.getDate() && calendarMon === today.getMonth() && calendarYear === today.getFullYear();
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => setSelectedDay(isSelected ? null : day)}
+                          className={`bg-white p-1.5 md:p-2 min-h-[60px] text-left transition-colors relative ${
+                            isSelected ? 'ring-2 ring-team-blue bg-blue-50' : hasGames ? 'hover:bg-blue-50 cursor-pointer' : ''
+                          }`}
+                        >
+                          <span className={`text-xs md:text-sm ${isToday ? 'bg-team-blue text-white rounded-full w-6 h-6 flex items-center justify-center' : 'text-gray-700'}`}>
+                            {day}
+                          </span>
+                          {hasGames && (
+                            <div className="mt-1 flex flex-wrap gap-0.5">
+                              {gamesByDate[day.toString()].map((g) => (
+                                <span
+                                  key={g.id}
+                                  className={`block w-2 h-2 rounded-full ${
+                                    g.status === 'completed'
+                                      ? (g.our_score ?? 0) > (g.opponent_score ?? 0)
+                                        ? 'bg-green-500'
+                                        : (g.our_score ?? 0) < (g.opponent_score ?? 0)
+                                        ? 'bg-red-500'
+                                        : 'bg-yellow-500'
+                                      : 'bg-blue-500'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-4 mt-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Win</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Loss</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Draw</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Upcoming</span>
+                  </div>
+
+                  {/* Selected Day Details */}
+                  {selectedDay && selectedGames.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {selectedGames.map((game) => (
+                        <div key={game.id} className="bg-gray-50 rounded-lg p-4 shadow border-l-4 border-team-blue">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <h4 className="font-bold text-team-blue">Ponca City United vs {game.opponent}</h4>
+                              <p className="text-sm text-gray-600">
+                                {parseAsLocalTime(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {game.location} {game.home_game ? '(Home)' : '(Away)'}
+                              </p>
+                            </div>
+                            {game.status === 'completed' && game.our_score != null && game.opponent_score != null && (
+                              <div className="text-xl font-bold">
+                                <span className={(game.our_score ?? 0) > (game.opponent_score ?? 0) ? 'text-green-600' : 'text-red-600'}>{game.our_score}</span>
+                                {' - '}
+                                <span className={(game.opponent_score ?? 0) > (game.our_score ?? 0) ? 'text-green-600' : 'text-red-600'}>{game.opponent_score}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {scheduleView === 'list' && (
+              <>
               
               {/* GameChanger Widget */}
               <div className="mb-8 md:mb-12 bg-gray-50 rounded-lg p-4 md:p-6">
@@ -466,6 +633,8 @@ export default function TeamClient() {
                     </div>
                   ))}
                 </div>
+              )}
+              </>
               )}
             </div>
           )}
