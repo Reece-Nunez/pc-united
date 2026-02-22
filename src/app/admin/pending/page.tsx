@@ -21,8 +21,8 @@ export default function PendingApprovalPage() {
     const { data: { user } } = await supabase.auth.getUser();
     const role = user?.user_metadata?.role;
 
-    if (role === 'approved' || role === 'admin') {
-      toast.success('You\'ve been approved!');
+    if (role === 'approved' || role === 'admin' || role === 'parent') {
+      toast.success('You\'ve been approved! Redirecting...');
       router.push('/admin');
       router.refresh();
     } else {

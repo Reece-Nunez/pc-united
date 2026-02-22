@@ -12,17 +12,51 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [showEmailNotConfirmed, setShowEmailNotConfirmed] = useState(false);
   const router = useRouter();
+
+  const handleResendConfirmation = async () => {
+    setResending(true);
+    try {
+      const supabase = createClient();
+      const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.poncacityunited.com';
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${siteUrl}/admin/login`,
+        },
+      });
+      if (error) {
+        toast.error('Could not resend email. Please try again later.');
+      } else {
+        toast.success('Confirmation email sent! Check your inbox.');
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setShowEmailNotConfirmed(false);
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      toast.error(error.message);
+      // Supabase returns "Email not confirmed" when user hasn't clicked the link
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        setShowEmailNotConfirmed(true);
+      } else if (error.message.toLowerCase().includes('invalid login credentials')) {
+        toast.error('Incorrect email or password. Please try again.');
+      } else {
+        toast.error(error.message);
+      }
       setLoading(false);
       return;
     }
@@ -44,9 +78,31 @@ export default function LoginPage() {
             height={80}
             className="mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-white">Admin Login</h1>
+          <h1 className="text-2xl font-bold text-white">Sign In</h1>
           <p className="text-blue-200 mt-1">Ponca City United FC</p>
         </div>
+
+        {/* Email not confirmed banner */}
+        {showEmailNotConfirmed && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-5 text-center">
+            <div className="w-12 h-12 mx-auto mb-3 bg-yellow-100 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-yellow-900 mb-1">Email Not Confirmed</h2>
+            <p className="text-sm text-yellow-800 mb-3">
+              Please check your inbox for a confirmation email and click the link to verify your account before signing in.
+            </p>
+            <button
+              onClick={handleResendConfirmation}
+              disabled={resending}
+              className="text-sm font-medium text-yellow-700 hover:text-yellow-900 underline disabled:opacity-50"
+            >
+              {resending ? 'Sending...' : 'Resend confirmation email'}
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="bg-white rounded-xl shadow-2xl p-8 space-y-5">
           <div>
@@ -60,7 +116,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent outline-none"
-              placeholder="coach@poncacityunited.com"
+              placeholder="your@email.com"
             />
           </div>
 
@@ -97,7 +153,7 @@ export default function LoginPage() {
 
         <div className="text-center mt-6">
           <Link href="/" className="text-blue-200 hover:text-white text-sm transition-colors">
-            ← Back to website
+            &larr; Back to website
           </Link>
         </div>
       </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-browser';
@@ -16,7 +15,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accountType, setAccountType] = useState<'parent' | 'coach'>('parent');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [signupComplete, setSignupComplete] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,12 +63,82 @@ export default function SignupPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, accountType }),
-    }).catch(() => {}); // fire-and-forget, don't block signup flow
+    }).catch(() => {}); // fire-and-forget
 
-    toast.success('Account created! An admin must approve your access before you can sign in.');
-    router.push('/admin/login');
+    setLoading(false);
+    setSignupComplete(true);
   };
 
+  // ── Success screen: Check your email ──
+  if (signupComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center">
+          <Image
+            src="/logo.png"
+            alt="Ponca City United FC"
+            width={80}
+            height={80}
+            className="mx-auto mb-6"
+          />
+
+          <div className="bg-white rounded-xl shadow-2xl p-8">
+            {/* Email icon */}
+            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-team-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Check Your Email</h1>
+            <p className="text-gray-600 mb-4">
+              We sent a confirmation link to:
+            </p>
+            <p className="font-semibold text-gray-900 bg-gray-50 rounded-lg py-2 px-4 mb-6 break-all">
+              {email}
+            </p>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+              <h2 className="text-sm font-semibold text-blue-900 mb-2">What happens next:</h2>
+              <ol className="text-sm text-blue-800 space-y-2">
+                <li className="flex gap-2">
+                  <span className="font-bold text-blue-600 shrink-0">1.</span>
+                  <span>Click the confirmation link in your email</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-blue-600 shrink-0">2.</span>
+                  <span>An admin will review and approve your account</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-blue-600 shrink-0">3.</span>
+                  <span>Once approved, you can sign in and access the dashboard</span>
+                </li>
+              </ol>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-6">
+              Didn&apos;t receive the email? Check your spam folder. The link expires in 24 hours.
+            </p>
+
+            <Link
+              href="/admin/login"
+              className="block w-full bg-team-blue hover:bg-blue-800 text-white font-semibold py-2.5 rounded-lg transition-colors text-center"
+            >
+              Go to Sign In
+            </Link>
+          </div>
+
+          <div className="mt-6">
+            <Link href="/" className="text-blue-200 hover:text-white text-sm transition-colors">
+              &larr; Back to website
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Signup form ──
   return (
     <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center px-4">
       <ToastProvider />
@@ -83,7 +152,7 @@ export default function SignupPage() {
             className="mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-white">Create Account</h1>
-          <p className="text-blue-200 mt-1">Ponca City United FC Admin</p>
+          <p className="text-blue-200 mt-1">Ponca City United FC</p>
         </div>
 
         <form onSubmit={handleSignup} className="bg-white rounded-xl shadow-2xl p-8 space-y-5">
@@ -137,7 +206,7 @@ export default function SignupPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent outline-none"
-              placeholder="Coach Name"
+              placeholder="Your full name"
             />
           </div>
 
@@ -152,7 +221,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent outline-none"
-              placeholder="coach@poncacityunited.com"
+              placeholder="your@email.com"
             />
           </div>
 
@@ -204,7 +273,7 @@ export default function SignupPage() {
 
         <div className="text-center mt-6">
           <Link href="/" className="text-blue-200 hover:text-white text-sm transition-colors">
-            ← Back to website
+            &larr; Back to website
           </Link>
         </div>
       </div>
