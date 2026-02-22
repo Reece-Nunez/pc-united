@@ -418,13 +418,13 @@ function TeamAdminContent() {
     <AdminLayout>
       <div className="p-4 md:p-8">
         <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Team Content</h1>
-          <p className="text-gray-600 text-sm md:text-base">Manage news, events, schedules, and announcements for the team.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">Team Content</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base">Manage news, events, schedules, and announcements for the team.</p>
         </div>
 
         {/* Tab Navigation */}
         <div className="mb-6 md:mb-8">
-          <div className="border-b border-gray-200">
+          <div className="border-b border-gray-200 dark:border-gray-600">
             <nav className="-mb-px flex flex-wrap gap-2 sm:gap-4 md:gap-8">
               {[
                 { id: 'news', label: 'News' },
@@ -438,7 +438,7 @@ function TeamAdminContent() {
                   className={`py-2 px-3 md:px-4 border-b-2 font-medium text-xs sm:text-sm md:text-base ${
                     activeTab === tab.id
                       ? 'border-team-blue text-team-blue'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   {tab.label}
@@ -450,7 +450,7 @@ function TeamAdminContent() {
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
           {/* Form Section */}
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 self-start">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 self-start">
             <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
               {activeTab === 'news' && (editingNews ? 'Edit News Article' : 'Add New News Article')}
               {activeTab === 'events' && (editingEvent ? 'Edit Event' : 'Add New Event')}
@@ -462,50 +462,50 @@ function TeamAdminContent() {
             {activeTab === 'news' && (
               <form onSubmit={handleNewsSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
                   <input
                     type="text"
                     value={newsForm.title}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'title', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Slug (URL friendly)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Slug (URL friendly)</label>
                   <input
                     type="text"
                     value={newsForm.slug}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'slug', e.target.value)}
                     placeholder="Auto-generated from title if left empty"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Excerpt</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Excerpt</label>
                   <textarea
                     value={newsForm.excerpt || ''}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'excerpt', e.target.value)}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content</label>
                   <textarea
                     value={newsForm.content}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'content', e.target.value)}
                     rows={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Featured Image</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Featured Image</label>
                   <ImageUpload
                     currentImageUrl={newsForm.featured_image}
                     onImageChange={(url) => handleFormChange(newsForm, setNewsForm, 'featured_image', url)}
@@ -514,22 +514,22 @@ function TeamAdminContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Author</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Author</label>
                   <input
                     type="text"
                     value={newsForm.author || ''}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'author', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Publish Date</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Publish Date</label>
                   <input
                     type="datetime-local"
                     value={toLocalDateTimeString(newsForm.publish_date || '')}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'publish_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
@@ -539,9 +539,9 @@ function TeamAdminContent() {
                     id="published"
                     checked={newsForm.published}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'published', e.target.checked)}
-                    className="h-4 w-4 text-team-blue border-gray-300 rounded focus:ring-team-blue"
+                    className="h-4 w-4 text-team-blue border-gray-300 dark:border-gray-600 rounded focus:ring-team-blue"
                   />
-                  <label htmlFor="published" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="published" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                     Published
                   </label>
                 </div>
@@ -558,7 +558,7 @@ function TeamAdminContent() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -571,63 +571,63 @@ function TeamAdminContent() {
             {activeTab === 'events' && (
               <form onSubmit={handleEventSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
                   <input
                     type="text"
                     value={eventForm.title}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'title', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
                   <textarea
                     value={eventForm.description || ''}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'description', e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Event Date & Time</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event Date & Time</label>
                   <input
                     type="datetime-local"
                     value={eventForm.event_date}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'event_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date & Time (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date & Time (Optional)</label>
                   <input
                     type="datetime-local"
                     value={eventForm.end_date || ''}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'end_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
                   <input
                     type="text"
                     value={eventForm.location || ''}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'location', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event Type</label>
                   <select
                     value={eventForm.event_type}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'event_type', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   >
                     <option value="game">Game</option>
                     <option value="practice">Practice</option>
@@ -639,7 +639,7 @@ function TeamAdminContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Featured Image</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Featured Image</label>
                   <ImageUpload
                     currentImageUrl={eventForm.featured_image}
                     onImageChange={(url) => handleFormChange(eventForm, setEventForm, 'featured_image', url)}
@@ -653,9 +653,9 @@ function TeamAdminContent() {
                     id="registration_required"
                     checked={eventForm.registration_required}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'registration_required', e.target.checked)}
-                    className="h-4 w-4 text-team-blue border-gray-300 rounded focus:ring-team-blue"
+                    className="h-4 w-4 text-team-blue border-gray-300 dark:border-gray-600 rounded focus:ring-team-blue"
                   />
-                  <label htmlFor="registration_required" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="registration_required" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                     Registration Required
                   </label>
                 </div>
@@ -663,22 +663,22 @@ function TeamAdminContent() {
                 {eventForm.registration_required && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Registration Link</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Registration Link</label>
                       <input
                         type="url"
                         value={eventForm.registration_link || ''}
                         onChange={(e) => handleFormChange(eventForm, setEventForm, 'registration_link', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Max Participants</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Max Participants</label>
                       <input
                         type="number"
                         value={eventForm.max_participants || ''}
                         onChange={(e) => handleFormChange(eventForm, setEventForm, 'max_participants', parseInt(e.target.value) || undefined)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                       />
                     </div>
                   </>
@@ -696,7 +696,7 @@ function TeamAdminContent() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -709,34 +709,34 @@ function TeamAdminContent() {
             {activeTab === 'schedule' && (
               <form onSubmit={handleScheduleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Opponent</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opponent</label>
                   <input
                     type="text"
                     value={scheduleForm.opponent}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'opponent', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Game Date & Time</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Game Date & Time</label>
                   <input
                     type="datetime-local"
                     value={scheduleForm.game_date}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'game_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
                   <input
                     type="text"
                     value={scheduleForm.location}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'location', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
@@ -747,19 +747,19 @@ function TeamAdminContent() {
                     id="home_game"
                     checked={scheduleForm.home_game}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'home_game', e.target.checked)}
-                    className="h-4 w-4 text-team-blue border-gray-300 rounded focus:ring-team-blue"
+                    className="h-4 w-4 text-team-blue border-gray-300 dark:border-gray-600 rounded focus:ring-team-blue"
                   />
-                  <label htmlFor="home_game" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="home_game" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                     Home Game
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Game Type</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Game Type</label>
                   <select
                     value={scheduleForm.game_type}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'game_type', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   >
                     <option value="league">League</option>
                     <option value="friendly">Friendly</option>
@@ -769,45 +769,45 @@ function TeamAdminContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Season</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Season</label>
                   <input
                     type="text"
                     value={scheduleForm.season}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'season', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Our Score</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Our Score</label>
                     <input
                       type="number"
                       min="0"
                       value={scheduleForm.our_score || ''}
                       onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'our_score', e.target.value ? parseInt(e.target.value) : undefined)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Opponent Score</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opponent Score</label>
                     <input
                       type="number"
                       min="0"
                       value={scheduleForm.opponent_score || ''}
                       onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'opponent_score', e.target.value ? parseInt(e.target.value) : undefined)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                   <select
                     value={scheduleForm.status}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'status', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   >
                     <option value="scheduled">Scheduled</option>
                     <option value="in_progress">In Progress</option>
@@ -818,12 +818,12 @@ function TeamAdminContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes</label>
                   <textarea
                     value={scheduleForm.notes || ''}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'notes', e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
@@ -839,7 +839,7 @@ function TeamAdminContent() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -852,33 +852,33 @@ function TeamAdminContent() {
             {activeTab === 'announcements' && (
               <form onSubmit={handleAnnouncementSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
                   <input
                     type="text"
                     value={announcementForm.title}
                     onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'title', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content</label>
                   <textarea
                     value={announcementForm.content}
                     onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'content', e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Announcement Type</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Announcement Type</label>
                   <select
                     value={announcementForm.announcement_type}
                     onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'announcement_type', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   >
                     <option value="general">General</option>
                     <option value="urgent">Urgent</option>
@@ -888,11 +888,11 @@ function TeamAdminContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority</label>
                   <select
                     value={announcementForm.priority}
                     onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'priority', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   >
                     <option value={1}>Low</option>
                     <option value={2}>Medium</option>
@@ -901,12 +901,12 @@ function TeamAdminContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Expires At (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expires At (Optional)</label>
                   <input
                     type="datetime-local"
                     value={announcementForm.expires_at || ''}
                     onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'expires_at', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
                 </div>
 
@@ -916,9 +916,9 @@ function TeamAdminContent() {
                     id="active"
                     checked={announcementForm.active}
                     onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'active', e.target.checked)}
-                    className="h-4 w-4 text-team-blue border-gray-300 rounded focus:ring-team-blue"
+                    className="h-4 w-4 text-team-blue border-gray-300 dark:border-gray-600 rounded focus:ring-team-blue"
                   />
-                  <label htmlFor="active" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="active" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                     Active
                   </label>
                 </div>
@@ -935,7 +935,7 @@ function TeamAdminContent() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm md:text-base"
                     >
                       Cancel
                     </button>
@@ -946,7 +946,7 @@ function TeamAdminContent() {
           </div>
 
           {/* List Section */}
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 flex flex-col">
             <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
               {activeTab === 'news' && `News Articles (${news.length})`}
               {activeTab === 'events' && `Events (${events.length})`}
@@ -957,12 +957,12 @@ function TeamAdminContent() {
             <div className="space-y-3 md:space-y-4 flex-1 overflow-y-auto">
               {/* News List */}
               {activeTab === 'news' && news.map((article) => (
-                <div key={article.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                <div key={article.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">{article.title}</h3>
-                      {article.excerpt && <p className="text-xs md:text-sm text-gray-600 mt-1">{article.excerpt}</p>}
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{article.title}</h3>
+                      {article.excerpt && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{article.excerpt}</p>}
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                         <span>By: {article.author || 'Unknown'}</span>
                         <span>{article.published ? 'Published' : 'Draft'}</span>
                         <span>{article.publish_date ? new Date(article.publish_date).toLocaleDateString() : 'No date'}</span>
@@ -971,13 +971,13 @@ function TeamAdminContent() {
                     <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                       <button
                         onClick={() => handleEdit('news', article)}
-                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete('news', article.id)}
-                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
                       >
                         Delete
                       </button>
@@ -988,12 +988,12 @@ function TeamAdminContent() {
 
               {/* Events List */}
               {activeTab === 'events' && events.map((event) => (
-                <div key={event.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                <div key={event.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">{event.title}</h3>
-                      {event.description && <p className="text-xs md:text-sm text-gray-600 mt-1">{event.description}</p>}
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{event.title}</h3>
+                      {event.description && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{event.description}</p>}
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                         <span className="capitalize">{event.event_type}</span>
                         <span>{new Date(event.event_date).toLocaleDateString()}</span>
                         {event.location && <span>{event.location}</span>}
@@ -1003,13 +1003,13 @@ function TeamAdminContent() {
                     <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                       <button
                         onClick={() => handleEdit('events', event)}
-                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete('events', event.id)}
-                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
                       >
                         Delete
                       </button>
@@ -1033,11 +1033,11 @@ function TeamAdminContent() {
                 });
 
                 const renderGame = (game: typeof schedule[0]) => (
-                  <div key={game.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                  <div key={game.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm md:text-base">vs {game.opponent}</h3>
-                        <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">vs {game.opponent}</h3>
+                        <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                           <span>{new Date(game.game_date).toLocaleDateString()}</span>
                           <span>{game.location}</span>
                           <span>{game.home_game ? 'Home' : 'Away'}</span>
@@ -1054,13 +1054,13 @@ function TeamAdminContent() {
                       <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                         <button
                           onClick={() => handleEdit('schedule', game)}
-                          className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete('schedule', game.id)}
-                          className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
+                          className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
                         >
                           Delete
                         </button>
@@ -1072,7 +1072,7 @@ function TeamAdminContent() {
                 return (
                   <>
                     {currentGames.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No upcoming games this month.</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No upcoming games this month.</p>
                     )}
                     {currentGames.map(renderGame)}
 
@@ -1080,7 +1080,7 @@ function TeamAdminContent() {
                       <div className="pt-2">
                         <button
                           onClick={() => setShowArchive(!showArchive)}
-                          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 font-medium w-full"
+                          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium w-full"
                         >
                           <svg className={`w-4 h-4 transition-transform ${showArchive ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -1100,12 +1100,12 @@ function TeamAdminContent() {
 
               {/* Announcements List */}
               {activeTab === 'announcements' && announcements.map((announcement) => (
-                <div key={announcement.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                <div key={announcement.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 text-sm md:text-base">{announcement.title}</h3>
-                      <p className="text-xs md:text-sm text-gray-600 mt-1">{announcement.content}</p>
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{announcement.title}</h3>
+                      <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{announcement.content}</p>
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                         <span className="capitalize">{announcement.announcement_type}</span>
                         <span>Priority: {announcement.priority === 1 ? 'Low' : announcement.priority === 2 ? 'Medium' : 'High'}</span>
                         <span>{announcement.active ? 'Active' : 'Inactive'}</span>
@@ -1117,13 +1117,13 @@ function TeamAdminContent() {
                     <div className="flex gap-2 sm:ml-4 flex-shrink-0">
                       <button
                         onClick={() => handleEdit('announcements', announcement)}
-                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete('announcements', announcement.id)}
-                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100"
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
                       >
                         Delete
                       </button>
@@ -1134,22 +1134,22 @@ function TeamAdminContent() {
 
               {/* Empty states */}
               {activeTab === 'news' && news.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No news articles found. Create your first article above.
                 </div>
               )}
               {activeTab === 'events' && events.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No events found. Create your first event above.
                 </div>
               )}
               {activeTab === 'schedule' && schedule.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No schedule items found. Create your first game above.
                 </div>
               )}
               {activeTab === 'announcements' && announcements.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No announcements found. Create your first announcement above.
                 </div>
               )}
@@ -1167,7 +1167,7 @@ export default function TeamAdminPage() {
       <AdminLayout>
         <div className="p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </AdminLayout>
     }>

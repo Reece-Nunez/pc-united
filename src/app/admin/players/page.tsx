@@ -11,8 +11,10 @@ import {
   updatePlayer,
   deletePlayer,
   createOrUpdatePlayerStats,
-  Player
+  Player,
+  createAdminNotification,
 } from "@/lib/supabase";
+import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 
 interface AdminPlayer extends Player {
@@ -81,6 +83,7 @@ function PlayersAdminContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('All');
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
   const [newPlayerForm, setNewPlayerForm] = useState<NewPlayerForm>({
     name: '',
     jersey_number: '',
@@ -121,6 +124,7 @@ function PlayersAdminContent() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserRole(user?.user_metadata?.role || null);
+      setUserEmail(user?.email || '');
     });
   }, []);
 
@@ -198,6 +202,7 @@ function PlayersAdminContent() {
       setEditingPlayer(null);
       setEditForm({});
       toast.success('Player updated successfully!');
+      logActivity('update', 'player', editingPlayer, userEmail, { name: editForm.name });
     } catch (err: any) {
       toast.error('Error updating player: ' + err.message);
     }
@@ -287,6 +292,8 @@ function PlayersAdminContent() {
       });
       setShowAddForm(false);
       toast.success('Player added successfully!');
+      createAdminNotification({ type: 'player', title: `Player Added: ${newPlayerForm.name}`, message: `${newPlayerForm.name} (#${newPlayerForm.jersey_number}) added to the roster.`, link: '/admin/players' });
+      logActivity('create', 'player', newPlayerForm.name, userEmail, { name: newPlayerForm.name, position: newPlayerForm.position });
     } catch (err: any) {
       toast.error('Error adding player: ' + err.message);
     }
@@ -295,11 +302,16 @@ function PlayersAdminContent() {
   const handleDeletePlayer = async (playerId: number) => {
     if (confirm('Are you sure you want to delete this player? This cannot be undone.')) {
       try {
+        const player = players.find((p) => p.id === playerId);
         const { error } = await deletePlayer(playerId);
         if (error) throw error;
 
         await fetchPlayers();
         toast.success('Player deleted successfully!');
+        if (player) {
+          createAdminNotification({ type: 'player', title: `Player Deleted: ${player.name}`, message: `${player.name} was removed from the roster.`, link: '/admin/players' });
+          logActivity('delete', 'player', playerId, userEmail, { name: player.name });
+        }
       } catch (err: any) {
         toast.error('Error deleting player: ' + err.message);
       }
@@ -358,9 +370,9 @@ function PlayersAdminContent() {
     return (
       <AdminLayout>
         <div className="p-8">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-gray-600 rounded-lg p-6 text-center">
             <h2 className="text-xl font-bold text-red-700 mb-2">Error Loading Players</h2>
-            <p className="text-red-600 mb-4">{error}</p>
+            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={fetchPlayers}
               className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
@@ -381,8 +393,8 @@ function PlayersAdminContent() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Players</h1>
-            <p className="text-gray-600 mt-1">{isParent ? 'View the team roster' : 'Manage your team roster'}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Players</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">{isParent ? 'View the team roster' : 'Manage your team roster'}</p>
           </div>
           {!isParent && (
             <button
@@ -398,7 +410,7 @@ function PlayersAdminContent() {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -410,7 +422,7 @@ function PlayersAdminContent() {
                   placeholder="Search by name or jersey number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent"
                 />
               </div>
             </div>
@@ -422,7 +434,7 @@ function PlayersAdminContent() {
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     positionFilter === position
                       ? 'bg-team-blue text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
                   }`}
                 >
                   {position}
@@ -430,57 +442,57 @@ function PlayersAdminContent() {
               ))}
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-3">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
             Showing {filteredPlayers.length} of {players.length} players
           </p>
         </div>
 
         {/* Add New Player Form */}
         {showAddForm && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Add New Player</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Add New Player</h2>
 
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               {/* Basic Info */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-700">Basic Information</h3>
+                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Basic Information</h3>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
                   <input
                     type="text"
                     value={newPlayerForm.name}
                     onChange={(e) => handleNewPlayerChange('name', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                    className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Jersey # *</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jersey # *</label>
                     <input
                       type="number"
                       value={newPlayerForm.jersey_number}
                       onChange={(e) => handleNewPlayerChange('jersey_number', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Birth Year</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Birth Year</label>
                     <input
                       type="number"
                       value={newPlayerForm.birth_year}
                       onChange={(e) => handleNewPlayerChange('birth_year', parseInt(e.target.value))}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Position</label>
                   <select
                     value={newPlayerForm.position}
                     onChange={(e) => handleNewPlayerChange('position', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                    className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                   >
                     <option value="Forward">Forward</option>
                     <option value="Midfielder">Midfielder</option>
@@ -490,12 +502,12 @@ function PlayersAdminContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Photo</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Photo</label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0], true)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg"
                   />
                   {newPlayerForm.photo_url && newPlayerForm.photo_url !== '/logo.png' && (
                     <div className="mt-2">
@@ -513,42 +525,42 @@ function PlayersAdminContent() {
 
               {/* Stats */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-700">Initial Statistics</h3>
+                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Initial Statistics</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goals</label>
                     <input
                       type="number"
                       value={newPlayerForm.stats.goals}
                       onChange={(e) => handleNewPlayerChange('stats.goals', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Assists</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assists</label>
                     <input
                       type="number"
                       value={newPlayerForm.stats.assists}
                       onChange={(e) => handleNewPlayerChange('stats.assists', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Games</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Games</label>
                     <input
                       type="number"
                       value={newPlayerForm.stats.games_played}
                       onChange={(e) => handleNewPlayerChange('stats.games_played', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Yellow Cards</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Yellow Cards</label>
                     <input
                       type="number"
                       value={newPlayerForm.stats.yellow_cards}
                       onChange={(e) => handleNewPlayerChange('stats.yellow_cards', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
                 </div>
@@ -558,33 +570,33 @@ function PlayersAdminContent() {
             {/* Description */}
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                 <textarea
                   value={newPlayerForm.description}
                   onChange={(e) => handleNewPlayerChange('description', e.target.value)}
                   rows={2}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                  className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                   placeholder="Brief description of the player"
                 />
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Strengths (comma separated)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Strengths (comma separated)</label>
                   <input
                     type="text"
                     value={newPlayerForm.strengths}
                     onChange={(e) => handleNewPlayerChange('strengths', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                    className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     placeholder="Speed, Ball control"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Areas to Improve (comma separated)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Areas to Improve (comma separated)</label>
                   <input
                     type="text"
                     value={newPlayerForm.areas_to_improve}
                     onChange={(e) => handleNewPlayerChange('areas_to_improve', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue"
+                    className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     placeholder="Passing, Defense"
                   />
                 </div>
@@ -594,7 +606,7 @@ function PlayersAdminContent() {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
@@ -611,17 +623,17 @@ function PlayersAdminContent() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading players...</p>
+            <p className="text-gray-600 dark:text-gray-400">Loading players...</p>
           </div>
         ) : filteredPlayers.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
             <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Players Found</h3>
-            <p className="text-gray-500">
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Players Found</h3>
+            <p className="text-gray-500 dark:text-gray-400">
               {searchQuery || positionFilter !== 'All'
                 ? 'Try adjusting your search or filter'
                 : 'Add your first player to get started'
@@ -632,15 +644,15 @@ function PlayersAdminContent() {
           /* Players Grid */
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredPlayers.map((player) => (
-              <div key={player.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div key={player.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 {editingPlayer === player.id ? (
                   /* Edit Form */
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-bold text-gray-900">Edit Player</h3>
+                      <h3 className="font-bold text-gray-900 dark:text-white">Edit Player</h3>
                       <div className="flex gap-2">
                         <button onClick={handleSave} className="text-green-600 hover:text-green-700 font-medium text-sm">Save</button>
-                        <button onClick={handleCancel} className="text-gray-500 hover:text-gray-700 font-medium text-sm">Cancel</button>
+                        <button onClick={handleCancel} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium text-sm">Cancel</button>
                       </div>
                     </div>
                     <div className="space-y-3">
@@ -648,7 +660,7 @@ function PlayersAdminContent() {
                         type="text"
                         value={editForm.name || ''}
                         onChange={(e) => handleFormChange('name', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                         placeholder="Name"
                       />
                       <div className="grid grid-cols-2 gap-2">
@@ -656,13 +668,13 @@ function PlayersAdminContent() {
                           type="number"
                           value={editForm.jersey_number || ''}
                           onChange={(e) => handleFormChange('jersey_number', parseInt(e.target.value))}
-                          className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                           placeholder="Jersey #"
                         />
                         <select
                           value={editForm.position || ''}
                           onChange={(e) => handleFormChange('position', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                         >
                           <option value="Forward">Forward</option>
                           <option value="Midfielder">Midfielder</option>
@@ -673,49 +685,49 @@ function PlayersAdminContent() {
                       </div>
                       <div className="grid grid-cols-4 gap-2">
                         <div>
-                          <label className="text-xs text-gray-500">Goals</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">Goals</label>
                           <input
                             type="number"
                             value={editForm.stats?.goals || 0}
                             onChange={(e) => handleFormChange('stats.goals', parseInt(e.target.value) || 0)}
-                            className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Assists</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">Assists</label>
                           <input
                             type="number"
                             value={editForm.stats?.assists || 0}
                             onChange={(e) => handleFormChange('stats.assists', parseInt(e.target.value) || 0)}
-                            className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Games</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">Games</label>
                           <input
                             type="number"
                             value={editForm.stats?.games_played || 0}
                             onChange={(e) => handleFormChange('stats.games_played', parseInt(e.target.value) || 0)}
-                            className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Yellow</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">Yellow</label>
                           <input
                             type="number"
                             value={editForm.stats?.yellow_cards || 0}
                             onChange={(e) => handleFormChange('stats.yellow_cards', parseInt(e.target.value) || 0)}
-                            className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">Photo</label>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Photo</label>
                         <input
                           type="file"
                           accept="image/*"
                           onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0], false)}
-                          className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                         />
                       </div>
                     </div>
@@ -723,7 +735,7 @@ function PlayersAdminContent() {
                 ) : (
                   /* Display Mode */
                   <>
-                    <div className="flex items-center p-4 border-b border-gray-100">
+                    <div className="flex items-center p-4 border-b border-gray-100 dark:border-gray-700">
                       <div className="relative w-14 h-14 flex-shrink-0">
                         <Image
                           src={player.photo_url || '/logo.png'}
@@ -736,27 +748,27 @@ function PlayersAdminContent() {
                         </div>
                       </div>
                       <div className="ml-4 flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 truncate">{player.name}</h3>
+                        <h3 className="font-bold text-gray-900 dark:text-white truncate">{player.name}</h3>
                         <p className="text-sm text-team-blue font-medium">{player.position}</p>
                       </div>
                     </div>
                     <div className="p-4">
                       <div className="grid grid-cols-4 gap-2 text-center mb-4">
                         <div>
-                          <div className="text-lg font-bold text-gray-900">{player.player_stats?.[0]?.goals || 0}</div>
-                          <div className="text-xs text-gray-500">Goals</div>
+                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.goals || 0}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Goals</div>
                         </div>
                         <div>
-                          <div className="text-lg font-bold text-gray-900">{player.player_stats?.[0]?.assists || 0}</div>
-                          <div className="text-xs text-gray-500">Assists</div>
+                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.assists || 0}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Assists</div>
                         </div>
                         <div>
-                          <div className="text-lg font-bold text-gray-900">{player.player_stats?.[0]?.games_played || 0}</div>
-                          <div className="text-xs text-gray-500">Games</div>
+                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.games_played || 0}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Games</div>
                         </div>
                         <div>
-                          <div className="text-lg font-bold text-gray-900">{player.player_stats?.[0]?.yellow_cards || 0}</div>
-                          <div className="text-xs text-gray-500">Yellow</div>
+                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.yellow_cards || 0}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Yellow</div>
                         </div>
                       </div>
                       {!isParent && (
@@ -769,7 +781,7 @@ function PlayersAdminContent() {
                           </button>
                           <button
                             onClick={() => handleDeletePlayer(player.id)}
-                            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium transition-colors"
+                            className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 text-sm font-medium transition-colors"
                           >
                             Delete
                           </button>
@@ -793,7 +805,7 @@ export default function PlayersAdmin() {
       <AdminLayout>
         <div className="p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </AdminLayout>
     }>

@@ -369,9 +369,9 @@ function HighlightsAdminContent() {
     return (
       <AdminLayout>
         <div className="p-8">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-gray-600 rounded-lg p-6 text-center">
             <h2 className="text-xl font-bold text-red-700 mb-2">Error Loading Highlights</h2>
-            <p className="text-red-600 mb-4">{error}</p>
+            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={fetchData}
               className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
@@ -390,8 +390,8 @@ function HighlightsAdminContent() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Highlights</h1>
-            <p className="text-gray-600 mt-1">Manage player highlights and game videos</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Highlights</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage player highlights and game videos</p>
           </div>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
@@ -405,7 +405,7 @@ function HighlightsAdminContent() {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -417,7 +417,7 @@ function HighlightsAdminContent() {
                   placeholder="Search highlights..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent"
                 />
               </div>
             </div>
@@ -425,7 +425,7 @@ function HighlightsAdminContent() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue text-sm"
+                className="px-3 py-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue text-sm"
               >
                 {highlightTypes.map(type => (
                   <option key={type} value={type}>{type === 'All' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}</option>
@@ -434,7 +434,7 @@ function HighlightsAdminContent() {
               <select
                 value={playerFilter}
                 onChange={(e) => setPlayerFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue text-sm"
+                className="px-3 py-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue text-sm"
               >
                 {playerNames.map(name => (
                   <option key={name} value={name}>{name === 'All' ? 'All Players' : name}</option>
@@ -442,26 +442,26 @@ function HighlightsAdminContent() {
               </select>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-3">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
             Showing {filteredHighlights.length} of {highlights.length} highlights
           </p>
         </div>
 
       {/* Add New Highlight Form */}
       {showAddForm && (
-        <section className="py-8 bg-gray-50 relative z-0">
+        <section className="py-8 bg-gray-50 dark:bg-gray-700 relative z-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white rounded-lg p-8 shadow-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 shadow-lg">
               <h2 className="text-2xl font-bold text-team-blue mb-6">Add New Highlight</h2>
               
               <div className="grid md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Player *</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Player *</label>
                     <select
                       value={newHighlightForm.player_id}
                       onChange={(e) => handleNewFormChange('player_id', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                       required
                     >
                       <option value="">Select a player</option>
@@ -471,31 +471,31 @@ function HighlightsAdminContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title *</label>
                     <input
                       type="text"
                       value={newHighlightForm.title}
                       onChange={(e) => handleNewFormChange('title', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                       placeholder="Amazing Goal vs Thunder FC"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
                     <input
                       type="date"
                       value={newHighlightForm.highlight_date}
                       onChange={(e) => handleNewFormChange('highlight_date', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                     <select
                       value={newHighlightForm.type}
                       onChange={(e) => handleNewFormChange('type', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                     >
                       <option value="goal">Goal</option>
                       <option value="assist">Assist</option>
@@ -506,11 +506,11 @@ function HighlightsAdminContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Assist By (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assist By (optional)</label>
                     <select
                       value={newHighlightForm.assist_by}
                       onChange={(e) => handleNewFormChange('assist_by', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                     >
                       <option value="">No assist</option>
                       {players.map(player => (
@@ -522,34 +522,34 @@ function HighlightsAdminContent() {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">External Video URL (GameChanger, YouTube, etc.)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">External Video URL (GameChanger, YouTube, etc.)</label>
                     <input
                       type="url"
                       value={newHighlightForm.video_url || ''}
                       onChange={(e) => handleNewFormChange('video_url', e.target.value || null)}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                       placeholder="https://web.gc.com/teams/..."
                     />
-                    <p className="text-xs text-gray-500 mt-1">Paste a link from GameChanger, YouTube, or other video sites</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Paste a link from GameChanger, YouTube, or other video sites</p>
                   </div>
-                  <div className="text-center text-gray-500 text-sm py-1">— OR —</div>
+                  <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-1">--- OR ---</div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Upload Video File</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Video File</label>
                     <input
                       type="file"
                       accept="video/*"
                       onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0], true)}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                       disabled={!!newHighlightForm.video_url}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI (max 100MB)</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supported formats: MP4, MOV, AVI (max 100MB)</p>
                     
                     {selectedVideoFile && (
-                      <div className="mt-2 p-2 bg-blue-50 rounded">
+                      <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
                         <div className="text-sm text-blue-700">
                           📁 Selected: {selectedVideoFile.name}
                         </div>
-                        <div className="text-xs text-blue-600">
+                        <div className="text-xs text-blue-600 dark:text-blue-400">
                           Will upload to S3 when you click "Add Highlight"
                         </div>
                       </div>
@@ -558,7 +558,7 @@ function HighlightsAdminContent() {
                   
                   {(previewUrl || newHighlightForm.video_url) && (
                     <div className="relative z-10">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Video Preview</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Video Preview</label>
                       <video
                         src={previewUrl || newHighlightForm.video_url || ''}
                         className="w-full h-40 rounded border"
@@ -568,7 +568,7 @@ function HighlightsAdminContent() {
                       >
                         Your browser does not support the video tag.
                       </video>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Source: {previewUrl ? 'Local preview' : newHighlightForm.video_url ? 'S3 URL' : 'No source'}
                       </div>
                       <div className="text-xs text-blue-500 mt-1">
@@ -592,13 +592,13 @@ function HighlightsAdminContent() {
               {/* Progress indicator for new highlight */}
               {isUploading && (
                 <div className="mb-4">
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
                     <span>
                       {uploadProgress < 100 ? 'Uploading to S3...' : 'Upload Complete! Creating highlight...'}
                     </span>
                     <span>{uploadProgress}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className="bg-team-red h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
@@ -610,7 +610,7 @@ function HighlightsAdminContent() {
               <div className="flex justify-end space-x-4">
                 <button
                   onClick={() => setShowAddForm(false)}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 cursor-pointer"
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
                   disabled={isUploading}
                 >
                   Cancel
@@ -634,17 +634,17 @@ function HighlightsAdminContent() {
 
       {/* Loading State */}
       {loading ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading highlights...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading highlights...</p>
         </div>
       ) : filteredHighlights.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
           <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Highlights Found</h3>
-          <p className="text-gray-500">
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Highlights Found</h3>
+          <p className="text-gray-500 dark:text-gray-400">
             {searchQuery || typeFilter !== 'All' || playerFilter !== 'All'
               ? 'Try adjusting your search or filters'
               : 'Add your first highlight to get started'
@@ -655,7 +655,7 @@ function HighlightsAdminContent() {
       /* Highlights List */
       <div className="space-y-4">
           {filteredHighlights.map((highlight) => (
-              <div key={highlight.id} className="bg-gray-50 rounded-lg p-6 shadow-lg">
+              <div key={highlight.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 shadow-lg">
                 {editingHighlight === highlight.id ? (
                   // Edit Form
                   <div className="space-y-6">
@@ -681,13 +681,13 @@ function HighlightsAdminContent() {
                     
                     {uploadingForEdit && (
                       <div className="mb-4">
-                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
                           <span>
                             {uploadProgress < 100 ? 'Uploading to S3...' : 'Upload Complete!'}
                           </span>
                           <span>{uploadProgress}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                           <div 
                             className={`h-2 rounded-full transition-all duration-300 ${
                               uploadProgress === 100 ? 'bg-green-500' : 'bg-team-blue'
@@ -706,11 +706,11 @@ function HighlightsAdminContent() {
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Player</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Player</label>
                           <select
                             value={editForm.player_id || ''}
                             onChange={(e) => handleFormChange('player_id', parseInt(e.target.value))}
-                            className="w-full p-2 border border-gray-300 rounded"
+                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                           >
                             {players.map(player => (
                               <option key={player.id} value={player.id}>{player.name}</option>
@@ -718,29 +718,29 @@ function HighlightsAdminContent() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
                           <input
                             type="text"
                             value={editForm.title || ''}
                             onChange={(e) => handleFormChange('title', e.target.value)}
-                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
+                            className="w-full p-2 md:p-3 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded text-sm md:text-base"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
                           <input
                             type="date"
                             value={editForm.highlight_date || ''}
                             onChange={(e) => handleFormChange('highlight_date', e.target.value)}
-                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
+                            className="w-full p-2 md:p-3 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded text-sm md:text-base"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                           <select
                             value={editForm.type || ''}
                             onChange={(e) => handleFormChange('type', e.target.value)}
-                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
+                            className="w-full p-2 md:p-3 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded text-sm md:text-base"
                           >
                             <option value="goal">Goal</option>
                             <option value="assist">Assist</option>
@@ -751,11 +751,11 @@ function HighlightsAdminContent() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Assist By (optional)</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assist By (optional)</label>
                           <select
                             value={editForm.assist_by || ''}
                             onChange={(e) => handleFormChange('assist_by', e.target.value)}
-                            className="w-full p-2 md:p-3 border border-gray-300 rounded text-sm md:text-base"
+                            className="w-full p-2 md:p-3 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded text-sm md:text-base"
                           >
                             <option value="">No assist</option>
                             {players.map(player => (
@@ -767,21 +767,21 @@ function HighlightsAdminContent() {
 
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Update Video</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Update Video</label>
                           <input
                             type="file"
                             accept="video/*"
                             onChange={(e) => e.target.files?.[0] && handleVideoSelect(e.target.files[0], false)}
-                            className="w-full p-2 border border-gray-300 rounded"
+                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                             disabled={false}
                           />
                           
                           {editSelectedVideoFile && (
-                            <div className="mt-2 p-2 bg-blue-50 rounded">
+                            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
                               <div className="text-sm text-blue-700">
                                 📁 Selected: {editSelectedVideoFile.name}
                               </div>
-                              <div className="text-xs text-blue-600">
+                              <div className="text-xs text-blue-600 dark:text-blue-400">
                                 Will upload to S3 when you save changes
                               </div>
                             </div>
@@ -790,7 +790,7 @@ function HighlightsAdminContent() {
                         
                         {(editPreviewUrl || editForm.video_url) && (
                           <div className="relative z-10">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Current Video</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Video</label>
                             <video
                               src={editPreviewUrl || editForm.video_url || ''}
                               className="w-full h-40 rounded border"
@@ -829,10 +829,10 @@ function HighlightsAdminContent() {
                             {highlight.type.toUpperCase()}
                           </span>
                         </div>
-                        <p className="text-gray-600">{highlight.players?.name}</p>
-                        <p className="text-sm text-gray-500">{new Date(highlight.highlight_date).toLocaleDateString()}</p>
+                        <p className="text-gray-600 dark:text-gray-400">{highlight.players?.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{new Date(highlight.highlight_date).toLocaleDateString()}</p>
                         {highlight.assist_by && (
-                          <p className="text-sm text-gray-600 mt-1">Assist by: <span className="font-medium">{highlight.assist_by}</span></p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Assist by: <span className="font-medium">{highlight.assist_by}</span></p>
                         )}
                         {highlight.video_url && (
                           <p className="text-xs text-green-600 mt-1">✓ Video uploaded</p>
@@ -883,7 +883,7 @@ export default function HighlightsAdmin() {
       <AdminLayout>
         <div className="p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </AdminLayout>
     }>
