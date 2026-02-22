@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Sponsors from "@/components/Sponsors";
-import Link from "next/link";
+import SponsorshipForm from "./SponsorshipForm";
 import { generateMetadata } from "@/components/SEO";
 import { Metadata } from "next";
 
@@ -14,6 +14,7 @@ export const metadata: Metadata = generateMetadata({
     'soccer team partners',
     'Ponca City soccer supporters',
     'community soccer sponsors',
+    'youth soccer sponsorship',
   ],
   url: '/friends',
 });
@@ -37,25 +38,63 @@ export default function FriendsPage() {
         </div>
       </section>
 
-      {/* Sponsors Section */}
+      {/* Current Sponsors */}
       <Sponsors />
 
-      {/* Become a Sponsor */}
-      <section className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-team-blue mb-4">Become a Friend</h2>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            Interested in supporting youth soccer in Ponca City? We'd love to have you on board.
-            Your partnership helps provide quality coaching, equipment, and opportunities for our young athletes.
+      {/* Sponsorship Levels Info */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-team-blue mb-4">Sponsorship Levels</h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Sponsorship funds go directly toward tournament fees, travel costs, training equipment, and financial help for families that need it.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg p-6 shadow-lg border-t-4 border-gray-400">
+              <h3 className="text-xl font-bold text-team-blue mb-1">Platinum</h3>
+              <p className="text-2xl font-bold text-team-red mb-3">$2,500</p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>Logo on front of alternate jersey</li>
+                <li>Featured spot on website</li>
+                <li>Regular social media highlights</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-lg border-t-4 border-yellow-500">
+              <h3 className="text-xl font-bold text-team-blue mb-1">Gold</h3>
+              <p className="text-2xl font-bold text-team-red mb-3">$1,000</p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>Logo on back of alternate jersey or training shirts</li>
+                <li>Logo on website</li>
+                <li>Several social shoutouts</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-lg border-t-4 border-gray-300">
+              <h3 className="text-xl font-bold text-team-blue mb-1">Silver</h3>
+              <p className="text-2xl font-bold text-team-red mb-3">$500</p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>Logo on website</li>
+                <li>Thank You Sponsors banner mention</li>
+                <li>A couple social shoutouts</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-lg border-t-4 border-orange-400">
+              <h3 className="text-xl font-bold text-team-blue mb-1">Bronze / Friends</h3>
+              <p className="text-2xl font-bold text-team-red mb-3">$250</p>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>Business name on website</li>
+                <li>One social media thank-you</li>
+              </ul>
+            </div>
+          </div>
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Want to help at a different amount? We'll gladly work with you.
           </p>
-          <Link
-            href="/contact"
-            className="bg-team-red hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition duration-300 transform hover:scale-105 cursor-pointer"
-          >
-            Get In Touch
-          </Link>
         </div>
       </section>
+
+      {/* Sponsorship Form */}
+      <SponsorshipForm />
 
       <Footer />
     </div>

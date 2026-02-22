@@ -59,6 +59,40 @@ export interface Registration {
   payment_status?: string;
 }
 
+// Sponsorship form type
+export interface Sponsorship {
+  id?: string;
+  created_at?: string;
+  business_name: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  sponsorship_level: string;
+  logo_placement?: string;
+  amount: number;
+  payment_method: string;
+  logo_url?: string;
+  signature: string;
+  signature_date: string;
+}
+
+// Function to submit a new sponsorship
+export async function submitSponsorship(sponsorship: Sponsorship) {
+  if (!isSupabaseConfigured) {
+    return {
+      data: null,
+      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' }
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('sponsorships')
+    .insert([sponsorship])
+    .select();
+
+  return { data, error };
+}
+
 // Function to submit a new registration
 export async function submitRegistration(registration: Registration) {
   if (!isSupabaseConfigured) {

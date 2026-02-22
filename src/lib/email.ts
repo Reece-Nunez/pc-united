@@ -3,6 +3,7 @@ import { render } from '@react-email/render';
 import RegistrationEmail from '@/emails/RegistrationEmail';
 import ContactEmail from '@/emails/ContactEmail';
 import RegistrationConfirmationEmail from '@/emails/RegistrationConfirmationEmail';
+import SponsorshipEmail from '@/emails/SponsorshipEmail';
 import { Registration } from './supabase';
 
 const ADMIN_EMAILS = [
@@ -150,6 +151,75 @@ export async function sendContactFormNotification(formData: ContactFormData) {
     return { success: true, data };
   } catch (error) {
     console.error('Error sending contact form email:', error);
+    return { success: false, error };
+  }
+}
+
+export interface SponsorshipFormData {
+  business_name: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  sponsorship_level: string;
+  logo_placement?: string;
+  amount: number;
+  payment_method: string;
+  logo_url?: string;
+  signature: string;
+  signature_date: string;
+}
+
+export async function sendSponsorshipNotification(formData: SponsorshipFormData) {
+  try {
+    const submittedAt = new Date().toLocaleString('en-US', {
+      dateStyle: 'full',
+      timeStyle: 'short',
+    });
+
+    const emailHtml = await render(
+      SponsorshipEmail({
+        businessName: formData.business_name,
+        contactPerson: formData.contact_person,
+        email: formData.email,
+        phone: formData.phone,
+        sponsorshipLevel: formData.sponsorship_level,
+        amount: formData.amount,
+        logoPlacement: formData.logo_placement,
+        paymentMethod: formData.payment_method,
+        logoUrl: formData.logo_url,
+        signature: formData.signature,
+        signatureDate: new Date(formData.signature_date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        submittedAt,
+      })
+    );
+
+    const levelLabels: Record<string, string> = {
+      platinum: 'Platinum',
+      gold: 'Gold',
+      silver: 'Silver',
+      bronze: 'Bronze',
+    };
+
+    const { data, error } = await resend.emails.send({
+      from: 'Ponca City United FC <noreply@poncacityunited.com>',
+      to: ADMIN_EMAILS,
+      replyTo: formData.email,
+      subject: `New Sponsorship: ${formData.business_name} — ${levelLabels[formData.sponsorship_level] || formData.sponsorship_level} ($${formData.amount.toLocaleString()})`,
+      html: emailHtml,
+    });
+
+    if (error) {
+      console.error('Error sending sponsorship email:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending sponsorship email:', error);
     return { success: false, error };
   }
 }
