@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import RegisterClient from "./RegisterClient";
-import { ViewfinderCircleIcon, TrophyIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { MegaphoneIcon, TrophyIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { generateMetadata } from "@/components/SEO";
 import { Metadata } from "next";
 
@@ -51,7 +51,7 @@ export default function RegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             <div className="text-center">
               <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <ViewfinderCircleIcon className="w-7 h-7 text-white" />
+                <MegaphoneIcon className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-lg font-semibold text-team-blue mb-2">Professional Coaching</h3>
               <p className="text-gray-600 text-sm md:text-base">Experienced coaches focused on skill development and fun</p>

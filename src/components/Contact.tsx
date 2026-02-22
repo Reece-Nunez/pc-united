@@ -17,14 +17,45 @@ export default function Contact() {
         <div className="grid md:grid-cols-2 gap-12">
           <AnimateOnScroll variant="slideInLeft">
             <h3 className="text-2xl font-bold text-team-blue mb-6">Contact Information</h3>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <EnvelopeIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
-                <span>info@poncacityunited.com</span>
+            <div className="space-y-6">
+              <div>
+                <h4 className="font-semibold text-team-blue mb-2">Veronica Ramirez — Head Coach</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <EnvelopeIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
+                    <a href="mailto:vramirez@poncacityunited.com" className="hover:text-team-red transition-colors">vramirez@poncacityunited.com</a>
+                  </div>
+                  <div className="flex items-center">
+                    <PhoneIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
+                    <a href="tel:5803046922" className="hover:text-team-red transition-colors">(580) 304-6922</a>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center">
-                <PhoneIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
-                <span>(580) 555-GOAL</span>
+              <div>
+                <h4 className="font-semibold text-team-blue mb-2">Reece Nunez — Assistant Coach</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <EnvelopeIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
+                    <a href="mailto:rnunez@poncacityunited.com" className="hover:text-team-red transition-colors">rnunez@poncacityunited.com</a>
+                  </div>
+                  <div className="flex items-center">
+                    <PhoneIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
+                    <a href="tel:4356606100" className="hover:text-team-red transition-colors">(435) 660-6100</a>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-semibold text-team-blue mb-2">Joshua McKeachnie — Assistant Coach</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <EnvelopeIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
+                    <a href="mailto:jmckeachnie@poncacityunited.com" className="hover:text-team-red transition-colors">jmckeachnie@poncacityunited.com</a>
+                  </div>
+                  <div className="flex items-center">
+                    <PhoneIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />
+                    <a href="tel:8018510297" className="hover:text-team-red transition-colors">(801) 851-0297</a>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center">
                 <MapPinIcon className="w-5 h-5 text-team-red mr-3 flex-shrink-0" />

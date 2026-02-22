@@ -40,6 +40,18 @@ export default function CoachesClient() {
     },
     {
       id: 2,
+      name: "Coach Reece Nunez",
+      title: "Assistant Coach & Goalkeeper Specialist",
+      photo: "/logo.png", // Replace with actual coach photos
+      bio: "Coach Nunez serves as both our goalkeeper specialist and assistant coach, bringing comprehensive knowledge of both goalkeeping techniques and overall team strategy. His dual role allows for well-rounded team development.",
+      experience: "Specialized in goalkeeper coaching and team assistance",
+      certifications: ["USSF Goalkeeping License", "Assistant Coaching Certification", "Mental Training Certified"],
+      philosophy: "Goalkeeping is as much about mental strength as physical ability. We develop confident, decisive keepers while supporting the entire team's growth.",
+      email: "rnunez@poncacityunited.com",
+      specialties: ["Goalkeeper Training", "Shot Stopping", "Team Strategy"]
+    },
+    {
+      id: 3,
       name: "Coach Joshua McKeachnie",
       title: "Assistant Coach",
       photo: "/logo.png", // Replace with actual coach photos
@@ -49,18 +61,6 @@ export default function CoachesClient() {
       philosophy: "Technical excellence combined with tactical intelligence creates well-rounded players who can adapt to any situation on the field.",
       email: "jmckeachnie@poncacityunited.com",
       specialties: ["Technical Skills", "Individual Training", "Player Development"]
-    },
-    {
-      id: 3,
-      name: "Coach Reece Nunez",
-      title: "Goalkeeper & Assistant Coach",
-      photo: "/logo.png", // Replace with actual coach photos
-      bio: "Coach Nunez serves as both our goalkeeper specialist and assistant coach, bringing comprehensive knowledge of both goalkeeping techniques and overall team strategy. His dual role allows for well-rounded team development.",
-      experience: "Specialized in goalkeeper coaching and team assistance",
-      certifications: ["USSF Goalkeeping License", "Assistant Coaching Certification", "Mental Training Certified"],
-      philosophy: "Goalkeeping is as much about mental strength as physical ability. We develop confident, decisive keepers while supporting the entire team's growth.",
-      email: "rnunez@poncacityunited.com",
-      specialties: ["Goalkeeper Training", "Shot Stopping", "Team Strategy"]
     }
   ];
 
@@ -73,14 +73,6 @@ export default function CoachesClient() {
       bio: "Juan brings invaluable professional playing experience to our club, having played professionally in Mexico. His expertise and passion for the game inspire our players to reach new heights.",
       background: "Former professional soccer player in Mexico, Extensive playing experience at high levels"
     },
-    {
-      id: 2,
-      name: "Miguel Angel Gonzalez",
-      role: "Volunteer Coach & Tactical Advisor",
-      photo: "/logo.png", // Replace with actual volunteer photos
-      bio: "Miguel Angel contributes decades of coaching wisdom to our program, having coached numerous teams throughout Mexico. His tactical knowledge and leadership experience are invaluable assets to our club.",
-      background: "Experienced coach of multiple teams in Mexico, Tactical specialist with extensive coaching background"
-    }
   ];
 
   return (

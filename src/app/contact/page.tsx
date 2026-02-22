@@ -33,28 +33,43 @@ export default function ContactPage() {
               </p>
               
               <div className="space-y-6">
+                {/* Veronica Ramirez */}
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
                     <EnvelopeIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-team-blue mb-1">Email Us</h3>
-                    <p className="text-gray-600">info@poncacityunited.com</p>
-                    <p className="text-sm text-gray-500">Best way to reach us for detailed questions</p>
+                    <h3 className="text-lg font-bold text-team-blue mb-1">Veronica Ramirez — Head Coach</h3>
+                    <a href="mailto:vramirez@poncacityunited.com" className="text-gray-600 hover:text-team-red transition-colors block">vramirez@poncacityunited.com</a>
+                    <a href="tel:5803046922" className="text-gray-600 hover:text-team-red transition-colors block">(580) 304-6922</a>
                   </div>
                 </div>
-                
+
+                {/* Reece Nunez */}
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                    <PhoneIcon className="w-6 h-6 text-white" />
+                    <EnvelopeIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-team-blue mb-1">Call or Text</h3>
-                    <p className="text-gray-600">(580) 555-GOAL</p>
-                    <p className="text-sm text-gray-500">Available evenings and weekends</p>
+                    <h3 className="text-lg font-bold text-team-blue mb-1">Reece Nunez — Assistant Coach</h3>
+                    <a href="mailto:rnunez@poncacityunited.com" className="text-gray-600 hover:text-team-red transition-colors block">rnunez@poncacityunited.com</a>
+                    <a href="tel:4356606100" className="text-gray-600 hover:text-team-red transition-colors block">(435) 660-6100</a>
                   </div>
                 </div>
-                
+
+                {/* Joshua McKeachnie */}
+                <div className="flex items-start">
+                  <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                    <EnvelopeIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-team-blue mb-1">Joshua McKeachnie — Assistant Coach</h3>
+                    <a href="mailto:jmckeachnie@poncacityunited.com" className="text-gray-600 hover:text-team-red transition-colors block">jmckeachnie@poncacityunited.com</a>
+                    <a href="tel:8018510297" className="text-gray-600 hover:text-team-red transition-colors block">(801) 851-0297</a>
+                  </div>
+                </div>
+
+                {/* Location */}
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
                     <MapPinIcon className="w-6 h-6 text-white" />
@@ -66,6 +81,7 @@ export default function ContactPage() {
                   </div>
                 </div>
 
+                {/* Schedule */}
                 <div className="flex items-start">
                   <div className="w-12 h-12 bg-team-red rounded-full flex items-center justify-center mr-4 flex-shrink-0">
                     <CalendarIcon className="w-6 h-6 text-white" />
@@ -124,6 +140,7 @@ export default function ContactPage() {
                     <option value="tryouts">Team Information</option>
                     <option value="schedule">Schedule Questions</option>
                     <option value="travel">Travel Tournament Info</option>
+                    <option value="sponsorship">Sponsorship Request</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
