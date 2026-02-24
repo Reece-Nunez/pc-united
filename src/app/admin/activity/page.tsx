@@ -62,12 +62,41 @@ function formatEntityType(entityType: string): string {
 function describeActivity(entry: ActivityEntry): string {
   const actionVerb =
     entry.action === 'create'
-      ? 'Created'
+      ? 'Added'
       : entry.action === 'update'
         ? 'Updated'
         : 'Deleted';
   const entityLabel = formatEntityType(entry.entity_type);
-  return `${actionVerb} ${entityLabel} #${entry.entity_id}`;
+
+  // Use the title/name from details if available, otherwise fall back to entity_id
+  const name =
+    entry.details?.title ||
+    entry.details?.name ||
+    entry.details?.player ||
+    null;
+
+  if (name) {
+    return `${actionVerb} ${entityLabel}: "${name}"`;
+  }
+
+  // If entity_id looks like a readable name (not purely numeric), use it
+  if (entry.entity_id && !/^\d+$/.test(entry.entity_id)) {
+    return `${actionVerb} ${entityLabel}: "${entry.entity_id}"`;
+  }
+
+  return `${actionVerb} a ${entityLabel.toLowerCase()}`;
+}
+
+function formatDetailsHuman(details: Record<string, any>): string[] {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(details)) {
+    if (value === null || value === undefined) continue;
+    const label = key
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    lines.push(`${label}: ${value}`);
+  }
+  return lines;
 }
 
 function ActionIcon({ action }: { action: 'create' | 'update' | 'delete' }) {
@@ -397,10 +426,12 @@ function Content() {
                               </svg>
                               {isExpanded ? 'Hide details' : 'Show details'}
                             </button>
-                            {isExpanded && (
-                              <pre className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-300 overflow-x-auto max-h-60 whitespace-pre-wrap break-words">
-                                {JSON.stringify(entry.details, null, 2)}
-                              </pre>
+                            {isExpanded && entry.details && (
+                              <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                {formatDetailsHuman(entry.details).map((line, i) => (
+                                  <p key={i}>{line}</p>
+                                ))}
+                              </div>
                             )}
                           </div>
                         )}
