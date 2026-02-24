@@ -202,14 +202,29 @@ export default function PlayersClient() {
                         {/* Player Stats */}
                         {stats && (
                           <div className="grid grid-cols-3 gap-2 text-center text-xs md:text-sm">
-                            <div>
-                              <div className="font-bold text-team-blue">{stats.goals}</div>
-                              <div className="text-gray-600">Goals</div>
-                            </div>
-                            <div>
-                              <div className="font-bold text-team-blue">{stats.assists}</div>
-                              <div className="text-gray-600">Assists</div>
-                            </div>
+                            {player.position === 'Goalkeeper' ? (
+                              <>
+                                <div>
+                                  <div className="font-bold text-team-blue">{stats.saves || 0}</div>
+                                  <div className="text-gray-600">Saves</div>
+                                </div>
+                                <div>
+                                  <div className="font-bold text-team-blue">{stats.clean_sheets || 0}</div>
+                                  <div className="text-gray-600">Clean Sheets</div>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <div className="font-bold text-team-blue">{stats.goals}</div>
+                                  <div className="text-gray-600">Goals</div>
+                                </div>
+                                <div>
+                                  <div className="font-bold text-team-blue">{stats.assists}</div>
+                                  <div className="text-gray-600">Assists</div>
+                                </div>
+                              </>
+                            )}
                             <div>
                               <div className="font-bold text-team-blue">{stats.games_played}</div>
                               <div className="text-gray-600">Games</div>

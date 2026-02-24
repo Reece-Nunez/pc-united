@@ -527,24 +527,49 @@ function PlayersAdminContent() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Initial Statistics</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goals</label>
-                    <input
-                      type="number"
-                      value={newPlayerForm.stats.goals}
-                      onChange={(e) => handleNewPlayerChange('stats.goals', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assists</label>
-                    <input
-                      type="number"
-                      value={newPlayerForm.stats.assists}
-                      onChange={(e) => handleNewPlayerChange('stats.assists', parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
-                    />
-                  </div>
+                  {newPlayerForm.position === 'Goalkeeper' ? (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Saves</label>
+                        <input
+                          type="number"
+                          value={newPlayerForm.stats.saves}
+                          onChange={(e) => handleNewPlayerChange('stats.saves', parseInt(e.target.value) || 0)}
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Clean Sheets</label>
+                        <input
+                          type="number"
+                          value={newPlayerForm.stats.clean_sheets}
+                          onChange={(e) => handleNewPlayerChange('stats.clean_sheets', parseInt(e.target.value) || 0)}
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goals</label>
+                        <input
+                          type="number"
+                          value={newPlayerForm.stats.goals}
+                          onChange={(e) => handleNewPlayerChange('stats.goals', parseInt(e.target.value) || 0)}
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assists</label>
+                        <input
+                          type="number"
+                          value={newPlayerForm.stats.assists}
+                          onChange={(e) => handleNewPlayerChange('stats.assists', parseInt(e.target.value) || 0)}
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
+                        />
+                      </div>
+                    </>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Games</label>
                     <input
@@ -684,24 +709,49 @@ function PlayersAdminContent() {
                         </select>
                       </div>
                       <div className="grid grid-cols-4 gap-2">
-                        <div>
-                          <label className="text-xs text-gray-500 dark:text-gray-400">Goals</label>
-                          <input
-                            type="number"
-                            value={editForm.stats?.goals || 0}
-                            onChange={(e) => handleFormChange('stats.goals', parseInt(e.target.value) || 0)}
-                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500 dark:text-gray-400">Assists</label>
-                          <input
-                            type="number"
-                            value={editForm.stats?.assists || 0}
-                            onChange={(e) => handleFormChange('stats.assists', parseInt(e.target.value) || 0)}
-                            className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
-                          />
-                        </div>
+                        {editForm.position === 'Goalkeeper' ? (
+                          <>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400">Saves</label>
+                              <input
+                                type="number"
+                                value={editForm.stats?.saves || 0}
+                                onChange={(e) => handleFormChange('stats.saves', parseInt(e.target.value) || 0)}
+                                className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400">Clean Sheets</label>
+                              <input
+                                type="number"
+                                value={editForm.stats?.clean_sheets || 0}
+                                onChange={(e) => handleFormChange('stats.clean_sheets', parseInt(e.target.value) || 0)}
+                                className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400">Goals</label>
+                              <input
+                                type="number"
+                                value={editForm.stats?.goals || 0}
+                                onChange={(e) => handleFormChange('stats.goals', parseInt(e.target.value) || 0)}
+                                className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400">Assists</label>
+                              <input
+                                type="number"
+                                value={editForm.stats?.assists || 0}
+                                onChange={(e) => handleFormChange('stats.assists', parseInt(e.target.value) || 0)}
+                                className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
+                              />
+                            </div>
+                          </>
+                        )}
                         <div>
                           <label className="text-xs text-gray-500 dark:text-gray-400">Games</label>
                           <input
@@ -754,14 +804,29 @@ function PlayersAdminContent() {
                     </div>
                     <div className="p-4">
                       <div className="grid grid-cols-4 gap-2 text-center mb-4">
-                        <div>
-                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.goals || 0}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Goals</div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.assists || 0}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Assists</div>
-                        </div>
+                        {player.position === 'Goalkeeper' ? (
+                          <>
+                            <div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.saves || 0}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Saves</div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.clean_sheets || 0}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Clean Sheets</div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.goals || 0}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Goals</div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.assists || 0}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Assists</div>
+                            </div>
+                          </>
+                        )}
                         <div>
                           <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.games_played || 0}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Games</div>

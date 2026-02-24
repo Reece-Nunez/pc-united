@@ -139,27 +139,40 @@ export const handler = async (event) => {
     }));
     console.log('Upload complete');
 
-    // If the key changed (e.g. .mov → .mp4), update Supabase and delete old file
-    if (newKey !== key) {
-      console.log(`Key changed: ${key} → ${newKey}`);
+    // Update Supabase URL with cache-busting param and handle key changes
+    if (supabase) {
+      const oldUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+      const cacheBuster = `?v=${Date.now()}`;
+      const newUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${newKey}${cacheBuster}`;
 
-      if (supabase) {
-        const oldUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
-        const newUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${newKey}`;
+      // Match the old URL with or without an existing cache-buster param
+      const { data, error } = await supabase
+        .from('highlights')
+        .select('id, video_url')
+        .like('video_url', `%${BUCKET}.s3.${REGION}.amazonaws.com/${key}%`);
 
-        const { error, count } = await supabase
-          .from('highlights')
-          .update({ video_url: newUrl })
-          .eq('video_url', oldUrl);
+      if (error) {
+        console.error('Supabase query failed:', error);
+      } else if (data && data.length > 0) {
+        for (const row of data) {
+          const { error: updateErr } = await supabase
+            .from('highlights')
+            .update({ video_url: newUrl })
+            .eq('id', row.id);
 
-        if (error) {
-          console.error('Supabase update failed:', error);
-        } else {
-          console.log(`Updated Supabase URL (${count || '?'} rows): ${oldUrl} → ${newUrl}`);
+          if (updateErr) {
+            console.error(`Supabase update failed for id ${row.id}:`, updateErr);
+          }
         }
+        console.log(`Updated ${data.length} Supabase row(s) with cache-busted URL: ${newUrl}`);
+      } else {
+        console.log('No matching Supabase rows found for URL update');
       }
+    }
 
-      // Delete the original file
+    // If the key changed (e.g. .mov → .mp4), delete the original file
+    if (newKey !== key) {
+      console.log(`Key changed: ${key} -> ${newKey}`);
       try {
         await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
         console.log(`Deleted original: ${key}`);
