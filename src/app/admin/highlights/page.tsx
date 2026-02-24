@@ -51,6 +51,8 @@ function HighlightsAdminContent() {
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [editSelectedVideoFile, setEditSelectedVideoFile] = useState<File | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Check URL params for actions
   useEffect(() => {
@@ -284,6 +286,63 @@ function HighlightsAdminContent() {
     }
   };
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredHighlights.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredHighlights.map(h => h.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} highlight${selectedIds.size > 1 ? 's' : ''}?`)) return;
+
+    setIsDeleting(true);
+    let deleted = 0;
+    let failed = 0;
+
+    for (const id of selectedIds) {
+      try {
+        const highlight = highlights.find(h => h.id === id);
+        const { error } = await deleteHighlight(id);
+        if (error) throw error;
+
+        if (highlight?.video_url && highlight.video_url.includes('s3.')) {
+          const deleteResult = await deleteFromS3(highlight.video_url);
+          if (!deleteResult.success) {
+            console.warn('Failed to delete video from S3:', deleteResult.error);
+          }
+        }
+
+        logActivity('delete', 'highlight', highlight?.title || id, userEmail, { title: highlight?.title, player: highlight?.players?.name });
+        deleted++;
+      } catch (err) {
+        console.error(`Failed to delete highlight ${id}:`, err);
+        failed++;
+      }
+    }
+
+    await fetchData();
+    setSelectedIds(new Set());
+    setIsDeleting(false);
+
+    if (failed > 0) {
+      toast.error(`Deleted ${deleted} highlights, ${failed} failed`);
+    } else {
+      toast.success(`Deleted ${deleted} highlight${deleted > 1 ? 's' : ''} successfully!`);
+    }
+  };
+
   const validateVideo = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
@@ -458,9 +517,31 @@ function HighlightsAdminContent() {
               </select>
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
-            Showing {filteredHighlights.length} of {highlights.length} highlights
-          </p>
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Showing {filteredHighlights.length} of {highlights.length} highlights
+            </p>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  className="bg-red-600 text-white px-4 py-1.5 rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 transition-colors"
+                >
+                  {isDeleting ? 'Deleting...' : `Delete Selected (${selectedIds.size})`}
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
       {/* Add New Highlight Form */}
@@ -670,8 +751,19 @@ function HighlightsAdminContent() {
       ) : (
       /* Highlights List */
       <div className="space-y-4">
+          <div className="flex items-center gap-2 px-2">
+            <input
+              type="checkbox"
+              checked={filteredHighlights.length > 0 && selectedIds.size === filteredHighlights.length}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 rounded border-gray-300 text-team-blue focus:ring-team-blue cursor-pointer"
+            />
+            <label className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer" onClick={toggleSelectAll}>
+              Select All
+            </label>
+          </div>
           {filteredHighlights.map((highlight) => (
-              <div key={highlight.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 shadow-lg">
+              <div key={highlight.id} className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-6 shadow-lg ${selectedIds.has(highlight.id) ? 'ring-2 ring-team-blue' : ''}`}>
                 {editingHighlight === highlight.id ? (
                   // Edit Form
                   <div className="space-y-6">
@@ -838,6 +930,12 @@ function HighlightsAdminContent() {
                   // Display Mode
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(highlight.id)}
+                        onChange={() => toggleSelect(highlight.id)}
+                        className="w-5 h-5 rounded border-gray-300 text-team-blue focus:ring-team-blue cursor-pointer flex-shrink-0"
+                      />
                       <div className="flex-1">
                         <div className="flex items-center space-x-4 mb-2">
                           <h3 className="text-xl font-bold text-team-blue">{highlight.title}</h3>
