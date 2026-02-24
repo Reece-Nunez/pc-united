@@ -59,6 +59,8 @@ export default function NotificationsPage() {
   const [toggling, setToggling] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterRead, setFilterRead] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -103,6 +105,37 @@ export default function NotificationsPage() {
     await deleteAdminNotification(id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     toast.success('Notification deleted');
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(n => n.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} notification${selectedIds.size > 1 ? 's' : ''}?`)) return;
+
+    setIsDeleting(true);
+    for (const id of selectedIds) {
+      await deleteAdminNotification(id);
+    }
+    setNotifications(prev => prev.filter(n => !selectedIds.has(n.id)));
+    setSelectedIds(new Set());
+    setIsDeleting(false);
+    toast.success(`Deleted ${selectedIds.size} notification${selectedIds.size > 1 ? 's' : ''}`);
   };
 
   const handleToggleEmailNotif = async (userId: string, current: boolean) => {
@@ -163,14 +196,36 @@ export default function NotificationsPage() {
                     <option value="read">Read</option>
                   </select>
                 </div>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={handleMarkAllRead}
-                    className="text-sm text-team-blue hover:underline font-medium"
-                  >
-                    Mark all as read
-                  </button>
-                )}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {selectedIds.size > 0 && (
+                    <>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {selectedIds.size} selected
+                      </span>
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={isDeleting}
+                        className="bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 transition-colors"
+                      >
+                        {isDeleting ? 'Deleting...' : `Delete Selected (${selectedIds.size})`}
+                      </button>
+                      <button
+                        onClick={() => setSelectedIds(new Set())}
+                        className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                      >
+                        Clear
+                      </button>
+                    </>
+                  )}
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="text-sm text-team-blue hover:underline font-medium"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
               </div>
 
               {filtered.length === 0 ? (
@@ -182,11 +237,26 @@ export default function NotificationsPage() {
                 </div>
               ) : (
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+                  <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300 text-team-blue focus:ring-team-blue cursor-pointer"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer" onClick={toggleSelectAll}>Select All</span>
+                  </div>
                   {filtered.map((notif) => (
                     <div
                       key={notif.id}
-                      className={`flex items-start gap-4 p-4 ${!notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                      className={`flex items-start gap-4 p-4 ${!notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${selectedIds.has(notif.id) ? 'ring-2 ring-inset ring-team-blue' : ''}`}
                     >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(notif.id)}
+                        onChange={() => toggleSelect(notif.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-team-blue focus:ring-team-blue cursor-pointer mt-1 shrink-0"
+                      />
                       <span className={`px-2 py-1 rounded text-xs font-medium shrink-0 mt-0.5 ${typeColors[notif.type] || 'bg-gray-100 text-gray-800'}`}>
                         {notif.type}
                       </span>
