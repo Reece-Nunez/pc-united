@@ -124,18 +124,39 @@ export default function NotificationsPage() {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Delete ${selectedIds.size} notification${selectedIds.size > 1 ? 's' : ''}?`)) return;
+    const count = selectedIds.size;
 
-    setIsDeleting(true);
-    for (const id of selectedIds) {
-      await deleteAdminNotification(id);
-    }
-    setNotifications(prev => prev.filter(n => !selectedIds.has(n.id)));
-    setSelectedIds(new Set());
-    setIsDeleting(false);
-    toast.success(`Deleted ${selectedIds.size} notification${selectedIds.size > 1 ? 's' : ''}`);
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <p className="font-medium">Delete {count} notification{count > 1 ? 's' : ''}?</p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              setIsDeleting(true);
+              for (const id of selectedIds) {
+                await deleteAdminNotification(id);
+              }
+              setNotifications(prev => prev.filter(n => !selectedIds.has(n.id)));
+              setSelectedIds(new Set());
+              setIsDeleting(false);
+              toast.success(`Deleted ${count} notification${count > 1 ? 's' : ''}`);
+            }}
+            className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700"
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-medium hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ), { duration: 10000 });
   };
 
   const handleToggleEmailNotif = async (userId: string, current: boolean) => {

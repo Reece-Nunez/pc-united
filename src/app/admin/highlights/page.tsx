@@ -303,44 +303,65 @@ function HighlightsAdminContent() {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} highlight${selectedIds.size > 1 ? 's' : ''}?`)) return;
+    const count = selectedIds.size;
 
-    setIsDeleting(true);
-    let deleted = 0;
-    let failed = 0;
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <p className="font-medium">Delete {count} highlight{count > 1 ? 's' : ''}?</p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              setIsDeleting(true);
+              let deleted = 0;
+              let failed = 0;
 
-    for (const id of selectedIds) {
-      try {
-        const highlight = highlights.find(h => h.id === id);
-        const { error } = await deleteHighlight(id);
-        if (error) throw error;
+              for (const id of selectedIds) {
+                try {
+                  const highlight = highlights.find(h => h.id === id);
+                  const { error } = await deleteHighlight(id);
+                  if (error) throw error;
 
-        if (highlight?.video_url && highlight.video_url.includes('s3.')) {
-          const deleteResult = await deleteFromS3(highlight.video_url);
-          if (!deleteResult.success) {
-            console.warn('Failed to delete video from S3:', deleteResult.error);
-          }
-        }
+                  if (highlight?.video_url && highlight.video_url.includes('s3.')) {
+                    const deleteResult = await deleteFromS3(highlight.video_url);
+                    if (!deleteResult.success) {
+                      console.warn('Failed to delete video from S3:', deleteResult.error);
+                    }
+                  }
 
-        logActivity('delete', 'highlight', highlight?.title || id, userEmail, { title: highlight?.title, player: highlight?.players?.name });
-        deleted++;
-      } catch (err) {
-        console.error(`Failed to delete highlight ${id}:`, err);
-        failed++;
-      }
-    }
+                  logActivity('delete', 'highlight', highlight?.title || id, userEmail, { title: highlight?.title, player: highlight?.players?.name });
+                  deleted++;
+                } catch (err) {
+                  console.error(`Failed to delete highlight ${id}:`, err);
+                  failed++;
+                }
+              }
 
-    await fetchData();
-    setSelectedIds(new Set());
-    setIsDeleting(false);
+              await fetchData();
+              setSelectedIds(new Set());
+              setIsDeleting(false);
 
-    if (failed > 0) {
-      toast.error(`Deleted ${deleted} highlights, ${failed} failed`);
-    } else {
-      toast.success(`Deleted ${deleted} highlight${deleted > 1 ? 's' : ''} successfully!`);
-    }
+              if (failed > 0) {
+                toast.error(`Deleted ${deleted} highlights, ${failed} failed`);
+              } else {
+                toast.success(`Deleted ${deleted} highlight${deleted > 1 ? 's' : ''} successfully!`);
+              }
+            }}
+            className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700"
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-medium hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ), { duration: 10000 });
   };
 
   const validateVideo = (file: File): Promise<boolean> => {
