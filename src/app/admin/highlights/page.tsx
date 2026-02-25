@@ -949,33 +949,33 @@ function HighlightsAdminContent() {
                   </div>
                 ) : (
                   // Display Mode
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(highlight.id)}
                         onChange={() => toggleSelect(highlight.id)}
-                        className="w-5 h-5 rounded border-gray-300 text-team-blue focus:ring-team-blue cursor-pointer flex-shrink-0"
+                        className="w-5 h-5 rounded border-gray-300 text-team-blue focus:ring-team-blue cursor-pointer flex-shrink-0 mt-1"
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-4 mb-2">
-                          <h3 className="text-xl font-bold text-team-blue">{highlight.title}</h3>
-                          <span className="bg-team-red text-white px-2 py-1 rounded text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h3 className="text-base sm:text-xl font-bold text-team-blue truncate">{highlight.title}</h3>
+                          <span className="bg-team-red text-white px-2 py-0.5 rounded text-xs shrink-0">
                             {highlight.type.toUpperCase()}
                           </span>
                         </div>
-                        <p className="text-gray-600 dark:text-gray-400">{highlight.players?.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{new Date(highlight.highlight_date).toLocaleDateString()}</p>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">{highlight.players?.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(highlight.highlight_date).toLocaleDateString()}</p>
                         {highlight.assist_by && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Assist by: <span className="font-medium">{highlight.assist_by}</span></p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Assist by: <span className="font-medium">{highlight.assist_by}</span></p>
                         )}
                         {highlight.video_url && (
                           <p className="text-xs text-green-600 mt-1">✓ Video uploaded</p>
                         )}
                       </div>
-                      
+
                       {highlight.video_url && (
-                        <div className="w-32 h-20">
+                        <div className="hidden sm:block w-24 h-16 md:w-32 md:h-20 shrink-0">
                           <video
                             src={highlight.video_url}
                             className="w-full h-full object-cover rounded border"
@@ -986,17 +986,17 @@ function HighlightsAdminContent() {
                         </div>
                       )}
                     </div>
-                    
-                    <div className="space-x-3">
+
+                    <div className="flex gap-2 shrink-0 ml-8 sm:ml-0">
                       <button
                         onClick={() => handleEdit(highlight)}
-                        className="bg-team-blue text-white px-4 py-2 rounded hover:bg-blue-700 cursor-pointer"
+                        className="bg-team-blue text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded hover:bg-blue-700 cursor-pointer text-sm"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeleteHighlight(highlight.id)}
-                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 cursor-pointer"
+                        className="bg-red-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded hover:bg-red-700 cursor-pointer text-sm"
                       >
                         Delete
                       </button>

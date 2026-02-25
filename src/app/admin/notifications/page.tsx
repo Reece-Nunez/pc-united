@@ -270,7 +270,7 @@ export default function NotificationsPage() {
                   {filtered.map((notif) => (
                     <div
                       key={notif.id}
-                      className={`flex items-start gap-4 p-4 ${!notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${selectedIds.has(notif.id) ? 'ring-2 ring-inset ring-team-blue' : ''}`}
+                      className={`flex items-start gap-3 p-4 ${!notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${selectedIds.has(notif.id) ? 'ring-2 ring-inset ring-team-blue' : ''}`}
                     >
                       <input
                         type="checkbox"
@@ -278,31 +278,33 @@ export default function NotificationsPage() {
                         onChange={() => toggleSelect(notif.id)}
                         className="w-4 h-4 rounded border-gray-300 text-team-blue focus:ring-team-blue cursor-pointer mt-1 shrink-0"
                       />
-                      <span className={`px-2 py-1 rounded text-xs font-medium shrink-0 mt-0.5 ${typeColors[notif.type] || 'bg-gray-100 text-gray-800'}`}>
-                        {notif.type}
-                      </span>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!notif.read ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${typeColors[notif.type] || 'bg-gray-100 text-gray-800'}`}>
+                            {notif.type}
+                          </span>
+                          <span className="text-xs text-gray-400">{relativeTime(notif.created_at)}</span>
+                        </div>
+                        <p className={`text-sm break-words ${!notif.read ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                           {notif.title}
                         </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{notif.message}</p>
-                        <p className="text-xs text-gray-400 mt-1">{relativeTime(notif.created_at)}</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {!notif.read && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 break-words">{notif.message}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                          {!notif.read && (
+                            <button
+                              onClick={() => handleMarkRead(notif.id)}
+                              className="text-xs text-team-blue hover:underline"
+                            >
+                              Mark read
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleMarkRead(notif.id)}
-                            className="text-xs text-team-blue hover:underline"
+                            onClick={() => handleDelete(notif.id)}
+                            className="text-xs text-red-500 hover:underline"
                           >
-                            Mark read
+                            Delete
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(notif.id)}
-                          className="text-xs text-red-500 hover:underline"
-                        >
-                          Delete
-                        </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -324,8 +326,8 @@ export default function NotificationsPage() {
                   <p className="text-gray-500 dark:text-gray-400">No admin or approved users found.</p>
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-x-auto">
+                  <table className="w-full text-sm min-w-[480px]">
                     <thead>
                       <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                         <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Name</th>

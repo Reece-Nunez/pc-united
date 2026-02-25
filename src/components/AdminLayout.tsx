@@ -141,7 +141,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </button>
 
       {notifOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Notifications</h3>
             {unreadCount > 0 && (
@@ -435,7 +435,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         )}
 
         {/* Main Content */}
-        <main className={`flex-1 min-h-screen lg:ml-64 ${darkMode ? 'bg-gray-900' : ''}`}>
+        <main className={`flex-1 min-h-screen lg:ml-64 overflow-x-hidden ${darkMode ? 'bg-gray-900' : ''}`}>
           {children}
         </main>
       </div>

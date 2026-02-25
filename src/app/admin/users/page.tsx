@@ -178,8 +178,8 @@ export default function UsersAdminPage() {
               {active.length === 0 ? (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-8">No active users yet.</p>
               ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-x-auto">
+                  <table className="w-full text-sm min-w-[500px]">
                     <thead>
                       <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                         <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Name</th>
