@@ -211,7 +211,30 @@ function Content() {
       render: (item) => (
         <div className="flex items-center gap-3">
           {item.logo_url ? (
-            <img src={item.logo_url} alt="" className="h-8 w-8 object-contain rounded flex-shrink-0" />
+            <button
+              title="Download logo"
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const res = await fetch(item.logo_url!);
+                  const blob = await res.blob();
+                  const ext = item.logo_url!.split('.').pop()?.split('?')[0] || 'png';
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${item.business_name.replace(/\s+/g, '-').toLowerCase()}-logo.${ext}`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch {
+                  toast.error('Failed to download logo');
+                }
+              }}
+              className="flex-shrink-0 cursor-pointer hover:opacity-70 transition-opacity"
+            >
+              <img src={item.logo_url} alt="" className="h-8 w-8 object-contain rounded" />
+            </button>
           ) : (
             <div className="h-8 w-8 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
               <span className="text-xs text-gray-400 font-bold">{(item.business_name || '?')[0]}</span>
