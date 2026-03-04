@@ -42,7 +42,7 @@ const SPONSORSHIP_LEVELS = [
   { id: 'bronze', name: 'Bronze / Friends', amount: 250 },
 ];
 
-const PAYMENT_METHODS = ['Check', 'Cash', 'Venmo', 'Bank Transfer', 'Other'];
+const PAYMENT_METHODS = ['Check', 'Cash', 'Venmo', 'Bank Transfer', 'Services/In-Kind', 'Other'];
 const LOGO_PLACEMENTS = ['Front', 'Back', 'Sleeve', 'No Preference'];
 
 const EMPTY_FORM = {
@@ -561,19 +561,6 @@ function Content() {
                   <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Payment</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount ($)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={addForm.amount}
-                        onChange={(e) => setAddForm((p) => ({ ...p, amount: e.target.value }))}
-                        placeholder={addForm.sponsorship_level ? SPONSORSHIP_LEVELS.find((l) => l.id === addForm.sponsorship_level)?.amount.toString() : 'Select level'}
-                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-filled from level. Edit for custom amount.</p>
-                    </div>
-                    <div>
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment Method *</label>
                       <select
                         required
@@ -586,6 +573,23 @@ function Content() {
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        {addForm.payment_method === 'Services/In-Kind' ? 'Estimated Value of Services ($)' : 'Amount ($)'}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={addForm.amount}
+                        onChange={(e) => setAddForm((p) => ({ ...p, amount: e.target.value }))}
+                        placeholder={addForm.sponsorship_level ? SPONSORSHIP_LEVELS.find((l) => l.id === addForm.sponsorship_level)?.amount.toString() : 'Select level'}
+                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {addForm.payment_method === 'Services/In-Kind' ? 'Dollar value of the services provided.' : 'Auto-filled from level. Edit for custom amount.'}
+                      </p>
                     </div>
                   </div>
                 </section>
@@ -722,15 +726,16 @@ function Content() {
                   <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Payment</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount ($)</label>
-                      <input type="number" min="1" step="1" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
-                    </div>
-                    <div>
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment Method</label>
                       <select value={editForm.payment_method} onChange={(e) => setEditForm((p) => ({ ...p, payment_method: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none">
                         <option value="">Select method</option>
                         {PAYMENT_METHODS.map((m) => (<option key={m} value={m}>{m}</option>))}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{editForm.payment_method === 'Services/In-Kind' ? 'Estimated Value of Services ($)' : 'Amount ($)'}</label>
+                      <input type="number" min="1" step="1" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
+                      {editForm.payment_method === 'Services/In-Kind' && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Dollar value of the services provided.</p>}
                     </div>
                   </div>
                 </section>

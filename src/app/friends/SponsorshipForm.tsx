@@ -34,7 +34,7 @@ const SPONSORSHIP_LEVELS = [
   },
 ];
 
-const PAYMENT_METHODS = ['Check', 'Cash', 'Venmo', 'Bank Transfer', 'Other'];
+const PAYMENT_METHODS = ['Check', 'Cash', 'Venmo', 'Bank Transfer', 'Services/In-Kind', 'Other'];
 const LOGO_PLACEMENTS = ['Front', 'Back', 'Sleeve', 'No Preference'];
 
 interface FormData {
