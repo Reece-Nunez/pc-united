@@ -1,16 +1,17 @@
-import Image from "next/image";
 import Link from "next/link";
 import AnimateOnScroll from './AnimateOnScroll';
+import { getSponsorships } from '@/lib/supabase';
 
-const sponsors = [
-  {
-    name: "NunezDev",
-    logo: "/sponsors/nunezdev/n-logo.svg",
-    url: "https://nunezdev.com",
-  },
-];
+export default async function Sponsors() {
+  const { data: sponsorships } = await getSponsorships();
 
-export default function Sponsors() {
+  // Show approved/completed sponsors that have a logo
+  const sponsors = (sponsorships || []).filter(
+    (s) => (s.status === 'approved' || s.status === 'completed') && s.logo_url
+  );
+
+  if (sponsors.length === 0) return null;
+
   return (
     <section id="sponsors" className="py-16 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,26 +30,21 @@ export default function Sponsors() {
         <AnimateOnScroll variant="fadeIn" delay={0.2}>
           <div className="flex flex-wrap items-center justify-center gap-12">
             {sponsors.map((sponsor) => (
-              <Link
-                key={sponsor.name}
-                href={sponsor.url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <div
+                key={sponsor.id}
                 className="group flex flex-col items-center gap-3 transition duration-300 hover:scale-105"
               >
                 <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center w-48 h-48 group-hover:shadow-lg transition duration-300">
-                  <Image
-                    src={sponsor.logo}
-                    alt={sponsor.name}
-                    width={140}
-                    height={140}
-                    className="object-contain"
+                  <img
+                    src={sponsor.logo_url!}
+                    alt={sponsor.business_name}
+                    className="object-contain max-w-[140px] max-h-[140px]"
                   />
                 </div>
                 <span className="text-sm font-semibold text-gray-500 group-hover:text-team-blue transition duration-300">
-                  {sponsor.name}
+                  {sponsor.business_name}
                 </span>
-              </Link>
+              </div>
             ))}
           </div>
         </AnimateOnScroll>
