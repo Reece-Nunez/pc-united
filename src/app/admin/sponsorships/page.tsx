@@ -211,30 +211,16 @@ function Content() {
       render: (item) => (
         <div className="flex items-center gap-3">
           {item.logo_url ? (
-            <button
-              title="Download logo"
-              onClick={async (e) => {
-                e.stopPropagation();
-                try {
-                  const res = await fetch(item.logo_url!);
-                  const blob = await res.blob();
-                  const ext = item.logo_url!.split('.').pop()?.split('?')[0] || 'png';
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${item.business_name.replace(/\s+/g, '-').toLowerCase()}-logo.${ext}`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                } catch {
-                  toast.error('Failed to download logo');
-                }
-              }}
+            <a
+              title="Open logo"
+              href={item.logo_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
               className="flex-shrink-0 cursor-pointer hover:opacity-70 transition-opacity"
             >
               <img src={item.logo_url} alt="" className="h-8 w-8 object-contain rounded" />
-            </button>
+            </a>
           ) : (
             <div className="h-8 w-8 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
               <span className="text-xs text-gray-400 font-bold">{(item.business_name || '?')[0]}</span>
@@ -672,31 +658,17 @@ function Content() {
                         >
                           View full size
                         </a>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(detailItem.logo_url!);
-                              const blob = await res.blob();
-                              const ext = detailItem.logo_url!.split('.').pop()?.split('?')[0] || 'png';
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = `${detailItem.business_name.replace(/\s+/g, '-').toLowerCase()}-logo.${ext}`;
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
-                              URL.revokeObjectURL(url);
-                            } catch {
-                              toast.error('Failed to download logo');
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 text-sm bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors font-medium cursor-pointer"
+                        <a
+                          href={detailItem.logo_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors font-medium"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
                           Download
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </section>
