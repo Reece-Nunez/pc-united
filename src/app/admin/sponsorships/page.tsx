@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import AdminLayout from '@/components/AdminLayout';
 import DataTable, { Column } from '@/components/admin/DataTable';
 import {
   getSponsorships,
   updateSponsorshipStatus,
+  submitSponsorship,
   Sponsorship,
   createAdminNotification,
 } from '@/lib/supabase';
+import { uploadToS3Direct } from '@/lib/s3';
 import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -32,6 +34,27 @@ const LEVEL_COLORS: Record<string, string> = {
   platinum: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
 };
 
+const SPONSORSHIP_LEVELS = [
+  { id: 'platinum', name: 'Platinum', amount: 2500 },
+  { id: 'gold', name: 'Gold', amount: 1000 },
+  { id: 'silver', name: 'Silver', amount: 500 },
+  { id: 'bronze', name: 'Bronze / Friends', amount: 250 },
+];
+
+const PAYMENT_METHODS = ['Check', 'Cash', 'Venmo', 'Bank Transfer', 'Other'];
+const LOGO_PLACEMENTS = ['Front', 'Back', 'Sleeve', 'No Preference'];
+
+const EMPTY_FORM = {
+  business_name: '',
+  contact_person: '',
+  phone: '',
+  email: '',
+  sponsorship_level: '',
+  logo_placement: '',
+  amount: '',
+  payment_method: '',
+};
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
 }
@@ -51,6 +74,11 @@ function Content() {
   const [error, setError] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<SponsorshipWithStatus | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_FORM);
+  const [addLogoFile, setAddLogoFile] = useState<File | null>(null);
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const addFileRef = useRef<HTMLInputElement>(null);
   const userEmail = useCurrentUser();
 
   const fetchSponsorships = useCallback(async () => {
@@ -89,6 +117,82 @@ function Content() {
       toast.error('Failed to update status: ' + (err.message || 'Unknown error'));
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleAddLevelChange = (levelId: string) => {
+    const level = SPONSORSHIP_LEVELS.find((l) => l.id === levelId);
+    setAddForm((prev) => ({
+      ...prev,
+      sponsorship_level: levelId,
+      amount: level ? level.amount.toString() : '',
+      logo_placement: levelId === 'platinum' || levelId === 'gold' ? prev.logo_placement : '',
+    }));
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addForm.business_name || !addForm.contact_person || !addForm.phone || !addForm.email) {
+      toast.error('Please fill in all business information.');
+      return;
+    }
+    if (!addForm.sponsorship_level) {
+      toast.error('Please select a sponsorship level.');
+      return;
+    }
+    if (!addForm.payment_method) {
+      toast.error('Please select a payment method.');
+      return;
+    }
+
+    setAddSubmitting(true);
+    try {
+      let logoUrl = '';
+      if (addLogoFile) {
+        const uploadResult = await uploadToS3Direct(addLogoFile, 'team-images');
+        if (!uploadResult.success) throw new Error(uploadResult.error || 'Failed to upload logo');
+        logoUrl = uploadResult.url || '';
+      }
+
+      const selectedLevel = SPONSORSHIP_LEVELS.find((l) => l.id === addForm.sponsorship_level);
+      const sponsorship: Sponsorship = {
+        business_name: addForm.business_name,
+        contact_person: addForm.contact_person,
+        phone: addForm.phone,
+        email: addForm.email,
+        sponsorship_level: addForm.sponsorship_level,
+        logo_placement: addForm.logo_placement || undefined,
+        amount: parseFloat(addForm.amount) || selectedLevel?.amount || 0,
+        payment_method: addForm.payment_method,
+        logo_url: logoUrl || undefined,
+        signature: `Added by admin${userEmail ? ` (${userEmail})` : ''}`,
+        signature_date: new Date().toISOString(),
+      };
+
+      const { error: dbError } = await submitSponsorship(sponsorship);
+      if (dbError) throw new Error(dbError.message);
+
+      toast.success(`${addForm.business_name} added as a sponsor!`);
+      logActivity('create', 'sponsorship', addForm.business_name, userEmail, {
+        business: addForm.business_name,
+        level: addForm.sponsorship_level,
+        amount: sponsorship.amount,
+      });
+      createAdminNotification({
+        type: 'sponsorship',
+        title: `New Sponsor Added: ${addForm.business_name}`,
+        message: `${addForm.business_name} was manually added as a ${addForm.sponsorship_level} sponsor ($${sponsorship.amount.toLocaleString()}).`,
+        link: '/admin/sponsorships',
+      });
+
+      setShowAddModal(false);
+      setAddForm(EMPTY_FORM);
+      setAddLogoFile(null);
+      await fetchSponsorships();
+    } catch (err: any) {
+      toast.error('Failed to add sponsor: ' + (err.message || 'Unknown error'));
+    } finally {
+      setAddSubmitting(false);
     }
   };
 
@@ -199,9 +303,20 @@ function Content() {
     <AdminLayout>
       <div className="p-4 md:p-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Sponsorships</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage sponsorship submissions and track revenue</p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Sponsorships</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage sponsorship submissions and track revenue</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 bg-team-blue hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Sponsor
+          </button>
         </div>
 
         {/* Stat Badges */}
@@ -239,6 +354,223 @@ function Content() {
             searchPlaceholder="Search by business, contact, or email..."
             onEdit={(item) => setDetailItem(item)}
           />
+        )}
+
+        {/* Add Sponsor Modal */}
+        {showAddModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowAddModal(false); }}
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Sponsor</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Manually add a new sponsor</p>
+                </div>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleAddSubmit} className="px-6 py-5 space-y-6">
+                {/* Business Information */}
+                <section>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Business Information</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Business Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addForm.business_name}
+                        onChange={(e) => setAddForm((p) => ({ ...p, business_name: e.target.value }))}
+                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Contact Person *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addForm.contact_person}
+                        onChange={(e) => setAddForm((p) => ({ ...p, contact_person: e.target.value }))}
+                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={addForm.phone}
+                        onChange={(e) => setAddForm((p) => ({ ...p, phone: e.target.value }))}
+                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={addForm.email}
+                        onChange={(e) => setAddForm((p) => ({ ...p, email: e.target.value }))}
+                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Sponsorship Level */}
+                <section>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Sponsorship Level *</h3>
+                  <div className="grid gap-2">
+                    {SPONSORSHIP_LEVELS.map((level) => (
+                      <label
+                        key={level.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          addForm.sponsorship_level === level.id
+                            ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="add_level"
+                          value={level.id}
+                          checked={addForm.sponsorship_level === level.id}
+                          onChange={() => handleAddLevelChange(level.id)}
+                          className="accent-team-blue"
+                        />
+                        <span className="flex-1 font-medium text-gray-900 dark:text-white">{level.name}</span>
+                        <span className="font-bold text-team-blue dark:text-blue-400">${level.amount.toLocaleString()}</span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Logo Placement — only for Platinum & Gold */}
+                {(addForm.sponsorship_level === 'platinum' || addForm.sponsorship_level === 'gold') && (
+                  <section>
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo Placement</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {LOGO_PLACEMENTS.map((placement) => (
+                        <label
+                          key={placement}
+                          className={`px-4 py-2 rounded-full border-2 cursor-pointer transition-all text-sm font-medium ${
+                            addForm.logo_placement === placement
+                              ? 'border-team-blue bg-team-blue text-white'
+                              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="add_placement"
+                            value={placement}
+                            checked={addForm.logo_placement === placement}
+                            onChange={(e) => setAddForm((p) => ({ ...p, logo_placement: e.target.value }))}
+                            className="sr-only"
+                          />
+                          {placement}
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Payment */}
+                <section>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Payment</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount ($)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={addForm.amount}
+                        onChange={(e) => setAddForm((p) => ({ ...p, amount: e.target.value }))}
+                        placeholder={addForm.sponsorship_level ? SPONSORSHIP_LEVELS.find((l) => l.id === addForm.sponsorship_level)?.amount.toString() : 'Select level'}
+                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-filled from level. Edit for custom amount.</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment Method *</label>
+                      <select
+                        required
+                        value={addForm.payment_method}
+                        onChange={(e) => setAddForm((p) => ({ ...p, payment_method: e.target.value }))}
+                        className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
+                      >
+                        <option value="">Select method</option>
+                        {PAYMENT_METHODS.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Logo Upload */}
+                <section>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo (Optional)</h3>
+                  <div
+                    onClick={() => addFileRef.current?.click()}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                      addLogoFile
+                        ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    <input
+                      ref={addFileRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && file.size > 10 * 1024 * 1024) {
+                          toast.error('Logo must be under 10MB');
+                          return;
+                        }
+                        setAddLogoFile(file || null);
+                      }}
+                      className="hidden"
+                    />
+                    {addLogoFile ? (
+                      <p className="text-green-700 dark:text-green-400 font-medium">{addLogoFile.name} <span className="text-sm text-gray-500">({(addLogoFile.size / 1024).toFixed(0)} KB)</span></p>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400">Click to upload logo (PNG, JPG, SVG)</p>
+                    )}
+                  </div>
+                </section>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddModal(false); setAddForm(EMPTY_FORM); setAddLogoFile(null); }}
+                    className="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addSubmitting}
+                    className="px-5 py-2.5 bg-team-blue hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                  >
+                    {addSubmitting ? 'Adding...' : 'Add Sponsor'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
 
         {/* Detail Modal */}
