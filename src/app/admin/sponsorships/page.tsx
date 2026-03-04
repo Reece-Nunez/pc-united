@@ -610,9 +610,9 @@ function Content() {
                 <section>
                   <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Contact Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <DetailField label="Contact Person" value={detailItem.contact_person} />
-                    <DetailField label="Email" value={detailItem.email} isLink={`mailto:${detailItem.email}`} />
-                    <DetailField label="Phone" value={detailItem.phone} isLink={`tel:${detailItem.phone}`} />
+                    <DetailField label="Contact Person" value={detailItem.contact_person || ''} />
+                    <DetailField label="Email" value={detailItem.email || ''} isLink={detailItem.email ? `mailto:${detailItem.email}` : undefined} />
+                    <DetailField label="Phone" value={detailItem.phone || ''} isLink={detailItem.phone ? `tel:${detailItem.phone}` : undefined} />
                   </div>
                 </section>
 
