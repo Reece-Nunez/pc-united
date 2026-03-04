@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS schedule (
   game_date TIMESTAMP WITH TIME ZONE NOT NULL,
   location VARCHAR(255) NOT NULL,
   home_game BOOLEAN DEFAULT true,
-  game_type VARCHAR(50) CHECK (game_type IN ('league', 'friendly', 'tournament', 'playoff')) NOT NULL DEFAULT 'league',
+  game_type VARCHAR(50) CHECK (game_type IN ('league', 'friendly', 'tournament', 'playoff', 'indoor')) NOT NULL DEFAULT 'league',
   season VARCHAR(20) DEFAULT '2024-2025',
   our_score INTEGER,
   opponent_score INTEGER,

@@ -421,7 +421,7 @@ export interface Schedule {
   game_date: string;
   location: string;
   home_game: boolean;
-  game_type: 'league' | 'friendly' | 'tournament' | 'playoff';
+  game_type: 'league' | 'friendly' | 'tournament' | 'playoff' | 'indoor';
   season?: string;
   our_score?: number;
   opponent_score?: number;

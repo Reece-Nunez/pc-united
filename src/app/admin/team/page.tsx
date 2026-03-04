@@ -49,6 +49,20 @@ interface AnnouncementForm extends Omit<Announcement, 'id' | 'created_at' | 'upd
   [key: string]: any;
 }
 
+function getSeasonFromDate(dateStr: string): string {
+  if (!dateStr) {
+    const now = new Date();
+    const month = now.getMonth(); // 0-indexed
+    const year = now.getFullYear();
+    return month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+  }
+  const date = new Date(dateStr);
+  const month = date.getMonth();
+  const year = date.getFullYear();
+  // Aug (7) through Dec (11) = start of new season
+  return month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+}
+
 function TeamAdminContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as ActiveTab | null;
@@ -110,7 +124,7 @@ function TeamAdminContent() {
     location: '',
     home_game: true,
     game_type: 'league',
-    season: '2024-2025',
+    season: getSeasonFromDate(''),
     our_score: undefined,
     opponent_score: undefined,
     status: 'scheduled',
@@ -272,7 +286,7 @@ function TeamAdminContent() {
         location: '',
         home_game: true,
         game_type: 'league',
-        season: '2024-2025',
+        season: getSeasonFromDate(''),
         our_score: undefined,
         opponent_score: undefined,
         status: 'scheduled',
@@ -429,7 +443,7 @@ function TeamAdminContent() {
       location: '',
       home_game: true,
       game_type: 'league',
-      season: '2024-2025',
+      season: getSeasonFromDate(''),
       our_score: undefined,
       opponent_score: undefined,
       status: 'scheduled',
@@ -743,11 +757,18 @@ function TeamAdminContent() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opponent</label>
                   <input
                     type="text"
+                    list="opponent-suggestions"
                     value={scheduleForm.opponent}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'opponent', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
+                    placeholder="Type or select a team"
                   />
+                  <datalist id="opponent-suggestions">
+                    {[...new Set(schedule.map((g) => g.opponent))].sort().map((opp) => (
+                      <option key={opp} value={opp} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -755,7 +776,10 @@ function TeamAdminContent() {
                   <input
                     type="datetime-local"
                     value={scheduleForm.game_date}
-                    onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'game_date', e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setScheduleForm((prev) => ({ ...prev, game_date: val, season: getSeasonFromDate(val) }));
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
                   />
@@ -765,11 +789,18 @@ function TeamAdminContent() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
                   <input
                     type="text"
+                    list="location-suggestions"
                     value={scheduleForm.location}
                     onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'location', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
+                    placeholder="Type or select a location"
                   />
+                  <datalist id="location-suggestions">
+                    {[...new Set(schedule.map((g) => g.location))].sort().map((loc) => (
+                      <option key={loc} value={loc} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="flex items-center">
@@ -796,6 +827,7 @@ function TeamAdminContent() {
                     <option value="friendly">Friendly</option>
                     <option value="tournament">Tournament</option>
                     <option value="playoff">Playoff</option>
+                    <option value="indoor">Indoor</option>
                   </select>
                 </div>
 
@@ -804,9 +836,10 @@ function TeamAdminContent() {
                   <input
                     type="text"
                     value={scheduleForm.season}
-                    onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'season', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md bg-gray-50 dark:bg-gray-600 cursor-not-allowed"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-set from game date</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
