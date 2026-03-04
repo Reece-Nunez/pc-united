@@ -258,7 +258,7 @@ function Content() {
   const pending = sponsorships.filter((s) => (s.status || 'pending') === 'pending').length;
   const approved = sponsorships.filter((s) => s.status === 'approved').length;
   const totalRevenue = sponsorships
-    .filter((s) => s.status === 'approved' || s.status === 'completed')
+    .filter((s) => (s.status === 'approved' || s.status === 'completed') && s.payment_method !== 'Services/In-Kind')
     .reduce((sum, s) => sum + (parseFloat(String(s.amount)) || 0), 0);
 
   const columns: Column<SponsorshipWithStatus>[] = [
