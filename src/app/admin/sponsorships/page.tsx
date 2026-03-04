@@ -201,7 +201,7 @@ function Content() {
   const approved = sponsorships.filter((s) => s.status === 'approved').length;
   const totalRevenue = sponsorships
     .filter((s) => s.status === 'approved' || s.status === 'completed')
-    .reduce((sum, s) => sum + (s.amount || 0), 0);
+    .reduce((sum, s) => sum + (parseFloat(String(s.amount)) || 0), 0);
 
   const columns: Column<SponsorshipWithStatus>[] = [
     {
@@ -274,7 +274,7 @@ function Content() {
       label: 'Amount',
       sortable: true,
       render: (item) => (
-        <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(item.amount)}</span>
+        <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(parseFloat(String(item.amount)) || 0)}</span>
       ),
     },
     {
