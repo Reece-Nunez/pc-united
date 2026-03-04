@@ -856,7 +856,11 @@ export async function updateSponsorshipStatus(id: string | number, status: strin
   const { data, error } = await supabase
     .from('sponsorships')
     .update({ status })
-    .eq('id', id);
+    .eq('id', id)
+    .select();
+  if (!error && (!data || data.length === 0)) {
+    return { data, error: { message: 'Update failed — check RLS policies on the sponsorships table. Run: CREATE POLICY "Allow all operations on sponsorships" ON sponsorships FOR ALL USING (true);' } };
+  }
   return { data, error };
 }
 
