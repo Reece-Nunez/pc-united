@@ -33,6 +33,7 @@ const LEVEL_COLORS: Record<string, string> = {
   silver:   'bg-gray-200 text-gray-800 dark:bg-gray-600/40 dark:text-gray-200',
   bronze:   'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
   platinum: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
+  custom:   'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
 };
 
 const SPONSORSHIP_LEVELS = [
@@ -40,6 +41,7 @@ const SPONSORSHIP_LEVELS = [
   { id: 'gold', name: 'Gold', amount: 1000 },
   { id: 'silver', name: 'Silver', amount: 500 },
   { id: 'bronze', name: 'Bronze / Friends', amount: 250 },
+  { id: 'custom', name: 'Custom Amount', amount: 0 },
 ];
 
 const PAYMENT_METHODS = ['Check', 'Cash', 'Venmo', 'Bank Transfer', 'Services/In-Kind', 'Other'];
@@ -127,7 +129,7 @@ function Content() {
     setAddForm((prev) => ({
       ...prev,
       sponsorship_level: levelId,
-      amount: level ? level.amount.toString() : '',
+      amount: level && level.amount > 0 ? level.amount.toString() : '',
       logo_placement: levelId === 'platinum' || levelId === 'gold' ? prev.logo_placement : '',
     }));
   };
@@ -521,7 +523,7 @@ function Content() {
                           className="accent-team-blue"
                         />
                         <span className="flex-1 font-medium text-gray-900 dark:text-white">{level.name}</span>
-                        <span className="font-bold text-team-blue dark:text-blue-400">${level.amount.toLocaleString()}</span>
+                        <span className="font-bold text-team-blue dark:text-blue-400">{level.amount > 0 ? `$${level.amount.toLocaleString()}` : 'Any amount'}</span>
                       </label>
                     ))}
                   </div>
@@ -698,9 +700,9 @@ function Content() {
                   <div className="grid gap-2">
                     {SPONSORSHIP_LEVELS.map((level) => (
                       <label key={level.id} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${editForm.sponsorship_level === level.id ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}>
-                        <input type="radio" name="edit_level" value={level.id} checked={editForm.sponsorship_level === level.id} onChange={() => { const lev = SPONSORSHIP_LEVELS.find((l) => l.id === level.id); setEditForm((p) => ({ ...p, sponsorship_level: level.id, amount: lev ? lev.amount.toString() : p.amount, logo_placement: level.id === 'platinum' || level.id === 'gold' ? p.logo_placement : '' })); }} className="accent-team-blue" />
+                        <input type="radio" name="edit_level" value={level.id} checked={editForm.sponsorship_level === level.id} onChange={() => { const lev = SPONSORSHIP_LEVELS.find((l) => l.id === level.id); setEditForm((p) => ({ ...p, sponsorship_level: level.id, amount: lev && lev.amount > 0 ? lev.amount.toString() : '', logo_placement: level.id === 'platinum' || level.id === 'gold' ? p.logo_placement : '' })); }} className="accent-team-blue" />
                         <span className="flex-1 font-medium text-gray-900 dark:text-white">{level.name}</span>
-                        <span className="font-bold text-team-blue dark:text-blue-400">${level.amount.toLocaleString()}</span>
+                        <span className="font-bold text-team-blue dark:text-blue-400">{level.amount > 0 ? `$${level.amount.toLocaleString()}` : 'Any amount'}</span>
                       </label>
                     ))}
                   </div>
