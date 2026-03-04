@@ -856,9 +856,7 @@ export async function updateSponsorshipStatus(id: string | number, status: strin
   const { data, error } = await supabase
     .from('sponsorships')
     .update({ status })
-    .eq('id', id)
-    .select()
-    .single();
+    .eq('id', id);
   return { data, error };
 }
 
