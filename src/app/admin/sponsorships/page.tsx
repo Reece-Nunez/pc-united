@@ -669,7 +669,7 @@ function Content() {
                 <section>
                   <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Signature</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <DetailField label="Signature" value={detailItem.signature} />
+                    <DetailField label="Signature" value={detailItem.signature || ''} />
                     <DetailField label="Signature Date" value={formatDate(detailItem.signature_date)} />
                   </div>
                 </section>
