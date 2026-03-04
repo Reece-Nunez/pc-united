@@ -7,6 +7,7 @@ import DataTable, { Column } from '@/components/admin/DataTable';
 import {
   getSponsorships,
   updateSponsorshipStatus,
+  updateSponsorship,
   submitSponsorship,
   Sponsorship,
   createAdminNotification,
@@ -72,13 +73,15 @@ function Content() {
   const [sponsorships, setSponsorships] = useState<SponsorshipWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [detailItem, setDetailItem] = useState<SponsorshipWithStatus | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addLogoFile, setAddLogoFile] = useState<File | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const addFileRef = useRef<HTMLInputElement>(null);
+  const [editItem, setEditItem] = useState<SponsorshipWithStatus | null>(null);
+  const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const userEmail = useCurrentUser();
 
   const fetchSponsorships = useCallback(async () => {
@@ -192,6 +195,61 @@ function Content() {
       toast.error('Failed to add sponsor: ' + (err.message || 'Unknown error'));
     } finally {
       setAddSubmitting(false);
+    }
+  };
+
+  const openEditModal = (item: SponsorshipWithStatus) => {
+    setEditForm({
+      business_name: item.business_name || '',
+      contact_person: item.contact_person || '',
+      phone: item.phone || '',
+      email: item.email || '',
+      sponsorship_level: (item.sponsorship_level || '').toLowerCase(),
+      logo_placement: item.logo_placement || '',
+      amount: String(item.amount || ''),
+      payment_method: item.payment_method || '',
+    });
+    setEditItem(item);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editItem?.id) return;
+    if (!editForm.business_name) {
+      toast.error('Business name is required.');
+      return;
+    }
+
+    setEditSubmitting(true);
+    try {
+      const selectedLevel = SPONSORSHIP_LEVELS.find((l) => l.id === editForm.sponsorship_level);
+      const updates: Partial<Sponsorship> & { status?: string } = {
+        business_name: editForm.business_name,
+        contact_person: editForm.contact_person || undefined,
+        phone: editForm.phone || undefined,
+        email: editForm.email || undefined,
+        sponsorship_level: editForm.sponsorship_level,
+        logo_placement: editForm.logo_placement || undefined,
+        amount: parseFloat(editForm.amount) || selectedLevel?.amount || 0,
+        payment_method: editForm.payment_method,
+      };
+
+      const { error: dbError } = await updateSponsorship(editItem.id, updates);
+      if (dbError) throw new Error(typeof dbError === 'object' && 'message' in dbError ? (dbError as any).message : 'Update failed');
+
+      toast.success(`${editForm.business_name} updated!`);
+      logActivity('update', 'sponsorship', editForm.business_name, userEmail, {
+        business: editForm.business_name,
+        level: editForm.sponsorship_level,
+      });
+
+      setEditItem(null);
+      setEditForm(EMPTY_FORM);
+      await fetchSponsorships();
+    } catch (err: any) {
+      toast.error('Failed to update sponsor: ' + (err.message || 'Unknown error'));
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -369,7 +427,7 @@ function Content() {
             keyField="id"
             searchable
             searchPlaceholder="Search by business, contact, or email..."
-            onEdit={(item) => setDetailItem(item)}
+            onEdit={(item) => openEditModal(item)}
           />
         )}
 
@@ -587,112 +645,120 @@ function Content() {
           </div>
         )}
 
-        {/* Detail Modal */}
-        {detailItem && (
+        {/* Edit Sponsor Modal */}
+        {editItem && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setDetailItem(null);
-            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setEditItem(null); }}
           >
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
-              <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">{detailItem.business_name}</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Sponsorship Details</p>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Sponsor</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Update sponsorship details</p>
                 </div>
-                <button
-                  onClick={() => setDetailItem(null)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1"
-                >
+                <button onClick={() => setEditItem(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              {/* Modal Body */}
-              <div className="px-6 py-5 space-y-6">
-                {/* Contact Information */}
+              <form onSubmit={handleEditSubmit} className="px-6 py-5 space-y-6">
+                {/* Business Information */}
                 <section>
-                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Contact Information</h3>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Business Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <DetailField label="Contact Person" value={detailItem.contact_person || ''} />
-                    <DetailField label="Email" value={detailItem.email || ''} isLink={detailItem.email ? `mailto:${detailItem.email}` : undefined} />
-                    <DetailField label="Phone" value={detailItem.phone || ''} isLink={detailItem.phone ? `tel:${detailItem.phone}` : undefined} />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Business Name *</label>
+                      <input type="text" required value={editForm.business_name} onChange={(e) => setEditForm((p) => ({ ...p, business_name: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Contact Person</label>
+                      <input type="text" value={editForm.contact_person} onChange={(e) => setEditForm((p) => ({ ...p, contact_person: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
+                      <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+                      <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
+                    </div>
                   </div>
                 </section>
 
-                {/* Sponsorship Details */}
+                {/* Sponsorship Level */}
                 <section>
-                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Sponsorship Details</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <DetailField label="Level" value={detailItem.sponsorship_level} />
-                    <DetailField label="Amount" value={formatCurrency(detailItem.amount)} />
-                    <DetailField label="Payment Method" value={detailItem.payment_method} />
-                    <DetailField label="Logo Placement" value={detailItem.logo_placement || 'Not specified'} />
-                    <DetailField label="Status" value={(detailItem.status || 'pending').charAt(0).toUpperCase() + (detailItem.status || 'pending').slice(1)} />
-                    <DetailField label="Submitted" value={formatDate(detailItem.created_at)} />
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Sponsorship Level</h3>
+                  <div className="grid gap-2">
+                    {SPONSORSHIP_LEVELS.map((level) => (
+                      <label key={level.id} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${editForm.sponsorship_level === level.id ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}>
+                        <input type="radio" name="edit_level" value={level.id} checked={editForm.sponsorship_level === level.id} onChange={() => { const lev = SPONSORSHIP_LEVELS.find((l) => l.id === level.id); setEditForm((p) => ({ ...p, sponsorship_level: level.id, amount: lev ? lev.amount.toString() : p.amount, logo_placement: level.id === 'platinum' || level.id === 'gold' ? p.logo_placement : '' })); }} className="accent-team-blue" />
+                        <span className="flex-1 font-medium text-gray-900 dark:text-white">{level.name}</span>
+                        <span className="font-bold text-team-blue dark:text-blue-400">${level.amount.toLocaleString()}</span>
+                      </label>
+                    ))}
                   </div>
                 </section>
 
-                {/* Logo */}
-                {detailItem.logo_url && (
+                {/* Logo Placement */}
+                {(editForm.sponsorship_level === 'platinum' || editForm.sponsorship_level === 'gold') && (
                   <section>
-                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo</h3>
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                      <div className="flex items-center gap-4 mb-3">
-                        <img
-                          src={detailItem.logo_url}
-                          alt={`${detailItem.business_name} logo`}
-                          className="h-20 w-auto object-contain rounded"
-                        />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <a
-                          href={detailItem.logo_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
-                        >
-                          View full size
-                        </a>
-                        <a
-                          href={detailItem.logo_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors font-medium"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                          Download
-                        </a>
-                      </div>
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo Placement</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {LOGO_PLACEMENTS.map((placement) => (
+                        <label key={placement} className={`px-4 py-2 rounded-full border-2 cursor-pointer transition-all text-sm font-medium ${editForm.logo_placement === placement ? 'border-team-blue bg-team-blue text-white' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'}`}>
+                          <input type="radio" name="edit_placement" value={placement} checked={editForm.logo_placement === placement} onChange={(e) => setEditForm((p) => ({ ...p, logo_placement: e.target.value }))} className="sr-only" />
+                          {placement}
+                        </label>
+                      ))}
                     </div>
                   </section>
                 )}
 
-                {/* Signature */}
+                {/* Payment */}
                 <section>
-                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Signature</h3>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Payment</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <DetailField label="Signature" value={detailItem.signature || ''} />
-                    <DetailField label="Signature Date" value={formatDate(detailItem.signature_date)} />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount ($)</label>
+                      <input type="number" min="1" step="1" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment Method</label>
+                      <select value={editForm.payment_method} onChange={(e) => setEditForm((p) => ({ ...p, payment_method: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none">
+                        <option value="">Select method</option>
+                        {PAYMENT_METHODS.map((m) => (<option key={m} value={m}>{m}</option>))}
+                      </select>
+                    </div>
                   </div>
                 </section>
-              </div>
 
-              {/* Modal Footer */}
-              <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end rounded-b-2xl">
-                <button
-                  onClick={() => setDetailItem(null)}
-                  className="px-5 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium transition-colors"
-                >
-                  Close
-                </button>
-              </div>
+                {/* Logo preview */}
+                {editItem.logo_url && (
+                  <section>
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo</h3>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 flex items-center gap-4">
+                      <img src={editItem.logo_url} alt="" className="h-16 w-auto object-contain rounded" />
+                      <a href={editItem.logo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Open logo
+                      </a>
+                    </div>
+                  </section>
+                )}
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button type="button" onClick={() => { setEditItem(null); setEditForm(EMPTY_FORM); }} className="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={editSubmitting} className="px-5 py-2.5 bg-team-blue hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors">
+                    {editSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -701,30 +767,6 @@ function Content() {
   );
 }
 
-function DetailField({
-  label,
-  value,
-  isLink,
-}: {
-  label: string;
-  value: string;
-  isLink?: string;
-}) {
-  return (
-    <div>
-      <dt className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</dt>
-      <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-        {isLink ? (
-          <a href={isLink} className="text-blue-600 dark:text-blue-400 hover:underline">
-            {value}
-          </a>
-        ) : (
-          value || '-'
-        )}
-      </dd>
-    </div>
-  );
-}
 
 export default function SponsorshipsAdminPage() {
   return (

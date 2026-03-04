@@ -852,6 +852,18 @@ export async function getSponsorships() {
   return { data: data as (Sponsorship & { status?: string })[] | null, error };
 }
 
+export async function updateSponsorship(id: string | number, updates: Partial<Sponsorship> & { status?: string }) {
+  const { data, error } = await supabase
+    .from('sponsorships')
+    .update(updates)
+    .eq('id', id)
+    .select();
+  if (!error && (!data || data.length === 0)) {
+    return { data, error: { message: 'Update failed — check RLS policies on the sponsorships table.' } };
+  }
+  return { data, error };
+}
+
 export async function updateSponsorshipStatus(id: string | number, status: string) {
   const { data, error } = await supabase
     .from('sponsorships')
