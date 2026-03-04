@@ -78,16 +78,16 @@ export interface Sponsorship {
   id?: string;
   created_at?: string;
   business_name: string;
-  contact_person: string;
-  phone: string;
-  email: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
   sponsorship_level: string;
   logo_placement?: string;
   amount: number;
   payment_method: string;
   logo_url?: string;
-  signature: string;
-  signature_date: string;
+  signature?: string;
+  signature_date?: string;
 }
 
 // Function to submit a new sponsorship

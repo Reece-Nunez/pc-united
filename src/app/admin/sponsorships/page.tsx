@@ -132,8 +132,8 @@ function Content() {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addForm.business_name || !addForm.contact_person || !addForm.phone || !addForm.email) {
-      toast.error('Please fill in all business information.');
+    if (!addForm.business_name) {
+      toast.error('Please enter the business name.');
       return;
     }
     if (!addForm.sponsorship_level) {
@@ -210,7 +210,16 @@ function Content() {
       label: 'Business Name',
       sortable: true,
       render: (item) => (
-        <span className="font-medium text-gray-900 dark:text-white">{item.business_name}</span>
+        <div className="flex items-center gap-3">
+          {item.logo_url ? (
+            <img src={item.logo_url} alt="" className="h-8 w-8 object-contain rounded flex-shrink-0" />
+          ) : (
+            <div className="h-8 w-8 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
+              <span className="text-xs text-gray-400 font-bold">{(item.business_name || '?')[0]}</span>
+            </div>
+          )}
+          <span className="font-medium text-gray-900 dark:text-white">{item.business_name}</span>
+        </div>
       ),
     },
     {
@@ -219,8 +228,8 @@ function Content() {
       sortable: true,
       render: (item) => (
         <div>
-          <div className="text-gray-900 dark:text-gray-200">{item.contact_person}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">{item.email}</div>
+          <div className="text-gray-900 dark:text-gray-200">{item.contact_person || <span className="text-gray-400 italic">Not provided</span>}</div>
+          {item.email && <div className="text-xs text-gray-500 dark:text-gray-400">{item.email}</div>}
         </div>
       ),
     },
@@ -395,30 +404,27 @@ function Content() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Contact Person *</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Contact Person</label>
                       <input
                         type="text"
-                        required
                         value={addForm.contact_person}
                         onChange={(e) => setAddForm((p) => ({ ...p, contact_person: e.target.value }))}
                         className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone *</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
                       <input
                         type="tel"
-                        required
                         value={addForm.phone}
                         onChange={(e) => setAddForm((p) => ({ ...p, phone: e.target.value }))}
                         className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email *</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
                       <input
                         type="email"
-                        required
                         value={addForm.email}
                         onChange={(e) => setAddForm((p) => ({ ...p, email: e.target.value }))}
                         className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none"
@@ -627,20 +633,34 @@ function Content() {
                 {detailItem.logo_url && (
                   <section>
                     <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo</h3>
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 flex items-center gap-4">
-                      <img
-                        src={detailItem.logo_url}
-                        alt={`${detailItem.business_name} logo`}
-                        className="h-16 w-auto object-contain rounded"
-                      />
-                      <a
-                        href={detailItem.logo_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
-                      >
-                        {detailItem.logo_url}
-                      </a>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                      <div className="flex items-center gap-4 mb-3">
+                        <img
+                          src={detailItem.logo_url}
+                          alt={`${detailItem.business_name} logo`}
+                          className="h-20 w-auto object-contain rounded"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={detailItem.logo_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
+                        >
+                          View full size
+                        </a>
+                        <a
+                          href={detailItem.logo_url}
+                          download={`${detailItem.business_name.replace(/\s+/g, '-').toLowerCase()}-logo`}
+                          className="inline-flex items-center gap-1.5 text-sm bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors font-medium"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download
+                        </a>
+                      </div>
                     </div>
                   </section>
                 )}
