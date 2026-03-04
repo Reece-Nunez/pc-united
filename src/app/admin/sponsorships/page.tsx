@@ -103,10 +103,9 @@ function Content() {
 
   const handleStatusChange = async (item: SponsorshipWithStatus, newStatus: string) => {
     if (!item.id) return;
-    const id = typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
     setUpdatingId(String(item.id));
     try {
-      const { error } = await updateSponsorshipStatus(id, newStatus);
+      const { error } = await updateSponsorshipStatus(item.id, newStatus);
       if (error) throw error;
       toast.success(`Status updated to ${newStatus}`);
       const businessName = item.business_name || 'Unknown';

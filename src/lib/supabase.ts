@@ -852,7 +852,7 @@ export async function getSponsorships() {
   return { data: data as (Sponsorship & { status?: string })[] | null, error };
 }
 
-export async function updateSponsorshipStatus(id: number, status: string) {
+export async function updateSponsorshipStatus(id: string | number, status: string) {
   const { data, error } = await supabase
     .from('sponsorships')
     .update({ status })
