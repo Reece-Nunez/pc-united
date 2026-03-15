@@ -67,7 +67,7 @@ export async function middleware(request: NextRequest) {
 
   // Parent role — restrict to gallery, highlights, and players (view only)
   if (isParent) {
-    const parentAllowed = ['/admin', '/admin/gallery', '/admin/highlights', '/admin/players', '/admin/notifications'];
+    const parentAllowed = ['/admin', '/admin/gallery', '/admin/highlights', '/admin/players'];
     const currentPath = request.nextUrl.pathname;
     const isAllowed = parentAllowed.some(
       (path) => currentPath === path || (path !== '/admin' && currentPath.startsWith(path + '/'))

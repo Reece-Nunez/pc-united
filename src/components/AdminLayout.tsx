@@ -84,10 +84,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       setUserRole(user?.user_metadata?.role || null);
     });
 
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    if (userRole && userRole !== 'parent') {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [fetchNotifications, userRole]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -322,7 +324,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ];
 
   const isParent = userRole === 'parent';
-  const parentAllowedHrefs = ['/admin', '/admin/gallery', '/admin/highlights', '/admin/players', '/admin/coaches', '/admin/notifications'];
+  const parentAllowedHrefs = ['/admin', '/admin/gallery', '/admin/highlights', '/admin/players'];
 
   const filteredNavItems = isParent
     ? navItems.filter((item) => parentAllowedHrefs.includes(item.href))
@@ -345,7 +347,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className="lg:hidden bg-team-blue text-white p-4 flex items-center justify-between sticky top-0 z-50">
         <Link href="/admin" className="text-xl font-bold">PC United Admin</Link>
         <div className="flex items-center gap-1">
-          <NotifBell />
+          {!isParent && <NotifBell />}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 rounded-lg hover:bg-blue-700 transition-colors"
