@@ -25,6 +25,7 @@ import {
   createAdminNotification,
   getOpponents,
   addOpponent,
+  deleteOpponent,
   News,
   Event,
   Schedule,
@@ -91,6 +92,10 @@ function TeamAdminContent() {
   const scheduleSeasons = getAvailableSeasons(8);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [opponents, setOpponents] = useState<string[]>([]);
+  const [showOpponentManager, setShowOpponentManager] = useState(false);
+  const [bulkScoreMode, setBulkScoreMode] = useState(false);
+  const [bulkScores, setBulkScores] = useState<Record<number, { our: string; opp: string }>>({});
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const [newsForm, setNewsForm] = useState<NewsForm>({
     title: '',
@@ -202,7 +207,7 @@ function TeamAdminContent() {
         createAdminNotification({ type: 'news', title: 'News Published: ' + newsForm.title, message: newsForm.excerpt || newsForm.title, link: '/admin/team?tab=news' });
 
         // Send newsletter to subscribers if published
-        if (formData.published) {
+        if (formData.published && window.confirm('This will email all newsletter subscribers. Continue?')) {
           fetch('/api/newsletter/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -397,6 +402,60 @@ function TeamAdminContent() {
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBulkScoreSave = async () => {
+    const entries = Object.entries(bulkScores).filter(([, s]) => s.our !== '' && s.opp !== '');
+    if (entries.length === 0) {
+      toast.error('No scores to save');
+      return;
+    }
+    setBulkSaving(true);
+    let saved = 0;
+    try {
+      for (const [idStr, scores] of entries) {
+        const id = parseInt(idStr);
+        const game = schedule.find(g => g.id === id);
+        const hadScores = game && game.our_score != null && game.opponent_score != null;
+        const ourScore = parseInt(scores.our);
+        const oppScore = parseInt(scores.opp);
+
+        const { error } = await updateScheduleItem(id, {
+          our_score: ourScore,
+          opponent_score: oppScore,
+          status: 'completed',
+        });
+        if (error) {
+          toast.error(`Failed to save score for game #${id}`);
+          continue;
+        }
+        saved++;
+        logActivity('update', 'schedule', id, userEmail, { action: 'bulk_score_entry' });
+
+        // Send game result newsletter if scores are new
+        if (!hadScores && game) {
+          const gd = new Date(game.game_date);
+          fetch('/api/newsletter/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'game_result',
+              opponent: game.opponent,
+              ourScore,
+              opponentScore: oppScore,
+              gameDate: gd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+            }),
+          }).catch(err => console.error('Newsletter send failed:', err));
+        }
+      }
+      toast.success(`Saved ${saved} score${saved !== 1 ? 's' : ''}`);
+      setBulkScores({});
+      fetchAllData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setBulkSaving(false);
     }
   };
 
@@ -820,7 +879,48 @@ function TeamAdminContent() {
             {activeTab === 'schedule' && (
               <form onSubmit={handleScheduleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opponent</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Opponent</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowOpponentManager(!showOpponentManager)}
+                      className="text-xs text-team-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                    >
+                      {showOpponentManager ? 'Close' : 'Manage'}
+                    </button>
+                  </div>
+                  {showOpponentManager && (
+                    <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Saved opponents ({opponents.length})</p>
+                      {opponents.length === 0 ? (
+                        <p className="text-sm text-gray-400 dark:text-gray-500 italic">No opponents saved yet.</p>
+                      ) : (
+                        <ul className="space-y-1 max-h-48 overflow-y-auto">
+                          {opponents.map((name) => (
+                            <li key={name} className="flex items-center justify-between text-sm py-1 px-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                              <span className="text-gray-800 dark:text-gray-200">{name}</span>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!confirm(`Delete opponent "${name}"? This only removes it from the suggestion list, not from existing games.`)) return;
+                                  const { error } = await deleteOpponent(name);
+                                  if (error) {
+                                    toast.error('Failed to delete opponent');
+                                  } else {
+                                    setOpponents(prev => prev.filter(o => o !== name));
+                                    toast.success(`Removed "${name}"`);
+                                  }
+                                }}
+                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs ml-2"
+                              >
+                                Delete
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                   <AutocompleteInput
                     value={scheduleForm.opponent}
                     onChange={(val) => handleFormChange(scheduleForm, setScheduleForm, 'opponent', val)}
@@ -1078,18 +1178,31 @@ function TeamAdminContent() {
                 {activeTab === 'announcements' && `Announcements (${announcements.length})`}
               </h2>
               {activeTab === 'schedule' && (
-                <select
-                  value={scheduleSeason.key}
-                  onChange={(e) => {
-                    const s = scheduleSeasons.find(s => s.key === e.target.value);
-                    if (s) setScheduleSeason(s);
-                  }}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setBulkScoreMode(!bulkScoreMode); setBulkScores({}); }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      bulkScoreMode
+                        ? 'bg-team-blue text-white'
+                        : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {bulkScoreMode ? 'Cancel' : 'Enter Results'}
+                  </button>
+                  <select
+                    value={scheduleSeason.key}
+                    onChange={(e) => {
+                      const s = scheduleSeasons.find(s => s.key === e.target.value);
+                      if (s) setScheduleSeason(s);
+                    }}
                   className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-team-blue focus:border-team-blue"
                 >
-                  {scheduleSeasons.map((s) => (
-                    <option key={s.key} value={s.key}>{s.label}</option>
-                  ))}
-                </select>
+                    {scheduleSeasons.map((s) => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
 
@@ -1199,6 +1312,66 @@ function TeamAdminContent() {
                     </div>
                   </div>
                 );
+
+                if (bulkScoreMode) {
+                  const gamesNeedingScores = filteredGames.filter(g =>
+                    g.our_score == null || g.opponent_score == null
+                  );
+                  return (
+                    <>
+                      {gamesNeedingScores.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">All games in {scheduleSeason.label} already have scores.</p>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            {gamesNeedingScores.map(game => (
+                              <div key={game.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">vs {game.opponent}</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(game.game_date).toLocaleDateString()}</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="Us"
+                                    value={bulkScores[game.id]?.our ?? ''}
+                                    onChange={(e) => setBulkScores(prev => ({
+                                      ...prev,
+                                      [game.id]: { our: e.target.value, opp: prev[game.id]?.opp ?? '' }
+                                    }))}
+                                    className="w-20 px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-center text-sm"
+                                  />
+                                  <span className="text-gray-400 text-sm">-</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="Them"
+                                    value={bulkScores[game.id]?.opp ?? ''}
+                                    onChange={(e) => setBulkScores(prev => ({
+                                      ...prev,
+                                      [game.id]: { our: prev[game.id]?.our ?? '', opp: e.target.value }
+                                    }))}
+                                    className="w-20 px-2 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-center text-sm"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="pt-3">
+                            <button
+                              onClick={handleBulkScoreSave}
+                              disabled={bulkSaving || Object.values(bulkScores).filter(s => s.our !== '' && s.opp !== '').length === 0}
+                              className="w-full bg-team-blue text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                            >
+                              {bulkSaving ? 'Saving...' : `Save ${Object.values(bulkScores).filter(s => s.our !== '' && s.opp !== '').length} Result${Object.values(bulkScores).filter(s => s.our !== '' && s.opp !== '').length !== 1 ? 's' : ''}`}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  );
+                }
 
                 return (
                   <>

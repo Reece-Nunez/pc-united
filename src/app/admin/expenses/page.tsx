@@ -227,6 +227,38 @@ export default function ExpensesPage() {
 
   const balance = totalRevenue - allSeasonExpenses;
 
+  const exportCSV = () => {
+    if (filteredExpenses.length === 0) {
+      toast.error('No expenses to export');
+      return;
+    }
+    const headers = ['Date', 'Description', 'Category', 'Vendor', 'Amount', 'Payment Method', 'Notes'];
+    const escapeField = (val: string) => {
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+    const rows = filteredExpenses.map(e => [
+      e.expense_date,
+      escapeField(e.description),
+      escapeField(e.category),
+      escapeField(e.vendor || ''),
+      Number(e.amount).toFixed(2),
+      escapeField(e.payment_method),
+      escapeField(e.notes || ''),
+    ].join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const seasonSlug = selectedSeason.label.toLowerCase().replace(/\s+/g, '-');
+    a.href = url;
+    a.download = `expenses-${seasonSlug}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
@@ -249,6 +281,12 @@ export default function ExpensesPage() {
                 <option key={s.key} value={s.key}>{s.label}</option>
               ))}
             </select>
+            <button
+              onClick={exportCSV}
+              className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Export CSV
+            </button>
             <button
               onClick={() => { setShowForm(!showForm); if (editing) cancelEdit(); }}
               className="bg-team-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
@@ -572,14 +610,14 @@ export default function ExpensesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <th className="px-4 md:px-6 py-3">Description</th>
                     <th className="px-4 md:px-6 py-3">Category</th>
-                    <th className="px-4 md:px-6 py-3">Vendor</th>
+                    <th className="px-4 md:px-6 py-3 hidden md:table-cell">Vendor</th>
                     <th className="px-4 md:px-6 py-3">Date</th>
-                    <th className="px-4 md:px-6 py-3">Payment</th>
+                    <th className="px-4 md:px-6 py-3 hidden md:table-cell">Payment</th>
                     <th className="px-4 md:px-6 py-3 text-right">Amount</th>
                     <th className="px-4 md:px-6 py-3 text-right">Actions</th>
                   </tr>
@@ -598,7 +636,7 @@ export default function ExpensesPage() {
                             </a>
                           )}
                         </div>
-                        {exp.notes && <p className="text-xs text-gray-400 truncate max-w-[200px]">{exp.notes}</p>}
+                        {exp.notes && <p className="text-xs text-gray-400 truncate max-w-[200px] hidden md:block">{exp.notes}</p>}
                       </td>
                       <td className="px-4 md:px-6 py-3">
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -606,13 +644,13 @@ export default function ExpensesPage() {
                           {exp.category}
                         </span>
                       </td>
-                      <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
                         {exp.vendor || '-'}
                       </td>
                       <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400">
                         {new Date(exp.expense_date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
                         {exp.payment_method}
                       </td>
                       <td className="px-4 md:px-6 py-3 text-sm font-semibold text-red-600 text-right">
@@ -639,7 +677,10 @@ export default function ExpensesPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-gray-300 dark:border-gray-600">
-                    <td colSpan={5} className="px-4 md:px-6 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right">
+                    <td colSpan={3} className="px-4 md:px-6 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right md:hidden">
+                      Total:
+                    </td>
+                    <td colSpan={5} className="px-4 md:px-6 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right hidden md:table-cell">
                       Total:
                     </td>
                     <td className="px-4 md:px-6 py-3 text-sm font-bold text-red-600 text-right">

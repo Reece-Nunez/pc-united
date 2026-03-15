@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
-import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages } from '@/lib/supabase';
+import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses } from '@/lib/supabase';
 import { getRecentActivity } from '@/lib/audit';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([]);
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
   const [allSchedule, setAllSchedule] = useState<any[]>([]);
+  const [financials, setFinancials] = useState({ revenue: 0, expenses: 0 });
   const [loading, setLoading] = useState(true);
 
   const availableSeasons = useMemo(() => getAvailableSeasons(8), []);
@@ -84,7 +85,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes] = await Promise.all([
+        const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes, expensesRes] = await Promise.all([
           getPlayers(),
           getHighlights(),
           getNews(),
@@ -93,6 +94,7 @@ export default function AdminDashboard() {
           getSponsorships(),
           getGalleryImages(),
           getRecentActivity(5),
+          getExpenses(),
         ]);
 
         const players = playersRes.data || [];
@@ -111,6 +113,13 @@ export default function AdminDashboard() {
           sponsorships: sponsorshipsRes.data?.length || 0,
           gallery: galleryRes.data?.length || 0,
         });
+
+        const revenue = (sponsorshipsRes.data || [])
+          .filter((s: any) => (s.status === 'approved' || s.status === 'completed') && s.payment_method !== 'Services/In-Kind')
+          .reduce((sum: number, s: any) => sum + (Number(s.amount) || 0), 0);
+        const totalExpenses = (expensesRes.data || [])
+          .reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
+        setFinancials({ revenue, expenses: totalExpenses });
 
         setRecentActivity((activityRes.data || []) as ActivityEntry[]);
 
@@ -197,6 +206,30 @@ export default function AdminDashboard() {
             </Link>
           ))}
         </div>
+
+        {/* Financial Overview */}
+        {!loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Revenue</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                ${financials.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Expenses</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                ${financials.expenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Balance</p>
+              <p className={`text-2xl font-bold ${financials.revenue - financials.expenses >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                ${(financials.revenue - financials.expenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Charts Row */}
         {!loading && (performanceData.length > 0 || topScorers.length > 0) && (

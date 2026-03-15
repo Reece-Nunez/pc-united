@@ -984,6 +984,14 @@ export async function addOpponent(name: string) {
   return { data, error };
 }
 
+export async function deleteOpponent(name: string) {
+  const { data, error } = await supabase
+    .from('opponents')
+    .delete()
+    .eq('name', name);
+  return { data, error };
+}
+
 // ─── Expenses ───────────────────────────────────────────────────────
 
 export interface Expense {

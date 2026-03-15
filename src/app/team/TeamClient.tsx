@@ -16,6 +16,7 @@ import {
   Schedule,
   Announcement
 } from "@/lib/supabase";
+import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 
 export default function TeamClient() {
   const [news, setNews] = useState<News[]>([]);
@@ -28,6 +29,8 @@ export default function TeamClient() {
   const [scheduleView, setScheduleView] = useState<'list' | 'calendar'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<Season>(() => getCurrentSeason());
+  const [availableSeasons] = useState<Season[]>(() => getAvailableSeasons(8));
 
   // Swipe gesture support for tabs
   const touchStartX = useRef<number | null>(null);
@@ -228,8 +231,11 @@ export default function TeamClient() {
     fetchTeamData();
   }, []);
 
-  // Calculate team statistics
-  const completedGames = schedule.filter(game => game.status === 'completed');
+  // Filter schedule by selected season
+  const filteredSchedule = schedule.filter(game => isDateInSeason(game.game_date, selectedSeason));
+
+  // Calculate team statistics from filtered schedule
+  const completedGames = filteredSchedule.filter(game => game.status === 'completed');
   const wins = completedGames.filter(game => 
     (game.our_score !== null && game.our_score !== undefined && 
      game.opponent_score !== null && game.opponent_score !== undefined) &&
@@ -268,8 +274,8 @@ export default function TeamClient() {
   const daysInMonth = new Date(calendarYear, calendarMon + 1, 0).getDate();
   const firstDayOfWeek = new Date(calendarYear, calendarMon, 1).getDay();
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const gamesByDate: Record<string, typeof schedule> = {};
-  schedule.forEach((game) => {
+  const gamesByDate: Record<string, typeof filteredSchedule> = {};
+  filteredSchedule.forEach((game) => {
     const d = parseAsLocalTime(game.game_date);
     if (d.getMonth() === calendarMon && d.getFullYear() === calendarYear) {
       const key = d.getDate().toString();
@@ -313,7 +319,7 @@ export default function TeamClient() {
       {/* Team Stats */}
       <section className="py-8 md:py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-6 md:mb-8 text-center">Season Statistics</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-6 md:mb-8 text-center">{selectedSeason.label} Statistics</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">
             <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
               <div className="text-2xl md:text-3xl font-bold text-green-600 mb-2">{wins}</div>
@@ -422,6 +428,19 @@ export default function TeamClient() {
             <div>
               <div className="flex flex-col sm:flex-row items-center justify-between mb-8 md:mb-12 gap-4">
                 <h2 className="text-2xl md:text-3xl font-bold text-team-blue text-center sm:text-left">Game Schedule & Results</h2>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={selectedSeason.key}
+                    onChange={(e) => {
+                      const season = availableSeasons.find(s => s.key === e.target.value);
+                      if (season) setSelectedSeason(season);
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  >
+                    {availableSeasons.map((season) => (
+                      <option key={season.key} value={season.key}>{season.label}</option>
+                    ))}
+                  </select>
                 <div className="flex bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setScheduleView('list')}
@@ -440,6 +459,7 @@ export default function TeamClient() {
                     <CalendarIcon className="w-4 h-4" /> Calendar
                   </button>
                 </div>
+                </div>
               </div>
 
               {/* Calendar View */}
@@ -456,7 +476,8 @@ export default function TeamClient() {
                       <ChevronRightIcon className="w-5 h-5 text-gray-600" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                  <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden min-w-[500px]">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
                       <div key={d} className="bg-gray-50 py-2 text-center text-xs font-semibold text-gray-500">{d}</div>
                     ))}
@@ -500,6 +521,7 @@ export default function TeamClient() {
                         </button>
                       );
                     })}
+                  </div>
                   </div>
                   <div className="flex gap-4 mt-3 text-xs text-gray-500">
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Win</span>
@@ -570,14 +592,14 @@ export default function TeamClient() {
                 </p>
               </div>
               
-              {schedule.length === 0 ? (
+              {filteredSchedule.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="text-gray-500">No additional games found in our database.</div>
+                  <div className="text-gray-500">No games found for {selectedSeason.label}.</div>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <h3 className="text-lg md:text-xl font-semibold text-team-blue mb-4">Additional Schedule Information</h3>
-                  {schedule.map((game) => (
+                  {filteredSchedule.map((game) => (
                     <div key={game.id} className="bg-gray-50 rounded-lg p-4 md:p-6 shadow-lg">
                       <div className="flex flex-col md:flex-row md:items-center justify-between">
                         <div className="flex-1">
