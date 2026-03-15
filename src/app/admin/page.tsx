@@ -7,6 +7,7 @@ import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribe
 import { getRecentActivity } from '@/lib/audit';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
+import { createClient } from '@/lib/supabase-browser';
 
 interface DashboardStats {
   players: number;
@@ -41,8 +42,10 @@ export default function AdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([]);
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
   const [allSchedule, setAllSchedule] = useState<any[]>([]);
+  const [allNews, setAllNews] = useState<any[]>([]);
   const [financials, setFinancials] = useState({ revenue: 0, expenses: 0 });
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const availableSeasons = useMemo(() => getAvailableSeasons(8), []);
   const [selectedSeason, setSelectedSeason] = useState<Season>(getCurrentSeason());
@@ -83,6 +86,19 @@ export default function AdminDashboard() {
   }, [allSchedule, allPlayers, selectedSeason]);
 
   useEffect(() => {
+    async function fetchUserRole() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        setUserRole(user?.user_metadata?.role || null);
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    }
+    fetchUserRole();
+  }, []);
+
+  useEffect(() => {
     async function fetchDashboardData() {
       try {
         const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes, expensesRes] = await Promise.all([
@@ -103,6 +119,7 @@ export default function AdminDashboard() {
 
         setAllPlayers(players);
         setAllSchedule(schedule);
+        setAllNews(newsRes.data || []);
 
         setStats({
           players: players.length,
@@ -170,8 +187,280 @@ export default function AdminDashboard() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  const isParent = userRole === 'parent';
+
+  // Parent-specific computed data
+  const parentStatCards = [
+    { label: 'Players', value: stats.players, color: 'bg-blue-500', link: '/admin/players' },
+    { label: 'Upcoming Games', value: stats.upcomingGames, color: 'bg-purple-500', link: '/admin/team?tab=schedule' },
+    { label: 'Gallery', value: stats.gallery, color: 'bg-teal-500', link: '/admin/gallery' },
+  ];
+
+  const seasonRecord = useMemo(() => {
+    const seasonSchedule = allSchedule.filter((g: any) => g.game_date && isDateInSeason(g.game_date, selectedSeason));
+    const completed = seasonSchedule.filter((g: any) => g.status === 'completed' && g.our_score != null && g.opponent_score != null);
+    let wins = 0, losses = 0, draws = 0;
+    completed.forEach((g: any) => {
+      if (g.our_score > g.opponent_score) wins++;
+      else if (g.our_score < g.opponent_score) losses++;
+      else draws++;
+    });
+    return { wins, losses, draws, total: completed.length };
+  }, [allSchedule, selectedSeason]);
+
+  const upcomingGamesList = useMemo(() => {
+    const now = new Date();
+    return allSchedule
+      .filter((g: any) => (g.status === 'scheduled' || g.status === 'upcoming') && new Date(g.game_date) >= now)
+      .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime())
+      .slice(0, 5);
+  }, [allSchedule]);
+
+  const recentNewsArticles = useMemo(() => {
+    return allNews
+      .filter((n: any) => n.published)
+      .sort((a: any, b: any) => new Date(b.publish_date || b.created_at).getTime() - new Date(a.publish_date || a.created_at).getTime())
+      .slice(0, 3);
+  }, [allNews]);
+
+  const activeRosterPlayers = useMemo(() => {
+    return allPlayers.filter((p: any) => p.status === 'active');
+  }, [allPlayers]);
+
   return (
     <AdminLayout>
+      {isParent ? (
+        /* ===== PARENT DASHBOARD ===== */
+        <div className="p-4 md:p-8">
+          <div className="mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Welcome, Parent!</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Here&apos;s what&apos;s happening with the team.</p>
+          </div>
+
+          {/* Parent Stat Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+            {parentStatCards.map((stat) => (
+              <Link
+                key={stat.label}
+                href={stat.link}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4"
+              >
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{loading ? '...' : stat.value}</p>
+                <div className={`h-1 w-8 ${stat.color} rounded-full mt-2`} />
+              </Link>
+            ))}
+          </div>
+
+          {/* Next Game Card (same as admin) */}
+          {!loading && (() => {
+            const now = new Date();
+            const upcoming = allSchedule
+              .filter((g: any) => (g.status === 'scheduled' || g.status === 'upcoming') && new Date(g.game_date) >= now)
+              .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
+            const next = upcoming[0];
+            if (!next) return null;
+            const gameDate = new Date(next.game_date);
+            const daysUntil = Math.ceil((gameDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            return (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Game</p>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                      vs {next.opponent}
+                    </h2>
+                    <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      <span>{gameDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                      <span>{gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                      <span>{next.home_game ? 'Home' : 'Away'}</span>
+                    </div>
+                    {next.location && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{next.location}</p>
+                    )}
+                  </div>
+                  <div className="text-center sm:text-right">
+                    <p className="text-3xl font-bold text-team-blue dark:text-blue-400">{daysUntil}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{daysUntil === 1 ? 'day away' : 'days away'}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="grid lg:grid-cols-2 gap-6 mb-8">
+            {/* Season Record */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Season Record</h2>
+                <select
+                  value={selectedSeason.key}
+                  onChange={(e) => {
+                    const season = availableSeasons.find(s => s.key === e.target.value);
+                    if (season) setSelectedSeason(season);
+                  }}
+                  className="px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs font-medium"
+                >
+                  {availableSeasons.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
+                </div>
+              ) : seasonRecord.total === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">No completed games this season yet.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-3xl font-bold text-green-600 dark:text-green-400">{seasonRecord.wins}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">Wins</p>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-red-600 dark:text-red-400">{seasonRecord.losses}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">Losses</p>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{seasonRecord.draws}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">Draws</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Recent News */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent News</h2>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
+                </div>
+              ) : recentNewsArticles.length > 0 ? (
+                <div className="space-y-3">
+                  {recentNewsArticles.map((article: any) => (
+                    <Link
+                      key={article.id}
+                      href={article.slug ? `/news/${article.slug}` : '/admin/team?tab=news'}
+                      className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{article.title}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {new Date(article.publish_date || article.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8 text-sm">No news articles yet.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Upcoming Games List */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Upcoming Games</h2>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
+              </div>
+            ) : upcomingGamesList.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingGamesList.map((game: any) => {
+                  const gameDate = new Date(game.game_date);
+                  return (
+                    <div key={game.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">vs {game.opponent}</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${game.home_game ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                          {game.home_game ? 'Home' : 'Away'}
+                        </span>
+                        {game.location && (
+                          <p className="text-xs text-gray-400 mt-1 max-w-[150px] truncate">{game.location}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8 text-sm">No upcoming games scheduled.</p>
+            )}
+          </div>
+
+          {/* Team Roster */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Team Roster</h2>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
+              </div>
+            ) : activeRosterPlayers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">#</th>
+                      <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Name</th>
+                      <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Position</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {activeRosterPlayers
+                      .sort((a: any, b: any) => (a.jersey_number || 99) - (b.jersey_number || 99))
+                      .map((player: any) => (
+                        <tr key={player.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          <td className="py-2 px-3 text-gray-600 dark:text-gray-400 font-medium">{player.jersey_number || '—'}</td>
+                          <td className="py-2 px-3 text-gray-900 dark:text-white font-medium">{player.name}</td>
+                          <td className="py-2 px-3 text-gray-600 dark:text-gray-400">{player.position || '—'}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8 text-sm">No active players found.</p>
+            )}
+          </div>
+
+          {/* Help Section */}
+          <div className="bg-gradient-to-r from-team-blue to-blue-700 rounded-xl p-6 text-white">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold mb-2">Need Help?</h2>
+                <p className="text-blue-100">
+                  Email Reece Nunez at{' '}
+                  <a href="mailto:rnunez@poncacityunited.com" className="text-white underline hover:no-underline font-medium">
+                    rnunez@poncacityunited.com
+                  </a>
+                  {' '}for any questions.
+                </p>
+              </div>
+              <Link
+                href="/"
+                className="mt-4 md:mt-0 inline-flex items-center space-x-2 bg-white text-team-blue px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+              >
+                <span>View Live Site</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+      /* ===== ADMIN DASHBOARD ===== */
       <div className="p-4 md:p-8">
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -442,6 +731,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+      )}
     </AdminLayout>
   );
 }

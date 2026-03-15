@@ -259,6 +259,65 @@ export default function ExpensesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const printReport = () => {
+    if (filteredExpenses.length === 0) {
+      toast.error('No expenses to print');
+      return;
+    }
+    const fmt = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const rows = filteredExpenses
+      .map(e => `<tr>
+        <td style="padding:6px 10px;border:1px solid #ccc;">${new Date(e.expense_date).toLocaleDateString()}</td>
+        <td style="padding:6px 10px;border:1px solid #ccc;">${e.description}</td>
+        <td style="padding:6px 10px;border:1px solid #ccc;">${e.category}</td>
+        <td style="padding:6px 10px;border:1px solid #ccc;">${e.vendor || '-'}</td>
+        <td style="padding:6px 10px;border:1px solid #ccc;text-align:right;">${fmt(Number(e.amount))}</td>
+        <td style="padding:6px 10px;border:1px solid #ccc;">${e.payment_method}</td>
+      </tr>`)
+      .join('');
+    const html = `<!DOCTYPE html>
+<html><head><title>Expense Report - ${selectedSeason.label}</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 40px; font-size: 13px; }
+  h1 { font-size: 22px; margin: 0 0 4px 0; }
+  .subtitle { font-size: 14px; color: #444; margin-bottom: 2px; }
+  .date { font-size: 12px; color: #666; margin-bottom: 24px; }
+  .summary { margin-bottom: 24px; }
+  .summary td { padding: 4px 16px 4px 0; font-size: 14px; }
+  .summary .label { font-weight: bold; }
+  table.expenses { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+  table.expenses th { padding: 8px 10px; border: 1px solid #999; background: #f5f5f5; text-align: left; font-size: 12px; text-transform: uppercase; }
+  table.expenses td { font-size: 13px; }
+  .total-row td { font-weight: bold; border-top: 2px solid #000; }
+  .footer { font-size: 11px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 24px; }
+  @media print { body { margin: 20px; } }
+</style></head><body>
+<h1>Ponca City United FC &mdash; Expense Report</h1>
+<p class="subtitle">${selectedSeason.label}</p>
+<p class="date">Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+<table class="summary">
+  <tr><td class="label">Total Revenue:</td><td>${fmt(totalRevenue)}</td></tr>
+  <tr><td class="label">Total Expenses:</td><td>${fmt(allSeasonExpenses)}</td></tr>
+  <tr><td class="label">Balance:</td><td>${balance < 0 ? '-' : ''}${fmt(balance)}</td></tr>
+</table>
+<table class="expenses">
+  <thead><tr>
+    <th>Date</th><th>Description</th><th>Category</th><th>Vendor</th><th style="text-align:right;">Amount</th><th>Payment Method</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+  <tfoot><tr class="total-row">
+    <td style="padding:8px 10px;border:1px solid #999;" colspan="4">Total</td>
+    <td style="padding:8px 10px;border:1px solid #999;text-align:right;">${fmt(totalExpenses)}</td>
+    <td style="padding:8px 10px;border:1px solid #999;"></td>
+  </tr></tfoot>
+</table>
+<div class="footer">Generated from poncacityunited.com</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); }
+  };
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
@@ -286,6 +345,12 @@ export default function ExpensesPage() {
               className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Export CSV
+            </button>
+            <button
+              onClick={printReport}
+              className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Print Report
             </button>
             <button
               onClick={() => { setShowForm(!showForm); if (editing) cancelEdit(); }}

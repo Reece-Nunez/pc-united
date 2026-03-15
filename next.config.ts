@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         hostname: 'pc-united.s3.us-east-1.amazonaws.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'woaifjyohjmtyfrgtrbo.supabase.co',
+        pathname: '/storage/**',
+      },
     ],
   },
 };

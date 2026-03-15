@@ -25,8 +25,24 @@ export default function SignupPage() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      toast.error('Password must contain at least one uppercase letter');
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      toast.error('Password must contain at least one lowercase letter');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      toast.error('Password must contain at least one number');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      toast.error('Password must contain at least one special character');
       return;
     }
 
@@ -236,8 +252,30 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent outline-none"
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
             />
+            {password.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {[
+                  { test: password.length >= 8, label: 'At least 8 characters' },
+                  { test: /[A-Z]/.test(password), label: 'One uppercase letter' },
+                  { test: /[a-z]/.test(password), label: 'One lowercase letter' },
+                  { test: /[0-9]/.test(password), label: 'One number' },
+                  { test: /[^A-Za-z0-9]/.test(password), label: 'One special character (!@#$...)' },
+                ].map(({ test, label }) => (
+                  <div key={label} className={`flex items-center gap-1.5 text-xs ${test ? 'text-green-600' : 'text-red-500'}`}>
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {test ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      )}
+                    </svg>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

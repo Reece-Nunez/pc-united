@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import AnimateOnScroll from './AnimateOnScroll';
 import { getSponsorships } from '@/lib/supabase';
 
@@ -35,10 +36,12 @@ export default async function Sponsors() {
                 className="group flex flex-col items-center gap-3 transition duration-300 hover:scale-105"
               >
                 <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center w-48 h-48 group-hover:shadow-lg transition duration-300">
-                  <img
+                  <Image
                     src={sponsor.logo_url!}
                     alt={sponsor.business_name}
-                    className="object-contain max-w-[140px] max-h-[140px]"
+                    width={140}
+                    height={140}
+                    className="object-contain"
                   />
                 </div>
                 <span className="text-sm font-semibold text-gray-500 group-hover:text-team-blue transition duration-300">
