@@ -1,15 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { submitRegistration, Registration } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-browser';
+import { getCurrentSeason } from '@/lib/seasons';
 import toast from 'react-hot-toast';
+
+const DEFAULT_MAX_ROSTER_SIZE = 25;
 
 // Check if Supabase is configured
 const isSupabaseConfigured = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return url && key && 
-         !url.includes('your_supabase_project_url') && 
+  return url && key &&
+         !url.includes('your_supabase_project_url') &&
          !key.includes('your_supabase_anon_key');
 };
 
@@ -42,6 +47,52 @@ export default function RegisterClient() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSection, setCurrentSection] = useState(1);
+  const [registrationClosed, setRegistrationClosed] = useState(false);
+  const [currentCount, setCurrentCount] = useState(0);
+  const [maxRosterSize, setMaxRosterSize] = useState(DEFAULT_MAX_ROSTER_SIZE);
+
+  const currentSeason = getCurrentSeason();
+
+  useEffect(() => {
+    async function fetchRegistrationData() {
+      if (!isSupabaseConfigured()) return;
+      const supabase = createClient();
+
+      // Fetch settings
+      const { data: settingsData } = await supabase
+        .from('site_settings')
+        .select('key, value')
+        .in('key', ['max_roster_size', 'registration_override']);
+      const settingsMap: Record<string, string> = {};
+      settingsData?.forEach((row: { key: string; value: string }) => { settingsMap[row.key] = row.value; });
+
+      const max = settingsMap.max_roster_size ? parseInt(settingsMap.max_roster_size) : DEFAULT_MAX_ROSTER_SIZE;
+      const override = settingsMap.registration_override || 'auto';
+      setMaxRosterSize(max);
+
+      // Check override first
+      if (override === 'closed') {
+        setRegistrationClosed(true);
+        return;
+      }
+      if (override === 'open') {
+        setRegistrationClosed(false);
+      }
+
+      // Fetch current registration count
+      const { count, error } = await supabase
+        .from('registrations')
+        .select('*', { count: 'exact', head: true })
+        .eq('season', currentSeason.label);
+      if (!error && count !== null) {
+        setCurrentCount(count);
+        if (override === 'auto' && count >= max) {
+          setRegistrationClosed(true);
+        }
+      }
+    }
+    fetchRegistrationData();
+  }, [currentSeason.label]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -84,7 +135,13 @@ export default function RegisterClient() {
       }
 
       toast.success('Registration submitted successfully! We will contact you within 24 hours.');
-      
+
+      const newCount = currentCount + 1;
+      setCurrentCount(newCount);
+      if (newCount >= maxRosterSize) {
+        setRegistrationClosed(true);
+      }
+
       // Reset form
       setFormData({
         player_first_name: '',
@@ -141,7 +198,34 @@ export default function RegisterClient() {
   return (
     <div className="py-8 md:py-16 bg-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
+        {/* Spots Counter */}
+        <div className="text-center mb-4">
+          <span className="inline-block bg-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-full">
+            {currentCount} / {maxRosterSize} spots filled for {currentSeason.label}
+          </span>
+        </div>
+
+        {registrationClosed ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 md:p-12 text-center">
+            <div className="mb-6">
+              <svg className="mx-auto h-16 w-16 text-team-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-4">Registration is Currently Closed</h2>
+            <p className="text-gray-600 text-lg mb-6">
+              Our roster is full for {currentSeason.label}. Please check back for the next season or contact us for waitlist information.
+            </p>
+            <Link
+              href="/contact"
+              className="inline-block px-6 py-3 bg-team-blue text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+            >
+              Contact Us for Waitlist Info
+            </Link>
+          </div>
+        ) : (
+        <>
         {/* Progress Indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-center">
@@ -631,6 +715,8 @@ export default function RegisterClient() {
             )}
           </div>
         </form>
+        </>
+        )}
       </div>
     </div>
   );

@@ -88,6 +88,8 @@ export interface Sponsorship {
   logo_url?: string;
   signature?: string;
   signature_date?: string;
+  renewal_date?: string;
+  season?: string;
 }
 
 // Function to submit a new sponsorship
@@ -153,6 +155,7 @@ export interface Player {
   strengths?: string[];
   areas_to_improve?: string[];
   coach_notes?: string;
+  status?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -1041,5 +1044,115 @@ export async function deleteExpense(id: number) {
     .delete()
     .eq('id', id);
   return { error };
+}
+
+// ─── Site Settings ──────────────────────────────────────────────────
+
+export async function getSetting(key: string) {
+  const { data, error } = await supabase
+    .from('site_settings')
+    .select('value')
+    .eq('key', key)
+    .single();
+  return { value: data?.value || null, error };
+}
+
+export async function getAllSettings() {
+  const { data, error } = await supabase
+    .from('site_settings')
+    .select('key, value');
+  if (error || !data) return { settings: {} as Record<string, string>, error };
+  const settings: Record<string, string> = {};
+  data.forEach((row: { key: string; value: string }) => { settings[row.key] = row.value; });
+  return { settings, error: null };
+}
+
+export async function updateSetting(key: string, value: string) {
+  const { data, error } = await supabase
+    .from('site_settings')
+    .upsert([{ key, value, updated_at: new Date().toISOString() }], { onConflict: 'key' })
+    .select();
+  return { data, error };
+}
+
+export async function updateSettings(settings: Record<string, string>) {
+  const rows = Object.entries(settings).map(([key, value]) => ({
+    key, value, updated_at: new Date().toISOString(),
+  }));
+  const { data, error } = await supabase
+    .from('site_settings')
+    .upsert(rows, { onConflict: 'key' })
+    .select();
+  return { data, error };
+}
+
+// ─── Player Status ──────────────────────────────────────────────────
+
+export async function updatePlayerStatus(id: number, status: string) {
+  const { data, error } = await supabase
+    .from('players')
+    .update({ status })
+    .eq('id', id)
+    .select();
+  return { data, error };
+}
+
+// ─── Gallery Image Tags ─────────────────────────────────────────────
+
+export async function getGalleryImageTags(imageId: number) {
+  const { data, error } = await supabase
+    .from('gallery_image_tags')
+    .select('*, players(id, name)')
+    .eq('gallery_image_id', imageId);
+  return { data, error };
+}
+
+export async function getGalleryImagesWithTags() {
+  const { data, error } = await supabase
+    .from('gallery_images')
+    .select('*, gallery_image_tags(player_id, players(id, name))')
+    .order('created_at', { ascending: false });
+  return { data, error };
+}
+
+export async function tagPlayerInImage(imageId: number, playerId: number) {
+  const { data, error } = await supabase
+    .from('gallery_image_tags')
+    .insert([{ gallery_image_id: imageId, player_id: playerId }])
+    .select();
+  return { data, error };
+}
+
+export async function untagPlayerFromImage(imageId: number, playerId: number) {
+  const { error } = await supabase
+    .from('gallery_image_tags')
+    .delete()
+    .eq('gallery_image_id', imageId)
+    .eq('player_id', playerId);
+  return { error };
+}
+
+// ─── Sponsor Renewal ────────────────────────────────────────────────
+
+export async function updateSponsorRenewal(id: string | number, renewalDate: string, season?: string) {
+  const updates: any = { renewal_date: renewalDate };
+  if (season) updates.season = season;
+  const { data, error } = await supabase
+    .from('sponsorships')
+    .update(updates)
+    .eq('id', id)
+    .select();
+  return { data, error };
+}
+
+export async function getSponsorsNeedingRenewal() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('sponsorships')
+    .select('*')
+    .or(`renewal_date.lte.${today},renewal_date.is.null`)
+    .in('status', ['approved', 'completed'])
+    .order('renewal_date', { ascending: true });
+  return { data, error };
 }
 

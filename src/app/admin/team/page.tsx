@@ -26,6 +26,7 @@ import {
   getOpponents,
   addOpponent,
   deleteOpponent,
+  getSetting,
   News,
   Event,
   Schedule,
@@ -93,6 +94,7 @@ function TeamAdminContent() {
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [opponents, setOpponents] = useState<string[]>([]);
   const [showOpponentManager, setShowOpponentManager] = useState(false);
+  const [homeFieldLocation, setHomeFieldLocation] = useState('');
   const [bulkScoreMode, setBulkScoreMode] = useState(false);
   const [bulkScores, setBulkScores] = useState<Record<number, { our: string; opp: string }>>({});
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -167,6 +169,11 @@ function TeamAdminContent() {
       if (!scheduleResult.error) setSchedule(scheduleResult.data || []);
       if (!announcementsResult.error) setAnnouncements(announcementsResult.data || []);
       if (!opponentsResult.error) setOpponents((opponentsResult.data || []).map(o => o.name));
+
+      // Load home field setting
+      getSetting('home_field_location').then(({ value }) => {
+        if (value) setHomeFieldLocation(value);
+      });
     } catch (error: any) {
       toast.error(`Error loading data: ${error.message}`);
     } finally {
@@ -311,8 +318,42 @@ function TeamAdminContent() {
           }).catch(err => console.error('Newsletter send failed:', err));
         }
 
+        // Prompt for quick game recap if scores were just added
+        if (!hadScores && hasScores) {
+          if (window.confirm('Create a quick news recap for this game?')) {
+            const recapText = window.prompt('Enter a quick game recap (1-2 sentences):');
+            if (recapText) {
+              const recapTitle = `Game Recap: PCU ${scheduleForm.our_score} - ${scheduleForm.opponent_score} vs ${scheduleForm.opponent}`;
+              const recapSlug = recapTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+              await createNews({
+                title: recapTitle,
+                slug: recapSlug,
+                content: recapText,
+                excerpt: recapText,
+                published: true,
+                publish_date: new Date().toISOString(),
+                author: 'PCU Staff',
+              });
+              toast.success('Game recap created!');
+            }
+          }
+        }
+
         setEditingSchedule(null);
       } else {
+        // Check for duplicate game (same opponent + same date)
+        const newDate = scheduleForm.game_date ? scheduleForm.game_date.split('T')[0] : '';
+        const duplicate = schedule.find(g =>
+          g.opponent.toLowerCase() === scheduleForm.opponent.toLowerCase() &&
+          g.game_date && g.game_date.split('T')[0] === newDate
+        );
+        if (duplicate) {
+          if (!window.confirm(`A game vs ${scheduleForm.opponent} on ${newDate} already exists. Add anyway?`)) {
+            setLoading(false);
+            return;
+          }
+        }
+
         const result = await createScheduleItem(scheduleForm);
         if (result.error) throw new Error(result.error.message);
         toast.success('Schedule item created successfully!');
@@ -966,7 +1007,14 @@ function TeamAdminContent() {
                     type="checkbox"
                     id="home_game"
                     checked={scheduleForm.home_game}
-                    onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'home_game', e.target.checked)}
+                    onChange={(e) => {
+                      const isHome = e.target.checked;
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        home_game: isHome,
+                        location: isHome && homeFieldLocation ? homeFieldLocation : prev.location,
+                      }));
+                    }}
                     className="h-4 w-4 text-team-blue border-gray-300 dark:border-gray-600 rounded focus:ring-team-blue"
                   />
                   <label htmlFor="home_game" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
@@ -1007,7 +1055,14 @@ function TeamAdminContent() {
                       type="number"
                       min="0"
                       value={scheduleForm.our_score || ''}
-                      onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'our_score', e.target.value ? parseInt(e.target.value) : undefined)}
+                      onChange={(e) => {
+                        const val = e.target.value ? parseInt(e.target.value) : undefined;
+                        setScheduleForm(prev => ({
+                          ...prev,
+                          our_score: val,
+                          ...(val != null && prev.opponent_score != null ? { status: 'completed' as const } : {})
+                        }));
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
@@ -1018,7 +1073,14 @@ function TeamAdminContent() {
                       type="number"
                       min="0"
                       value={scheduleForm.opponent_score || ''}
-                      onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'opponent_score', e.target.value ? parseInt(e.target.value) : undefined)}
+                      onChange={(e) => {
+                        const val = e.target.value ? parseInt(e.target.value) : undefined;
+                        setScheduleForm(prev => ({
+                          ...prev,
+                          opponent_score: val,
+                          ...(val != null && prev.our_score != null ? { status: 'completed' as const } : {})
+                        }));
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     />
                   </div>

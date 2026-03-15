@@ -11,6 +11,7 @@ import {
   updatePlayer,
   deletePlayer,
   createOrUpdatePlayerStats,
+  updatePlayerStatus,
   Player,
   createAdminNotification,
 } from "@/lib/supabase";
@@ -82,6 +83,7 @@ function PlayersAdminContent() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('All');
+  const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [newPlayerForm, setNewPlayerForm] = useState<NewPlayerForm>({
@@ -144,13 +146,28 @@ function PlayersAdminContent() {
     }
   }
 
-  // Filter players based on search and position
+  // Filter players based on search, position, and status
   const filteredPlayers = players.filter(player => {
     const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       player.jersey_number.toString().includes(searchQuery);
     const matchesPosition = positionFilter === 'All' || player.position === positionFilter;
-    return matchesSearch && matchesPosition;
+    const playerStatus = player.status || 'active';
+    const matchesStatus = statusFilter === 'All' || playerStatus === statusFilter.toLowerCase();
+    return matchesSearch && matchesPosition && matchesStatus;
   });
+
+  const handleToggleStatus = async (player: AdminPlayer) => {
+    const currentStatus = player.status || 'active';
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    try {
+      const { error } = await updatePlayerStatus(player.id, newStatus);
+      if (error) throw error;
+      setPlayers(prev => prev.map(p => p.id === player.id ? { ...p, status: newStatus } : p));
+      toast.success(`${player.name} marked as ${newStatus}`);
+    } catch (err: any) {
+      toast.error('Error updating status: ' + err.message);
+    }
+  };
 
   // Get unique positions
   const positions = ['All', ...Array.from(new Set(players.map(p => p.position)))];
@@ -426,6 +443,15 @@ function PlayersAdminContent() {
                 />
               </div>
             </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent text-sm font-medium"
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="All">All Players</option>
+            </select>
             <div className="flex gap-2 flex-wrap">
               {positions.map((position) => (
                 <button
@@ -689,7 +715,7 @@ function PlayersAdminContent() {
           /* Players Grid */
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredPlayers.map((player) => (
-              <div key={player.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+              <div key={player.id} className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden${(player.status === 'inactive') ? ' opacity-50' : ''}`}>
                 {editingPlayer === player.id ? (
                   /* Edit Form */
                   <div className="p-4">
@@ -838,7 +864,21 @@ function PlayersAdminContent() {
                         </div>
                       </div>
                       <div className="ml-4 flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 dark:text-white truncate">{player.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-900 dark:text-white truncate">{player.name}</h3>
+                          {!isParent && (
+                            <button
+                              onClick={() => handleToggleStatus(player)}
+                              className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                                (player.status || 'active') === 'active'
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'
+                              }`}
+                            >
+                              {(player.status || 'active') === 'active' ? 'Active' : 'Inactive'}
+                            </button>
+                          )}
+                        </div>
                         <p className="text-sm text-team-blue font-medium">{player.position}</p>
                       </div>
                     </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { getNews, getEvents, getHighlights, getGalleryImages, News, Event } from '@/lib/supabase';
+import { getNews, getEvents, getHighlights, getGalleryImagesWithTags, getPlayers, News, Event } from '@/lib/supabase';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { SkeletonNewsCard } from '@/components/Skeleton';
 
@@ -12,6 +12,12 @@ interface GalleryItem {
   title: string;
   category: 'highlights' | 'news' | 'events' | 'gallery';
   date?: string;
+  taggedPlayerIds?: number[];
+}
+
+interface PlayerOption {
+  id: number;
+  name: string;
 }
 
 export default function GalleryClient() {
@@ -19,16 +25,23 @@ export default function GalleryClient() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'highlights' | 'news' | 'events' | 'gallery'>('all');
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
+  const [players, setPlayers] = useState<PlayerOption[]>([]);
+  const [playerFilter, setPlayerFilter] = useState<number | 'all'>('all');
 
   useEffect(() => {
     async function fetchMedia() {
       try {
-        const [newsRes, eventsRes, highlightsRes, galleryRes] = await Promise.all([
+        const [newsRes, eventsRes, highlightsRes, galleryRes, playersRes] = await Promise.all([
           getNews(),
           getEvents(),
           getHighlights(),
-          getGalleryImages(),
+          getGalleryImagesWithTags(),
+          getPlayers(),
         ]);
+
+        if (playersRes.data) {
+          setPlayers(playersRes.data.map((p: any) => ({ id: p.id, name: p.name })));
+        }
 
         const gallery: GalleryItem[] = [];
 
@@ -85,13 +98,15 @@ export default function GalleryClient() {
 
         // Gallery uploads
         if (galleryRes.data) {
-          galleryRes.data.forEach((img) => {
+          galleryRes.data.forEach((img: any) => {
+            const taggedPlayerIds = (img.gallery_image_tags || []).map((t: any) => t.player_id);
             gallery.push({
               id: `gallery-${img.id}`,
               src: img.image_url,
               title: img.title,
               category: 'gallery',
               date: img.created_at,
+              taggedPlayerIds,
             });
           });
         }
@@ -113,7 +128,10 @@ export default function GalleryClient() {
     fetchMedia();
   }, []);
 
-  const filtered = filter === 'all' ? items : items.filter((i) => i.category === filter);
+  const categoryFiltered = filter === 'all' ? items : items.filter((i) => i.category === filter);
+  const filtered = playerFilter === 'all'
+    ? categoryFiltered
+    : categoryFiltered.filter((i) => i.taggedPlayerIds && i.taggedPlayerIds.includes(playerFilter as number));
 
   const filters = [
     { key: 'all' as const, label: 'All' },
@@ -143,6 +161,20 @@ export default function GalleryClient() {
               </button>
             ))}
           </div>
+          {players.length > 0 && (
+            <div className="flex justify-center mt-4">
+              <select
+                value={playerFilter === 'all' ? 'all' : String(playerFilter)}
+                onChange={(e) => setPlayerFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="px-4 py-2 rounded-full text-sm font-semibold border border-gray-300 bg-white text-gray-700 focus:ring-2 focus:ring-team-blue focus:border-transparent outline-none"
+              >
+                <option value="all">All Players</option>
+                {players.map((p) => (
+                  <option key={p.id} value={String(p.id)}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </section>
 

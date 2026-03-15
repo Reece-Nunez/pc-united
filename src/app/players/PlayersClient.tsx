@@ -45,7 +45,7 @@ export default function PlayersClient() {
         if (playersResult.error) {
           setError(playersResult.error.message);
         } else if (playersResult.data) {
-          setPlayers(playersResult.data);
+          setPlayers(playersResult.data.filter((p: PlayerWithStats) => !p.status || p.status === 'active'));
         }
 
         if (scheduleResult.error) {

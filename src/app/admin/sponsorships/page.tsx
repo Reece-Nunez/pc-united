@@ -11,6 +11,7 @@ import {
   submitSponsorship,
   Sponsorship,
   createAdminNotification,
+  updateSponsorRenewal,
 } from '@/lib/supabase';
 import { uploadToS3Direct } from '@/lib/s3';
 import { logActivity } from '@/lib/audit';
@@ -56,6 +57,7 @@ const EMPTY_FORM = {
   logo_placement: '',
   amount: '',
   payment_method: '',
+  renewal_date: '',
 };
 
 function formatCurrency(amount: number): string {
@@ -213,6 +215,7 @@ function Content() {
       logo_placement: item.logo_placement || '',
       amount: String(item.amount || ''),
       payment_method: item.payment_method || '',
+      renewal_date: item.renewal_date || '',
     });
     setEditItem(item);
     setEditLogoFile(null);
@@ -250,6 +253,7 @@ function Content() {
         amount: parseFloat(editForm.amount) || selectedLevel?.amount || 0,
         payment_method: editForm.payment_method,
         logo_url: logoUrl || undefined,
+        renewal_date: editForm.renewal_date || undefined,
       };
 
       const { error: dbError } = await updateSponsorship(editItem.id, updates);
@@ -274,6 +278,16 @@ function Content() {
   };
 
   // Stats
+  const [renewalAlertOpen, setRenewalAlertOpen] = useState(false);
+
+  // Sponsors needing renewal: approved/completed with renewal_date null or <= today
+  const today = new Date().toISOString().split('T')[0];
+  const sponsorsNeedingRenewal = sponsorships.filter((s) => {
+    const status = s.status || 'pending';
+    if (status !== 'approved' && status !== 'completed') return false;
+    return !s.renewal_date || s.renewal_date <= today;
+  });
+
   const total = sponsorships.length;
   const pending = sponsorships.filter((s) => (s.status || 'pending') === 'pending').length;
   const approved = sponsorships.filter((s) => s.status === 'approved').length;
@@ -433,6 +447,39 @@ function Content() {
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">{formatCurrency(totalRevenue)}</div>
           </div>
         </div>
+
+        {/* Renewal Alerts */}
+        {!loading && sponsorsNeedingRenewal.length > 0 && (
+          <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4">
+            <button
+              type="button"
+              onClick={() => setRenewalAlertOpen(!renewalAlertOpen)}
+              className="w-full flex items-center justify-between text-left"
+            >
+              <span className="font-semibold text-amber-800 dark:text-amber-300">
+                {'\u26A0'} {sponsorsNeedingRenewal.length} sponsor{sponsorsNeedingRenewal.length !== 1 ? 's' : ''} need{sponsorsNeedingRenewal.length === 1 ? 's' : ''} renewal attention
+              </span>
+              <svg
+                className={`w-5 h-5 text-amber-600 dark:text-amber-400 transition-transform ${renewalAlertOpen ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {renewalAlertOpen && (
+              <ul className="mt-3 space-y-1 border-t border-amber-200 dark:border-amber-700 pt-3">
+                {sponsorsNeedingRenewal.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between text-sm text-amber-900 dark:text-amber-200 py-1">
+                    <span className="font-medium">{s.business_name}</span>
+                    <span className="text-amber-600 dark:text-amber-400 text-xs">
+                      {s.renewal_date ? `Due: ${formatDate(s.renewal_date)}` : 'No renewal date set'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* Loading State */}
         {loading ? (
@@ -756,6 +803,11 @@ function Content() {
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{editForm.payment_method === 'Services/In-Kind' ? 'Estimated Value of Services ($)' : 'Amount ($)'}</label>
                       <input type="number" min="1" step="1" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
                       {editForm.payment_method === 'Services/In-Kind' && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Dollar value of the services provided.</p>}
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Renewal Date</label>
+                      <input type="date" value={editForm.renewal_date} onChange={(e) => setEditForm((p) => ({ ...p, renewal_date: e.target.value }))} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-team-blue focus:outline-none" />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">When this sponsorship is due for renewal.</p>
                     </div>
                   </div>
                 </section>
