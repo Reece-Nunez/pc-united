@@ -984,3 +984,54 @@ export async function addOpponent(name: string) {
   return { data, error };
 }
 
+// ─── Expenses ───────────────────────────────────────────────────────
+
+export interface Expense {
+  id: number;
+  description: string;
+  amount: number;
+  category: string;
+  vendor?: string;
+  expense_date: string;
+  payment_method: string;
+  receipt_url?: string;
+  notes?: string;
+  season?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function getExpenses() {
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('*')
+    .order('expense_date', { ascending: false });
+  return { data: data as Expense[] | null, error };
+}
+
+export async function createExpense(expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>) {
+  const { data, error } = await supabase
+    .from('expenses')
+    .insert([expense])
+    .select();
+  return { data, error };
+}
+
+export async function updateExpense(id: number, updates: Partial<Expense>) {
+  const { data, error } = await supabase
+    .from('expenses')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+  return { data, error };
+}
+
+export async function deleteExpense(id: number) {
+  const { error } = await supabase
+    .from('expenses')
+    .delete()
+    .eq('id', id);
+  return { error };
+}
+
