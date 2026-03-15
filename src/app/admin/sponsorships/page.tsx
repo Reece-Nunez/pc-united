@@ -84,6 +84,9 @@ function Content() {
   const [editItem, setEditItem] = useState<SponsorshipWithStatus | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
+  const [editLogoPreview, setEditLogoPreview] = useState<string | null>(null);
+  const editLogoRef = useRef<HTMLInputElement>(null);
   const userEmail = useCurrentUser();
 
   const fetchSponsorships = useCallback(async () => {
@@ -212,6 +215,8 @@ function Content() {
       payment_method: item.payment_method || '',
     });
     setEditItem(item);
+    setEditLogoFile(null);
+    setEditLogoPreview(item.logo_url || null);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -224,6 +229,16 @@ function Content() {
 
     setEditSubmitting(true);
     try {
+      let logoUrl = editItem.logo_url || '';
+      if (editLogoFile) {
+        const uploadResult = await uploadToS3Direct(editLogoFile, 'team-images');
+        if (!uploadResult.success) throw new Error(uploadResult.error || 'Failed to upload logo');
+        logoUrl = uploadResult.url || '';
+      } else if (editLogoPreview === null) {
+        // Logo was removed
+        logoUrl = '';
+      }
+
       const selectedLevel = SPONSORSHIP_LEVELS.find((l) => l.id === editForm.sponsorship_level);
       const updates: Partial<Sponsorship> & { status?: string } = {
         business_name: editForm.business_name,
@@ -234,6 +249,7 @@ function Content() {
         logo_placement: editForm.logo_placement || undefined,
         amount: parseFloat(editForm.amount) || selectedLevel?.amount || 0,
         payment_method: editForm.payment_method,
+        logo_url: logoUrl || undefined,
       };
 
       const { error: dbError } = await updateSponsorship(editItem.id, updates);
@@ -247,6 +263,8 @@ function Content() {
 
       setEditItem(null);
       setEditForm(EMPTY_FORM);
+      setEditLogoFile(null);
+      setEditLogoPreview(null);
       await fetchSponsorships();
     } catch (err: any) {
       toast.error('Failed to update sponsor: ' + (err.message || 'Unknown error'));
@@ -742,19 +760,52 @@ function Content() {
                   </div>
                 </section>
 
-                {/* Logo preview */}
-                {editItem.logo_url && (
-                  <section>
-                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo</h3>
+                {/* Logo Upload */}
+                <section>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo</h3>
+                  {editLogoPreview ? (
                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 flex items-center gap-4">
-                      <img src={editItem.logo_url} alt="" className="h-16 w-auto object-contain rounded" />
-                      <a href={editItem.logo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        Open logo
-                      </a>
+                      <img src={editLogoPreview} alt="" className="h-16 w-auto object-contain rounded" />
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => editLogoRef.current?.click()}
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          Change
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditLogoPreview(null); setEditLogoFile(null); if (editLogoRef.current) editLogoRef.current.value = ''; }}
+                          className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                  </section>
-                )}
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => editLogoRef.current?.click()}
+                      className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:border-team-blue hover:text-team-blue transition-colors"
+                    >
+                      Upload Logo (PNG, JPG, SVG)
+                    </button>
+                  )}
+                  <input
+                    ref={editLogoRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) { toast.error('Logo must be under 5MB'); return; }
+                      setEditLogoFile(file);
+                      setEditLogoPreview(URL.createObjectURL(file));
+                    }}
+                  />
+                </section>
 
                 {/* Footer */}
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
