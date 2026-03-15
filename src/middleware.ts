@@ -31,7 +31,9 @@ export async function middleware(request: NextRequest) {
 
   const isAuthPage =
     request.nextUrl.pathname === '/admin/login' ||
-    request.nextUrl.pathname === '/admin/signup';
+    request.nextUrl.pathname === '/admin/signup' ||
+    request.nextUrl.pathname === '/admin/forgot-password' ||
+    request.nextUrl.pathname === '/admin/reset-password';
   const isPendingPage = request.nextUrl.pathname === '/admin/pending';
 
   // Not logged in — allow auth pages, redirect everything else to login
