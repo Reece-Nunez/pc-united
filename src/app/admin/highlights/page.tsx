@@ -604,6 +604,7 @@ function HighlightsAdminContent() {
                     <input
                       type="date"
                       value={newHighlightForm.highlight_date}
+                      onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                       onChange={(e) => handleNewFormChange('highlight_date', e.target.value)}
                       className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
                     />
@@ -860,6 +861,7 @@ function HighlightsAdminContent() {
                           <input
                             type="date"
                             value={editForm.highlight_date || ''}
+                            onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                             onChange={(e) => handleFormChange('highlight_date', e.target.value)}
                             className="w-full p-2 md:p-3 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded text-sm md:text-base"
                           />

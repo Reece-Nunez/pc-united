@@ -965,3 +965,22 @@ export async function deleteAdminNotification(id: number) {
   return { error };
 }
 
+// ─── Opponents ──────────────────────────────────────────────────────
+
+export async function getOpponents() {
+  const { data, error } = await supabase
+    .from('opponents')
+    .select('*')
+    .order('name');
+  return { data: data as { id: number; name: string; created_at: string }[] | null, error };
+}
+
+export async function addOpponent(name: string) {
+  const { data, error } = await supabase
+    .from('opponents')
+    .upsert([{ name }], { onConflict: 'name' })
+    .select()
+    .single();
+  return { data, error };
+}
+

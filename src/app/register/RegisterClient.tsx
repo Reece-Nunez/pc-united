@@ -216,6 +216,7 @@ export default function RegisterClient() {
                     name="date_of_birth"
                     required
                     value={formData.date_of_birth}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
@@ -290,11 +291,32 @@ export default function RegisterClient() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                 >
                   <option value="">Select Position</option>
-                  <option value="Goalkeeper">Goalkeeper</option>
-                  <option value="Defender">Defender</option>
-                  <option value="Midfielder">Midfielder</option>
-                  <option value="Forward">Forward</option>
-                  <option value="Any">Any Position</option>
+                  <optgroup label="General">
+                    <option value="Forward">Forward</option>
+                    <option value="Midfielder">Midfielder</option>
+                    <option value="Defender">Defender</option>
+                    <option value="Goalkeeper">Goalkeeper</option>
+                    <option value="Any">Any Position</option>
+                  </optgroup>
+                  <optgroup label="Forwards">
+                    <option value="Striker">Striker</option>
+                    <option value="Center Forward">Center Forward</option>
+                    <option value="Left Wing">Left Wing</option>
+                    <option value="Right Wing">Right Wing</option>
+                  </optgroup>
+                  <optgroup label="Midfielders">
+                    <option value="Center Midfielder">Center Midfielder</option>
+                    <option value="Left Midfielder">Left Midfielder</option>
+                    <option value="Right Midfielder">Right Midfielder</option>
+                    <option value="Attacking Midfielder">Attacking Midfielder</option>
+                    <option value="Defensive Midfielder">Defensive Midfielder</option>
+                  </optgroup>
+                  <optgroup label="Defenders">
+                    <option value="Center Back">Center Back</option>
+                    <option value="Left Back">Left Back</option>
+                    <option value="Right Back">Right Back</option>
+                    <option value="Sweeper">Sweeper</option>
+                  </optgroup>
                 </select>
               </div>
 

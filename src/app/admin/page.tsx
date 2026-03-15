@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages } from '@/lib/supabase';
 import { getRecentActivity } from '@/lib/audit';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
+import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 
 interface DashboardStats {
   players: number;
@@ -38,10 +39,47 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({ players: 0, highlights: 0, news: 0, upcomingGames: 0, subscribers: 0, sponsorships: 0, gallery: 0 });
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([]);
-  const [performanceData, setPerformanceData] = useState<any[]>([]);
-  const [topScorers, setTopScorers] = useState<any[]>([]);
-  const [gameScores, setGameScores] = useState<any[]>([]);
+  const [allPlayers, setAllPlayers] = useState<any[]>([]);
+  const [allSchedule, setAllSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const availableSeasons = useMemo(() => getAvailableSeasons(8), []);
+  const [selectedSeason, setSelectedSeason] = useState<Season>(getCurrentSeason());
+
+  // Derive chart data from raw data + selected season
+  const { performanceData, topScorers, gameScores } = useMemo(() => {
+    const seasonSchedule = allSchedule.filter((g: any) => g.game_date && isDateInSeason(g.game_date, selectedSeason));
+    const completed = seasonSchedule.filter((g: any) => g.status === 'completed' && g.our_score != null && g.opponent_score != null);
+
+    // Performance chart data: wins/losses/draws by month
+    const monthMap: Record<string, { wins: number; losses: number; draws: number }> = {};
+    completed.forEach((g: any) => {
+      const month = new Date(g.game_date).toLocaleDateString('en-US', { month: 'short' });
+      if (!monthMap[month]) monthMap[month] = { wins: 0, losses: 0, draws: 0 };
+      if (g.our_score > g.opponent_score) monthMap[month].wins++;
+      else if (g.our_score < g.opponent_score) monthMap[month].losses++;
+      else monthMap[month].draws++;
+    });
+    const performanceData = Object.entries(monthMap).map(([month, data]) => ({ month, ...data }));
+
+    // Game scores line chart
+    const gameScores = completed
+      .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime())
+      .map((g: any) => ({
+        game: `vs ${g.opponent}`,
+        'Goals For': g.our_score,
+        'Goals Against': g.opponent_score,
+      }));
+
+    // Top scorers
+    const topScorers = allPlayers
+      .filter((p: any) => p.player_stats?.[0]?.goals > 0)
+      .sort((a: any, b: any) => (b.player_stats?.[0]?.goals || 0) - (a.player_stats?.[0]?.goals || 0))
+      .slice(0, 5)
+      .map((p: any) => ({ name: p.name.split(' ')[0], goals: p.player_stats?.[0]?.goals || 0, assists: p.player_stats?.[0]?.assists || 0 }));
+
+    return { performanceData, topScorers, gameScores };
+  }, [allSchedule, allPlayers, selectedSeason]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -61,6 +99,9 @@ export default function AdminDashboard() {
         const schedule = scheduleRes.data || [];
         const upcomingGames = schedule.filter((g: any) => g.status === 'upcoming' || g.status === 'scheduled').length;
 
+        setAllPlayers(players);
+        setAllSchedule(schedule);
+
         setStats({
           players: players.length,
           highlights: highlightsRes.data?.length || 0,
@@ -72,36 +113,6 @@ export default function AdminDashboard() {
         });
 
         setRecentActivity((activityRes.data || []) as ActivityEntry[]);
-
-        // Performance chart data: wins/losses/draws by month
-        const completed = schedule.filter((g: any) => g.status === 'completed' && g.our_score != null && g.opponent_score != null);
-        const monthMap: Record<string, { wins: number; losses: number; draws: number }> = {};
-        completed.forEach((g: any) => {
-          const month = new Date(g.game_date).toLocaleDateString('en-US', { month: 'short' });
-          if (!monthMap[month]) monthMap[month] = { wins: 0, losses: 0, draws: 0 };
-          if (g.our_score > g.opponent_score) monthMap[month].wins++;
-          else if (g.our_score < g.opponent_score) monthMap[month].losses++;
-          else monthMap[month].draws++;
-        });
-        setPerformanceData(Object.entries(monthMap).map(([month, data]) => ({ month, ...data })));
-
-        // Game scores line chart
-        const scores = completed
-          .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime())
-          .map((g: any) => ({
-            game: `vs ${g.opponent}`,
-            'Goals For': g.our_score,
-            'Goals Against': g.opponent_score,
-          }));
-        setGameScores(scores);
-
-        // Top scorers
-        const scorers = players
-          .filter((p: any) => p.player_stats?.[0]?.goals > 0)
-          .sort((a: any, b: any) => (b.player_stats?.[0]?.goals || 0) - (a.player_stats?.[0]?.goals || 0))
-          .slice(0, 5)
-          .map((p: any) => ({ name: p.name.split(' ')[0], goals: p.player_stats?.[0]?.goals || 0, assists: p.player_stats?.[0]?.assists || 0 }));
-        setTopScorers(scorers);
 
         // Recent items
         const recent: RecentItem[] = [];
@@ -153,9 +164,23 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back! Here&apos;s an overview of your team.</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back! Here&apos;s an overview of your team.</p>
+          </div>
+          <select
+            value={selectedSeason.key}
+            onChange={(e) => {
+              const season = availableSeasons.find(s => s.key === e.target.value);
+              if (season) setSelectedSeason(season);
+            }}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium shadow-sm focus:ring-2 focus:ring-team-blue focus:border-team-blue"
+          >
+            {availableSeasons.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
         </div>
 
         {/* Stats Cards */}
@@ -179,7 +204,7 @@ export default function AdminDashboard() {
             {/* Season Performance */}
             {performanceData.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Season Performance</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{selectedSeason.label} Performance</h2>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={performanceData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -229,6 +254,47 @@ export default function AdminDashboard() {
             </ResponsiveContainer>
           </div>
         )}
+
+        {/* Next Upcoming Game */}
+        {!loading && (() => {
+          const now = new Date();
+          const upcoming = allSchedule
+            .filter((g: any) => (g.status === 'scheduled' || g.status === 'upcoming') && new Date(g.game_date) >= now)
+            .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
+          const next = upcoming[0];
+          if (!next) return null;
+          const gameDate = new Date(next.game_date);
+          const daysUntil = Math.ceil((gameDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          return (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Game</p>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    vs {next.opponent}
+                  </h2>
+                  <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    <span>{gameDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                    <span>{gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                    <span>{next.home_game ? 'Home' : 'Away'}</span>
+                  </div>
+                  {next.location && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{next.location}</p>
+                  )}
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="text-3xl font-bold text-team-blue dark:text-blue-400">{daysUntil}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{daysUntil === 1 ? 'day away' : 'days away'}</p>
+                  {upcoming.length > 1 && (
+                    <Link href="/admin/team?tab=schedule" className="text-xs text-team-blue hover:underline mt-1 inline-block">
+                      +{upcoming.length - 1} more scheduled
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Bottom Row: Quick Actions + Recent Items + Activity */}
         <div className="grid lg:grid-cols-3 gap-6">

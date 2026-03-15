@@ -23,6 +23,8 @@ import {
   updateAnnouncement,
   deleteAnnouncement,
   createAdminNotification,
+  getOpponents,
+  addOpponent,
   News,
   Event,
   Schedule,
@@ -30,6 +32,9 @@ import {
 } from "@/lib/supabase";
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
+import { getSeasonLabel, getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
+import AutocompleteInput from '@/components/admin/AutocompleteInput';
+import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
 
 type ActiveTab = 'news' | 'events' | 'schedule' | 'announcements';
 
@@ -50,17 +55,8 @@ interface AnnouncementForm extends Omit<Announcement, 'id' | 'created_at' | 'upd
 }
 
 function getSeasonFromDate(dateStr: string): string {
-  if (!dateStr) {
-    const now = new Date();
-    const month = now.getMonth(); // 0-indexed
-    const year = now.getFullYear();
-    return month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
-  }
-  const date = new Date(dateStr);
-  const month = date.getMonth();
-  const year = date.getFullYear();
-  // Aug (7) through Dec (11) = start of new season
-  return month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+  if (!dateStr) return getCurrentSeason().label;
+  return getSeasonLabel(dateStr);
 }
 
 function TeamAdminContent() {
@@ -91,8 +87,10 @@ function TeamAdminContent() {
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
-  const [showArchive, setShowArchive] = useState(false);
+  const [scheduleSeason, setScheduleSeason] = useState<Season>(getCurrentSeason());
+  const scheduleSeasons = getAvailableSeasons(8);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [opponents, setOpponents] = useState<string[]>([]);
 
   const [newsForm, setNewsForm] = useState<NewsForm>({
     title: '',
@@ -151,17 +149,19 @@ function TeamAdminContent() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [newsResult, eventsResult, scheduleResult, announcementsResult] = await Promise.all([
+      const [newsResult, eventsResult, scheduleResult, announcementsResult, opponentsResult] = await Promise.all([
         getNews(),
         getEvents(),
         getSchedule(),
-        getActiveAnnouncements()
+        getActiveAnnouncements(),
+        getOpponents()
       ]);
 
       if (!newsResult.error) setNews(newsResult.data || []);
       if (!eventsResult.error) setEvents(eventsResult.data || []);
       if (!scheduleResult.error) setSchedule(scheduleResult.data || []);
       if (!announcementsResult.error) setAnnouncements(announcementsResult.data || []);
+      if (!opponentsResult.error) setOpponents((opponentsResult.data || []).map(o => o.name));
     } catch (error: any) {
       toast.error(`Error loading data: ${error.message}`);
     } finally {
@@ -169,8 +169,8 @@ function TeamAdminContent() {
     }
   };
 
-  const handleFormChange = (form: any, setForm: Function, field: string, value: any) => {
-    setForm({ ...form, [field]: value });
+  const handleFormChange = (_form: any, setForm: Function, field: string, value: any) => {
+    setForm((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const generateSlug = (title: string) => {
@@ -200,6 +200,22 @@ function TeamAdminContent() {
         toast.success('News article created successfully!');
         logActivity('create', 'news', result.data?.[0]?.id || newsForm.title, userEmail, { title: newsForm.title });
         createAdminNotification({ type: 'news', title: 'News Published: ' + newsForm.title, message: newsForm.excerpt || newsForm.title, link: '/admin/team?tab=news' });
+
+        // Send newsletter to subscribers if published
+        if (formData.published) {
+          fetch('/api/newsletter/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'news',
+              title: newsForm.title,
+              excerpt: newsForm.excerpt,
+              slug: formData.slug,
+              featuredImage: newsForm.featured_image,
+              author: newsForm.author,
+            }),
+          }).catch(err => console.error('Newsletter send failed:', err));
+        }
       }
       
       setNewsForm({
@@ -271,6 +287,25 @@ function TeamAdminContent() {
         if (result.error) throw new Error(result.error.message);
         toast.success('Schedule item updated successfully!');
         logActivity('update', 'schedule', editingSchedule.id, userEmail, { opponent: scheduleForm.opponent });
+
+        // Send game result newsletter if scores were just added
+        const hadScores = editingSchedule.our_score != null && editingSchedule.opponent_score != null;
+        const hasScores = scheduleForm.our_score != null && scheduleForm.opponent_score != null;
+        if (!hadScores && hasScores && scheduleForm.status === 'completed') {
+          const gd = new Date(scheduleForm.game_date);
+          fetch('/api/newsletter/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'game_result',
+              opponent: scheduleForm.opponent,
+              ourScore: scheduleForm.our_score,
+              opponentScore: scheduleForm.opponent_score,
+              gameDate: gd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+            }),
+          }).catch(err => console.error('Newsletter send failed:', err));
+        }
+
         setEditingSchedule(null);
       } else {
         const result = await createScheduleItem(scheduleForm);
@@ -278,6 +313,22 @@ function TeamAdminContent() {
         toast.success('Schedule item created successfully!');
         logActivity('create', 'schedule', result.data?.[0]?.id || scheduleForm.opponent, userEmail, { opponent: scheduleForm.opponent });
         createAdminNotification({ type: 'schedule', title: 'New Game: vs ' + scheduleForm.opponent, message: scheduleForm.opponent + ' - ' + scheduleForm.game_date, link: '/admin/team?tab=schedule' });
+
+        // Send newsletter for new game
+        const gd = new Date(scheduleForm.game_date);
+        fetch('/api/newsletter/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'game_scheduled',
+            opponent: scheduleForm.opponent,
+            gameDate: gd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+            gameTime: gd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+            location: scheduleForm.location,
+            homeAway: scheduleForm.home_game ? 'Home Game' : 'Away Game',
+            gameType: scheduleForm.game_type,
+          }),
+        }).catch(err => console.error('Newsletter send failed:', err));
       }
       
       setScheduleForm({
@@ -318,6 +369,18 @@ function TeamAdminContent() {
         toast.success('Announcement created successfully!');
         logActivity('create', 'announcement', result.data?.[0]?.id || announcementForm.title, userEmail, { title: announcementForm.title });
         createAdminNotification({ type: 'announcement', title: 'New Announcement: ' + announcementForm.title, message: announcementForm.content || announcementForm.title, link: '/admin/team?tab=announcements' });
+
+        // Send newsletter for new announcement
+        fetch('/api/newsletter/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'announcement',
+            title: announcementForm.title,
+            content: announcementForm.content,
+            announcementType: announcementForm.announcement_type,
+          }),
+        }).catch(err => console.error('Newsletter send failed:', err));
       }
       
       setAnnouncementForm({
@@ -573,6 +636,7 @@ function TeamAdminContent() {
                   <input
                     type="datetime-local"
                     value={toLocalDateTimeString(newsForm.publish_date || '')}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                     onChange={(e) => handleFormChange(newsForm, setNewsForm, 'publish_date', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
@@ -641,6 +705,7 @@ function TeamAdminContent() {
                   <input
                     type="datetime-local"
                     value={eventForm.event_date}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'event_date', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                     required
@@ -652,6 +717,7 @@ function TeamAdminContent() {
                   <input
                     type="datetime-local"
                     value={eventForm.end_date || ''}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'end_date', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
@@ -755,20 +821,19 @@ function TeamAdminContent() {
               <form onSubmit={handleScheduleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opponent</label>
-                  <input
-                    type="text"
-                    list="opponent-suggestions"
+                  <AutocompleteInput
                     value={scheduleForm.opponent}
-                    onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'opponent', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => handleFormChange(scheduleForm, setScheduleForm, 'opponent', val)}
+                    suggestions={opponents}
+                    onNewEntry={async (name) => {
+                      const { error } = await addOpponent(name);
+                      if (!error && !opponents.includes(name)) {
+                        setOpponents(prev => [...prev, name].sort());
+                      }
+                    }}
                     required
                     placeholder="Type or select a team"
                   />
-                  <datalist id="opponent-suggestions">
-                    {[...new Set(schedule.map((g) => g.opponent))].sort().map((opp) => (
-                      <option key={opp} value={opp} />
-                    ))}
-                  </datalist>
                 </div>
 
                 <div>
@@ -776,6 +841,7 @@ function TeamAdminContent() {
                   <input
                     type="datetime-local"
                     value={scheduleForm.game_date}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                     onChange={(e) => {
                       const val = e.target.value;
                       setScheduleForm((prev) => ({ ...prev, game_date: val, season: getSeasonFromDate(val) }));
@@ -787,20 +853,12 @@ function TeamAdminContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
-                  <input
-                    type="text"
-                    list="location-suggestions"
+                  <PlacesAutocomplete
                     value={scheduleForm.location}
-                    onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'location', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => handleFormChange(scheduleForm, setScheduleForm, 'location', val)}
                     required
-                    placeholder="Type or select a location"
+                    placeholder="Search for a location"
                   />
-                  <datalist id="location-suggestions">
-                    {[...new Set(schedule.map((g) => g.location))].sort().map((loc) => (
-                      <option key={loc} value={loc} />
-                    ))}
-                  </datalist>
                 </div>
 
                 <div className="flex items-center">
@@ -969,6 +1027,7 @@ function TeamAdminContent() {
                   <input
                     type="datetime-local"
                     value={announcementForm.expires_at || ''}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
                     onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'expires_at', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   />
@@ -1011,12 +1070,28 @@ function TeamAdminContent() {
 
           {/* List Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 flex flex-col">
-            <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
-              {activeTab === 'news' && `News Articles (${news.length})`}
-              {activeTab === 'events' && `Events (${events.length})`}
-              {activeTab === 'schedule' && `Upcoming & This Month (${schedule.filter((g) => { const d = new Date(g.game_date); const now = new Date(); return (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) || d >= now; }).length})`}
-              {activeTab === 'announcements' && `Announcements (${announcements.length})`}
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg md:text-xl font-semibold text-center md:text-left">
+                {activeTab === 'news' && `News Articles (${news.length})`}
+                {activeTab === 'events' && `Events (${events.length})`}
+                {activeTab === 'schedule' && `Schedule`}
+                {activeTab === 'announcements' && `Announcements (${announcements.length})`}
+              </h2>
+              {activeTab === 'schedule' && (
+                <select
+                  value={scheduleSeason.key}
+                  onChange={(e) => {
+                    const s = scheduleSeasons.find(s => s.key === e.target.value);
+                    if (s) setScheduleSeason(s);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-team-blue focus:border-team-blue"
+                >
+                  {scheduleSeasons.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              )}
+            </div>
 
             <div className="space-y-3 md:space-y-4 flex-1 overflow-y-auto">
               {/* News List */}
@@ -1084,17 +1159,9 @@ function TeamAdminContent() {
 
               {/* Schedule List */}
               {activeTab === 'schedule' && (() => {
-                const now = new Date();
-                const currentMonth = now.getMonth();
-                const currentYear = now.getFullYear();
-                const currentGames = schedule.filter((g) => {
-                  const d = new Date(g.game_date);
-                  return (d.getMonth() === currentMonth && d.getFullYear() === currentYear) || d >= now;
-                });
-                const pastGames = schedule.filter((g) => {
-                  const d = new Date(g.game_date);
-                  return d < now && !(d.getMonth() === currentMonth && d.getFullYear() === currentYear);
-                });
+                const filteredGames = schedule
+                  .filter((g) => g.game_date && isDateInSeason(g.game_date, scheduleSeason))
+                  .sort((a, b) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
 
                 const renderGame = (game: typeof schedule[0]) => (
                   <div key={game.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
@@ -1135,29 +1202,10 @@ function TeamAdminContent() {
 
                 return (
                   <>
-                    {currentGames.length === 0 && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No upcoming games this month.</p>
+                    {filteredGames.length === 0 && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No games in {scheduleSeason.label}.</p>
                     )}
-                    {currentGames.map(renderGame)}
-
-                    {pastGames.length > 0 && (
-                      <div className="pt-2">
-                        <button
-                          onClick={() => setShowArchive(!showArchive)}
-                          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium w-full"
-                        >
-                          <svg className={`w-4 h-4 transition-transform ${showArchive ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                          Archive ({pastGames.length})
-                        </button>
-                        {showArchive && (
-                          <div className="space-y-3 mt-3">
-                            {pastGames.map(renderGame)}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {filteredGames.map(renderGame)}
                   </>
                 );
               })()}

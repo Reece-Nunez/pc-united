@@ -494,11 +494,31 @@ function PlayersAdminContent() {
                     onChange={(e) => handleNewPlayerChange('position', e.target.value)}
                     className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                   >
-                    <option value="Forward">Forward</option>
-                    <option value="Midfielder">Midfielder</option>
-                    <option value="Defender">Defender</option>
-                    <option value="Goalkeeper">Goalkeeper</option>
-                    <option value="Winger">Winger</option>
+                    <optgroup label="General">
+                      <option value="Forward">Forward</option>
+                      <option value="Midfielder">Midfielder</option>
+                      <option value="Defender">Defender</option>
+                      <option value="Goalkeeper">Goalkeeper</option>
+                    </optgroup>
+                    <optgroup label="Forwards">
+                      <option value="Striker">Striker</option>
+                      <option value="Center Forward">Center Forward</option>
+                      <option value="Left Wing">Left Wing</option>
+                      <option value="Right Wing">Right Wing</option>
+                    </optgroup>
+                    <optgroup label="Midfielders">
+                      <option value="Center Midfielder">Center Midfielder</option>
+                      <option value="Left Midfielder">Left Midfielder</option>
+                      <option value="Right Midfielder">Right Midfielder</option>
+                      <option value="Attacking Midfielder">Attacking Midfielder</option>
+                      <option value="Defensive Midfielder">Defensive Midfielder</option>
+                    </optgroup>
+                    <optgroup label="Defenders">
+                      <option value="Center Back">Center Back</option>
+                      <option value="Left Back">Left Back</option>
+                      <option value="Right Back">Right Back</option>
+                      <option value="Sweeper">Sweeper</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div>
@@ -701,11 +721,31 @@ function PlayersAdminContent() {
                           onChange={(e) => handleFormChange('position', e.target.value)}
                           className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
                         >
-                          <option value="Forward">Forward</option>
-                          <option value="Midfielder">Midfielder</option>
-                          <option value="Defender">Defender</option>
-                          <option value="Goalkeeper">Goalkeeper</option>
-                          <option value="Winger">Winger</option>
+                          <optgroup label="General">
+                            <option value="Forward">Forward</option>
+                            <option value="Midfielder">Midfielder</option>
+                            <option value="Defender">Defender</option>
+                            <option value="Goalkeeper">Goalkeeper</option>
+                          </optgroup>
+                          <optgroup label="Forwards">
+                            <option value="Striker">Striker</option>
+                            <option value="Center Forward">Center Forward</option>
+                            <option value="Left Wing">Left Wing</option>
+                            <option value="Right Wing">Right Wing</option>
+                          </optgroup>
+                          <optgroup label="Midfielders">
+                            <option value="Center Midfielder">Center Midfielder</option>
+                            <option value="Left Midfielder">Left Midfielder</option>
+                            <option value="Right Midfielder">Right Midfielder</option>
+                            <option value="Attacking Midfielder">Attacking Midfielder</option>
+                            <option value="Defensive Midfielder">Defensive Midfielder</option>
+                          </optgroup>
+                          <optgroup label="Defenders">
+                            <option value="Center Back">Center Back</option>
+                            <option value="Left Back">Left Back</option>
+                            <option value="Right Back">Right Back</option>
+                            <option value="Sweeper">Sweeper</option>
+                          </optgroup>
                         </select>
                       </div>
                       <div className="grid grid-cols-4 gap-2">
