@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
-import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses } from '@/lib/supabase';
+import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses, getParentPlayers, linkParentToPlayer, unlinkParentFromPlayer } from '@/lib/supabase';
 import { getRecentActivity } from '@/lib/audit';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
@@ -46,6 +46,10 @@ export default function AdminDashboard() {
   const [financials, setFinancials] = useState({ revenue: 0, expenses: 0 });
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [linkedPlayerIds, setLinkedPlayerIds] = useState<number[]>([]);
+  const [showPlayerSelector, setShowPlayerSelector] = useState(false);
+  const [linkingPlayer, setLinkingPlayer] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const availableSeasons = useMemo(() => getAvailableSeasons(8), []);
   const [selectedSeason, setSelectedSeason] = useState<Season>(getCurrentSeason());
@@ -91,12 +95,22 @@ export default function AdminDashboard() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         setUserRole(user?.user_metadata?.role || null);
+        if (user?.id) setUserId(user.id);
       } catch (error) {
         console.error('Error fetching user role:', error);
       }
     }
     fetchUserRole();
   }, []);
+
+  useEffect(() => {
+    if (!userId || userRole !== 'parent') return;
+    getParentPlayers(userId).then(({ data }) => {
+      if (data) {
+        setLinkedPlayerIds(data.map((d: any) => d.player_id));
+      }
+    });
+  }, [userId, userRole]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -227,6 +241,20 @@ export default function AdminDashboard() {
     return allPlayers.filter((p: any) => p.status === 'active');
   }, [allPlayers]);
 
+  const handleLinkPlayer = async (playerId: number) => {
+    if (!userId) return;
+    setLinkingPlayer(true);
+    await linkParentToPlayer(userId, playerId);
+    setLinkedPlayerIds((prev) => [...prev, playerId]);
+    setLinkingPlayer(false);
+  };
+
+  const handleUnlinkPlayer = async (playerId: number) => {
+    if (!userId) return;
+    await unlinkParentFromPlayer(userId, playerId);
+    setLinkedPlayerIds((prev) => prev.filter((id) => id !== playerId));
+  };
+
   return (
     <AdminLayout>
       {isParent ? (
@@ -236,6 +264,116 @@ export default function AdminDashboard() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Welcome, Parent!</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Here&apos;s what&apos;s happening with the team.</p>
           </div>
+
+          {/* Player Selector Banner - show when no players linked */}
+          {!loading && linkedPlayerIds.length === 0 && !showPlayerSelector && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Select Your Player(s)</h2>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">Link your child to your account to see their stats and highlights on your dashboard.</p>
+                </div>
+                <button
+                  onClick={() => setShowPlayerSelector(true)}
+                  className="px-4 py-2 bg-team-blue hover:bg-blue-800 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
+                >
+                  Select Players
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Player Selector Modal/Panel */}
+          {showPlayerSelector && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8 border-2 border-team-blue">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Select Your Player(s)</h2>
+                <button
+                  onClick={() => setShowPlayerSelector(false)}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  {linkedPlayerIds.length > 0 ? 'Done' : 'Skip for now'}
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Tap to select your child(ren). You can change this anytime.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {allPlayers
+                  .filter((p: any) => p.status === 'active')
+                  .sort((a: any, b: any) => a.name.localeCompare(b.name))
+                  .map((player: any) => {
+                    const isLinked = linkedPlayerIds.includes(player.id);
+                    return (
+                      <button
+                        key={player.id}
+                        onClick={() => isLinked ? handleUnlinkPlayer(player.id) : handleLinkPlayer(player.id)}
+                        disabled={linkingPlayer}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                          isLinked
+                            ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                        }`}
+                      >
+                        {player.photo_url ? (
+                          <img src={player.photo_url} alt={player.name} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-sm">
+                            {player.jersey_number || '?'}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{player.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">#{player.jersey_number} &bull; {player.position || 'TBD'}</p>
+                        </div>
+                        {isLinked && (
+                          <svg className="w-5 h-5 text-team-blue shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* Linked Players Card - show when players are linked */}
+          {!loading && linkedPlayerIds.length > 0 && !showPlayerSelector && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Player{linkedPlayerIds.length > 1 ? 's' : ''}</h2>
+                <button
+                  onClick={() => setShowPlayerSelector(true)}
+                  className="text-sm text-team-blue hover:underline"
+                >
+                  Edit
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {allPlayers
+                  .filter((p: any) => linkedPlayerIds.includes(p.id))
+                  .map((player: any) => (
+                    <div key={player.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                      {player.photo_url ? (
+                        <img src={player.photo_url} alt={player.name} className="w-12 h-12 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-team-blue/10 dark:bg-blue-900/30 flex items-center justify-center text-team-blue dark:text-blue-400 font-bold">
+                          {player.jersey_number || '?'}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-white">{player.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">#{player.jersey_number} &bull; {player.position || 'TBD'}</p>
+                        {player.player_stats?.[0] && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                            {player.player_stats[0].goals || 0}G &bull; {player.player_stats[0].assists || 0}A &bull; {player.player_stats[0].games_played || 0} games
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {/* Parent Stat Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">

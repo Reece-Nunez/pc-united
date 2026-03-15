@@ -1232,3 +1232,38 @@ export async function deleteCoach(id: number) {
   return { error };
 }
 
+// ─── Parent-Player Linking ──────────────────────────────────────────
+
+export async function getParentPlayers(userId: string) {
+  const { data, error } = await supabase
+    .from('parent_players')
+    .select('*, players(id, name, jersey_number, position, photo_url, status)')
+    .eq('user_id', userId);
+  return { data, error };
+}
+
+export async function linkParentToPlayer(userId: string, playerId: number) {
+  const { data, error } = await supabase
+    .from('parent_players')
+    .upsert([{ user_id: userId, player_id: playerId }], { onConflict: 'user_id,player_id' })
+    .select();
+  return { data, error };
+}
+
+export async function unlinkParentFromPlayer(userId: string, playerId: number) {
+  const { error } = await supabase
+    .from('parent_players')
+    .delete()
+    .eq('user_id', userId)
+    .eq('player_id', playerId);
+  return { error };
+}
+
+export async function getPlayerParents(playerId: number) {
+  const { data, error } = await supabase
+    .from('parent_players')
+    .select('user_id, created_at')
+    .eq('player_id', playerId);
+  return { data, error };
+}
+
