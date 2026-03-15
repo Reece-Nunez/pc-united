@@ -53,6 +53,7 @@ function relativeTime(dateStr: string) {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -74,6 +75,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     const saved = localStorage.getItem('admin-dark-mode');
     if (saved === 'true') setDarkMode(true);
+
+    const savedCollapsed = localStorage.getItem('admin-sidebar-collapsed');
+    if (savedCollapsed === 'true') setCollapsed(true);
 
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -99,6 +103,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const next = !darkMode;
     setDarkMode(next);
     localStorage.setItem('admin-dark-mode', next.toString());
+  };
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem('admin-sidebar-collapsed', next.toString());
   };
 
   const handleLogout = async () => {
@@ -219,6 +229,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       ),
     },
     {
+      name: 'Coaches',
+      href: '/admin/coaches',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      ),
+    },
+    {
       name: 'Highlights',
       href: '/admin/highlights',
       icon: (
@@ -303,7 +322,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ];
 
   const isParent = userRole === 'parent';
-  const parentAllowedHrefs = ['/admin', '/admin/gallery', '/admin/highlights', '/admin/players', '/admin/notifications'];
+  const parentAllowedHrefs = ['/admin', '/admin/gallery', '/admin/highlights', '/admin/players', '/admin/coaches', '/admin/notifications'];
 
   const filteredNavItems = isParent
     ? navItems.filter((item) => parentAllowedHrefs.includes(item.href))
@@ -346,19 +365,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Sidebar */}
         <aside className={`
           fixed inset-y-0 left-0 z-40
-          w-64 bg-team-blue text-white
-          transform transition-transform duration-300 ease-in-out
+          bg-team-blue text-white
+          transform transition-all duration-300 ease-in-out
           lg:translate-x-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           flex flex-col
+          ${collapsed ? 'lg:w-16 w-64' : 'w-64'}
+          overflow-hidden
         `}>
           {/* Navigation */}
           <nav className="px-3 py-4 mt-16 lg:mt-0 overflow-y-auto h-full">
             <div className="hidden lg:flex items-center justify-center gap-2 mb-4 py-1">
-              <Image src="/logo.png" alt="PC United" width={40} height={40} />
-              <Link href="/admin" className="text-base font-bold">PC United Admin</Link>
+              <Image src="/logo.png" alt="PC United" width={collapsed ? 28 : 40} height={collapsed ? 28 : 40} className="transition-all duration-300" />
+              {!collapsed && <Link href="/admin" className="text-base font-bold">PC United Admin</Link>}
             </div>
-            <div className="text-[11px] uppercase text-blue-300 font-semibold mb-2 px-2">Navigation</div>
+            {!collapsed && <div className="text-[11px] uppercase text-blue-300 font-semibold mb-2 px-2">Navigation</div>}
             {filteredNavItems.map((item) => {
               const isActive = pathname === item.href ||
                 (item.href !== '/admin' && pathname.startsWith(item.href));
@@ -367,18 +388,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   key={item.name}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
+                  title={collapsed ? item.name : undefined}
                   className={`
-                    flex items-center space-x-2.5 px-2.5 py-2 rounded-lg transition-colors text-sm
+                    flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg transition-colors text-sm relative
                     ${isActive
                       ? 'bg-blue-700 text-white'
                       : 'text-blue-100 hover:bg-blue-700/50'
                     }
                   `}
                 >
-                  {item.icon}
-                  <span className="font-medium flex-1">{item.name}</span>
+                  <span className="shrink-0">{item.icon}</span>
+                  <span className={`font-medium flex-1 ${collapsed ? 'lg:hidden' : ''}`}>{item.name}</span>
                   {item.badge && (
-                    <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                    <span className={`bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center ${collapsed ? 'lg:absolute lg:-top-1 lg:-right-1 lg:px-1 lg:min-w-[18px] lg:text-[10px]' : ''}`}>
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
@@ -386,64 +408,82 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               );
             })}
 
-            <div className="text-[10px] uppercase text-blue-300 font-semibold mt-4 mb-2 px-2">Quick Actions</div>
-            <div className="space-y-1.5">
-            {quickActions.map((action) => (
-              <Link
-                key={action.name}
-                href={action.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center space-x-2.5 px-2.5 py-2 rounded-lg transition-colors text-white text-sm
-                  ${action.color}
-                `}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>{action.name}</span>
-              </Link>
-            ))}
+            <div className={`${collapsed ? 'lg:hidden' : ''}`}>
+              <div className="text-[10px] uppercase text-blue-300 font-semibold mt-4 mb-2 px-2">Quick Actions</div>
+              <div className="space-y-1.5">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.name}
+                  href={action.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center space-x-2.5 px-2.5 py-2 rounded-lg transition-colors text-white text-sm
+                    ${action.color}
+                  `}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>{action.name}</span>
+                </Link>
+              ))}
+              </div>
             </div>
 
-            <div className="text-[10px] uppercase text-blue-300 font-semibold mt-4 mb-2 px-2">Settings</div>
+            {!collapsed && <div className="text-[10px] uppercase text-blue-300 font-semibold mt-4 mb-2 px-2">Settings</div>}
+            {collapsed && <div className="hidden lg:block mt-4" />}
             <button
               onClick={toggleDarkMode}
-              className="flex items-center space-x-2.5 px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors w-full text-sm"
+              title={collapsed ? (darkMode ? 'Light Mode' : 'Dark Mode') : undefined}
+              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors w-full text-sm`}
             >
               {darkMode ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
-              <span className="font-medium">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+              <span className={`font-medium ${collapsed ? 'lg:hidden' : ''}`}>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
             </button>
 
             <Link
               href="/"
-              className="flex items-center space-x-2.5 px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors text-sm"
+              title={collapsed ? 'Back to Site' : undefined}
+              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors text-sm`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span className="font-medium">Back to Site</span>
+              <span className={`font-medium ${collapsed ? 'lg:hidden' : ''}`}>Back to Site</span>
             </Link>
 
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-2.5 px-2.5 py-2 rounded-lg text-red-300 hover:bg-red-500/20 transition-colors w-full text-sm"
+              title={collapsed ? 'Logout' : undefined}
+              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-red-300 hover:bg-red-500/20 transition-colors w-full text-sm`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              <span className="font-medium">Logout</span>
+              <span className={`font-medium ${collapsed ? 'lg:hidden' : ''}`}>Logout</span>
             </button>
+
           </nav>
         </aside>
+
+        {/* Floating collapse toggle - desktop only */}
+        <button
+          onClick={toggleCollapsed}
+          className={`hidden lg:flex fixed z-50 top-1/2 -translate-y-1/2 items-center justify-center w-6 h-12 bg-team-blue hover:bg-blue-700 text-blue-200 hover:text-white rounded-r-md shadow-md transition-all duration-300 ${collapsed ? 'left-16' : 'left-64'}`}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <svg className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
         {/* Overlay for mobile */}
         {sidebarOpen && (
@@ -454,7 +494,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         )}
 
         {/* Main Content */}
-        <main className={`flex-1 min-h-screen lg:ml-64 overflow-x-hidden ${darkMode ? 'bg-gray-900' : ''}`}>
+        <main className={`flex-1 min-h-screen overflow-x-hidden transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} ${darkMode ? 'bg-gray-900' : ''}`}>
           {children}
         </main>
       </div>

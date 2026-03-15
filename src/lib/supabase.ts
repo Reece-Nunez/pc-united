@@ -1156,3 +1156,74 @@ export async function getSponsorsNeedingRenewal() {
   return { data, error };
 }
 
+// ─── Coaches ────────────────────────────────────────────────────────
+
+export interface Coach {
+  id: number;
+  user_email?: string;
+  name: string;
+  title: string;
+  photo_url?: string;
+  bio?: string;
+  experience?: string;
+  certifications: string[];
+  specialties: string[];
+  philosophy?: string;
+  email?: string;
+  phone?: string;
+  license_level?: string;
+  years_coaching?: number;
+  age_groups?: string;
+  background_check: boolean;
+  first_aid_certified: boolean;
+  concussion_trained: boolean;
+  safesport_certified: boolean;
+  sort_order: number;
+  active: boolean;
+  role: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function getCoaches() {
+  const { data, error } = await supabase
+    .from('coaches')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  return { data: data as Coach[] | null, error };
+}
+
+export async function getActiveCoaches() {
+  const { data, error } = await supabase
+    .from('coaches')
+    .select('*')
+    .eq('active', true)
+    .order('sort_order', { ascending: true });
+  return { data: data as Coach[] | null, error };
+}
+
+export async function createCoach(coach: Omit<Coach, 'id' | 'created_at' | 'updated_at'>) {
+  const { data, error } = await supabase
+    .from('coaches')
+    .insert([coach])
+    .select();
+  return { data, error };
+}
+
+export async function updateCoach(id: number, updates: Partial<Coach>) {
+  const { data, error } = await supabase
+    .from('coaches')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+  return { data, error };
+}
+
+export async function deleteCoach(id: number) {
+  const { error } = await supabase
+    .from('coaches')
+    .delete()
+    .eq('id', id);
+  return { error };
+}
+
