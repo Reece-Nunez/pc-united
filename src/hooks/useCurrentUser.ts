@@ -6,7 +6,7 @@ export function useCurrentUser() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: any) => {
       setEmail(data.user?.email ?? '');
     });
   }, []);

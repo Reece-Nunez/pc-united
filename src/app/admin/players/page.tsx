@@ -124,7 +124,7 @@ function PlayersAdminContent() {
   useEffect(() => {
     fetchPlayers();
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(({ data: { user } }: any) => {
       setUserRole(user?.user_metadata?.role || null);
       setUserEmail(user?.email || '');
     });

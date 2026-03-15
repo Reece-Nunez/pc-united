@@ -10,7 +10,12 @@ const isSupabaseConfigured =
   !supabaseUrl.includes('your_supabase_project_url') &&
   !supabaseAnonKey.includes('your_supabase_anon_key');
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
 
 // Types for the registration form based on your database schema
 export interface Registration {

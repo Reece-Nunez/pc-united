@@ -80,7 +80,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     if (savedCollapsed === 'true') setCollapsed(true);
 
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(({ data: { user } }: any) => {
       setUserRole(user?.user_metadata?.role || null);
     });
 

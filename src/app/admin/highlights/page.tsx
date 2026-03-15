@@ -65,7 +65,7 @@ function HighlightsAdminContent() {
   useEffect(() => {
     fetchData();
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(({ data: { user } }: any) => {
       setUserEmail(user?.email || '');
     });
   }, []);

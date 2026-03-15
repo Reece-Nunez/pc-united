@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-browser';
@@ -9,12 +9,45 @@ import toast from 'react-hot-toast';
 import ToastProvider from '@/components/ToastProvider';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [showEmailNotConfirmed, setShowEmailNotConfirmed] = useState(false);
+  const [exchangingCode, setExchangingCode] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle auth code exchange from email confirmation
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (!code) return;
+
+    setExchangingCode(true);
+    const supabase = createClient();
+    supabase.auth.exchangeCodeForSession(code).then(({ error }: any) => {
+      setExchangingCode(false);
+      if (error) {
+        toast.error('Email confirmation failed. Please try signing in.');
+      } else {
+        toast.success('Email confirmed! Redirecting...');
+        router.push('/admin');
+        router.refresh();
+      }
+    });
+  }, [searchParams, router]);
 
   const handleResendConfirmation = async () => {
     setResending(true);
@@ -81,6 +114,14 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-white">Sign In</h1>
           <p className="text-blue-200 mt-1">Ponca City United FC</p>
         </div>
+
+        {/* Code exchange loading */}
+        {exchangingCode && (
+          <div className="bg-white rounded-xl shadow-2xl p-8 text-center mb-5">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue mx-auto mb-4" />
+            <p className="text-gray-600">Confirming your email...</p>
+          </div>
+        )}
 
         {/* Email not confirmed banner */}
         {showEmailNotConfirmed && (

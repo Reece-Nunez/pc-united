@@ -86,7 +86,7 @@ export default function ExpensesPage() {
   useEffect(() => {
     fetchData();
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: any) => {
       if (data?.user?.email) setUserEmail(data.user.email);
     });
   }, []);
