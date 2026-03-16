@@ -2,7 +2,7 @@ import AnimateOnScroll, { StaggerContainer, StaggerItem } from './AnimateOnScrol
 
 const testimonials = [
   {
-    quote: "My son has grown so much since joining Ponca City United. The coaches are amazing and truly care about each player's development — not just on the field, but as people.",
+    quote: "PC team has been such an amazing team for my son. Not only are they a team but also fam! They work together on the field and off the field like fam. Well put together, very experienced team! Coaches are highly respected and very involved with every kiddo.",
     name: "Parent",
     role: "U10 Team Parent",
   },
