@@ -356,10 +356,14 @@ function PlayersAdminContent() {
           throw new Error(presignedData.error || 'Failed to get upload URL');
         }
 
-        // Upload to S3
+        // Upload to S3 - must include all headers that were signed in the presigned URL
         const uploadResponse = await fetch(presignedData.presignedUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': file.type },
+          headers: {
+            'Content-Type': file.type,
+            'Content-Disposition': 'inline',
+            'Cache-Control': 'max-age=31536000',
+          },
           body: file
         });
 

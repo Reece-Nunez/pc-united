@@ -61,11 +61,13 @@ export default function ImageUpload({
         throw new Error(presignedData.error || 'Failed to get upload URL');
       }
 
-      // Upload directly to S3 using presigned URL
+      // Upload directly to S3 using presigned URL - must include all signed headers
       const uploadResponse = await fetch(presignedData.presignedUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': file.type,
+          'Content-Disposition': 'inline',
+          'Cache-Control': 'max-age=31536000',
         },
         body: file
       });
