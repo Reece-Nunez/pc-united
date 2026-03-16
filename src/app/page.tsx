@@ -11,6 +11,8 @@ import Footer from "@/components/Footer";
 import { generateMetadata, generateSportsOrganizationLD } from "@/components/SEO";
 import { Metadata } from "next";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = generateMetadata({
   title: 'Ponca City United FC - Premier Youth Soccer Club in Oklahoma',
   description: 'Join Ponca City United FC, the premier youth soccer club in Ponca City, Oklahoma. Professional coaching, competitive teams, and comprehensive player development programs for all ages and skill levels.',

@@ -5,6 +5,8 @@ import SponsorshipForm from "./SponsorshipForm";
 import { generateMetadata } from "@/components/SEO";
 import { Metadata } from "next";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = generateMetadata({
   title: 'Friends & Sponsors - Ponca City United FC',
   description: 'Meet the friends, partners, and sponsors who support Ponca City United FC. Learn how you can partner with our youth soccer program in Oklahoma.',
