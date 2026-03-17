@@ -115,10 +115,22 @@ export default function Header() {
               </Link>
             ))}
 
+            {/* Login */}
+            <Link
+              href="/admin/login"
+              className={`ml-4 font-semibold text-sm rounded-full transition-all duration-300 ${
+                pathname === '/admin/login'
+                  ? 'bg-white text-team-blue px-5 py-2'
+                  : 'border border-white/40 text-white hover:bg-white/10 px-5 py-2'
+              }`}
+            >
+              Login
+            </Link>
+
             {/* Register CTA */}
             <Link
               href="/register"
-              className={`ml-4 font-semibold text-sm rounded-full transition-all duration-300 ${
+              className={`font-semibold text-sm rounded-full transition-all duration-300 ${
                 pathname === '/register'
                   ? 'bg-white text-team-blue px-5 py-2'
                   : 'bg-team-red hover:bg-red-600 text-white px-5 py-2 hover:shadow-lg hover:shadow-red-500/25'
@@ -181,8 +193,15 @@ export default function Header() {
                 </Link>
               ))}
               <Link
+                href="/admin/login"
+                className="block mt-3 text-center border border-white/40 text-white hover:bg-white/10 font-semibold py-3 rounded-lg transition-colors duration-200"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Login
+              </Link>
+              <Link
                 href="/register"
-                className="block mt-3 text-center bg-team-red hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition-colors duration-200"
+                className="block mt-2 text-center bg-team-red hover:bg-red-600 text-white font-semibold py-3 rounded-lg transition-colors duration-200"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Register Now
