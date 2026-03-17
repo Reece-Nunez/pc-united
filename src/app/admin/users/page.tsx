@@ -6,6 +6,8 @@ import AdminLayout from '@/components/AdminLayout';
 import { createAdminNotification } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { SkeletonTable } from '@/components/admin/Skeleton';
 
 interface AdminUser {
   id: string;
@@ -115,11 +117,14 @@ export default function UsersAdminPage() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">User Management</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-8">Approve new signups and manage admin access.</p>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading users...</div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <SkeletonTable rows={6} />
+          </div>
         ) : (
           <>
             {/* Pending Approvals */}

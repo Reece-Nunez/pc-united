@@ -75,9 +75,10 @@ export default function ContactForm() {
             type="text"
             name="name"
             required
+            autoComplete="name"
             value={formData.name}
             onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none focus:ring-2 focus:ring-team-blue/30"
           />
         </div>
         <div>
@@ -86,9 +87,10 @@ export default function ContactForm() {
             type="email"
             name="email"
             required
+            autoComplete="email"
             value={formData.email}
             onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none focus:ring-2 focus:ring-team-blue/30"
           />
         </div>
         <div>
@@ -96,9 +98,10 @@ export default function ContactForm() {
           <input
             type="tel"
             name="phone"
+            autoComplete="tel"
             value={formData.phone}
             onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none focus:ring-2 focus:ring-team-blue/30"
           />
         </div>
         <div>
@@ -150,7 +153,7 @@ export default function ContactForm() {
         <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
 
         {status === 'error' && errorMessage && (
-          <p className="text-red-600 text-sm">{errorMessage}</p>
+          <p role="alert" className="text-red-600 text-sm">{errorMessage}</p>
         )}
 
         <button

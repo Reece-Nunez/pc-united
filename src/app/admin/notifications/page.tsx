@@ -11,6 +11,7 @@ import {
   deleteAdminNotification,
   AdminNotification,
 } from '@/lib/supabase';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 interface AdminUser {
   id: string;
@@ -186,6 +187,7 @@ export default function NotificationsPage() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Notifications</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-8">View alerts and manage email notification preferences.</p>
 

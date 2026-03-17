@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { getRecentActivity } from '@/lib/audit';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 interface ActivityEntry {
   id: number;
@@ -237,6 +238,7 @@ function Content() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">

@@ -17,7 +17,7 @@ export default function About() {
 
         <StaggerContainer className="grid md:grid-cols-3 gap-8">
           <StaggerItem>
-            <div className="bg-white rounded-lg p-8 shadow-lg text-center">
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center">
               <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
                 <ViewfinderCircleIcon className="w-7 h-7 text-white" />
               </div>
@@ -29,7 +29,7 @@ export default function About() {
           </StaggerItem>
 
           <StaggerItem>
-            <div className="bg-white rounded-lg p-8 shadow-lg text-center">
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center">
               <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
                 <TrophyIcon className="w-7 h-7 text-white" />
               </div>
@@ -41,7 +41,7 @@ export default function About() {
           </StaggerItem>
 
           <StaggerItem>
-            <div className="bg-white rounded-lg p-8 shadow-lg text-center">
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center">
               <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
                 <UserGroupIcon className="w-7 h-7 text-white" />
               </div>

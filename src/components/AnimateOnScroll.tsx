@@ -1,9 +1,21 @@
 'use client';
 
 import { motion, type Variant } from 'framer-motion';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 
 type AnimationVariant = 'fadeInUp' | 'fadeIn' | 'slideInLeft' | 'slideInRight';
+
+function usePrefersReducedMotion() {
+  const [prefersReduced, setPrefersReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReduced(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return prefersReduced;
+}
 
 const variants: Record<AnimationVariant, { hidden: Variant; visible: Variant }> = {
   fadeInUp: {
@@ -39,7 +51,12 @@ export default function AnimateOnScroll({
   duration = 0.5,
   className = '',
 }: AnimateOnScrollProps) {
+  const prefersReduced = usePrefersReducedMotion();
   const selectedVariant = variants[variant];
+
+  if (prefersReduced) {
+    return <div className={className}>{children}</div>;
+  }
 
   return (
     <motion.div
@@ -64,6 +81,12 @@ export function StaggerContainer({
   className?: string;
   staggerDelay?: number;
 }) {
+  const prefersReduced = usePrefersReducedMotion();
+
+  if (prefersReduced) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
       initial="hidden"
@@ -91,6 +114,12 @@ export function StaggerItem({
   children: ReactNode;
   className?: string;
 }) {
+  const prefersReduced = usePrefersReducedMotion();
+
+  if (prefersReduced) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
       variants={variants.fadeInUp}

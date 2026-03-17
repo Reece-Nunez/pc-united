@@ -14,6 +14,7 @@ import {
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import ImageUpload from '@/components/ImageUpload';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 const TITLE_OPTIONS = ['Head Coach', 'Assistant Coach', 'Goalkeeper Coach', 'Fitness Coach', 'Volunteer'];
 const ROLE_OPTIONS = ['head_coach', 'assistant_coach', 'goalkeeper_coach', 'fitness_coach', 'volunteer'];
@@ -569,6 +570,7 @@ export default function CoachesAdminPage() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>

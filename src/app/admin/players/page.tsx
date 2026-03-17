@@ -17,6 +17,7 @@ import {
 } from "@/lib/supabase";
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 interface AdminPlayer extends Player {
   player_stats?: Array<{
@@ -411,6 +412,7 @@ function PlayersAdminContent() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>

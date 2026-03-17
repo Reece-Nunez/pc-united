@@ -9,6 +9,7 @@ import { getGalleryImagesWithTags, createGalleryImage, deleteGalleryImage, Galle
 import { uploadToS3Direct } from '@/lib/s3';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/lib/audit';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 interface TaggedImage extends GalleryImage {
   gallery_image_tags?: {
@@ -184,6 +185,7 @@ function Content() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Gallery Manager</h1>
 
         {/* Upload Form */}

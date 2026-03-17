@@ -8,6 +8,7 @@ import { getRecentActivity } from '@/lib/audit';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
+import { SkeletonCard } from '@/components/admin/Skeleton';
 
 interface DashboardStats {
   players: number;
@@ -376,19 +377,27 @@ export default function AdminDashboard() {
           )}
 
           {/* Parent Stat Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-            {parentStatCards.map((stat) => (
-              <Link
-                key={stat.label}
-                href={stat.link}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4"
-              >
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{loading ? '...' : stat.value}</p>
-                <div className={`h-1 w-8 ${stat.color} rounded-full mt-2`} />
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+              {parentStatCards.map((stat) => (
+                <Link
+                  key={stat.label}
+                  href={stat.link}
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4"
+                >
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                  <div className={`h-1 w-8 ${stat.color} rounded-full mt-2`} />
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* Next Game Card (same as admin) */}
           {!loading && (() => {
@@ -620,19 +629,27 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
-          {statCards.map((stat) => (
-            <Link
-              key={stat.label}
-              href={stat.link}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4"
-            >
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{loading ? '...' : stat.value}</p>
-              <div className={`h-1 w-8 ${stat.color} rounded-full mt-2`} />
-            </Link>
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+            {statCards.map((stat) => (
+              <Link
+                key={stat.label}
+                href={stat.link}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4"
+              >
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                <div className={`h-1 w-8 ${stat.color} rounded-full mt-2`} />
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Financial Overview */}
         {!loading && (

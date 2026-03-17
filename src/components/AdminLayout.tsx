@@ -140,7 +140,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <div ref={notifRef} className={`relative ${className}`}>
       <button
         onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) fetchNotifications(); }}
-        className="relative p-2 rounded-lg hover:bg-blue-700 transition-colors"
+        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+        className="relative p-2 rounded-lg hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-team-blue focus:outline-none"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -157,7 +158,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
             <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Notifications</h3>
             {unreadCount > 0 && (
-              <button onClick={handleMarkAllRead} className="text-xs text-team-blue hover:underline">
+              <button onClick={handleMarkAllRead} className="text-xs text-team-blue hover:underline focus:ring-2 focus:ring-team-blue focus:outline-none focus:rounded">
                 Mark all read
               </button>
             )}
@@ -170,7 +171,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <button
                   key={notif.id}
                   onClick={() => handleNotifClick(notif)}
-                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-start gap-3 ${
+                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-start gap-3 focus:ring-2 focus:ring-inset focus:ring-team-blue focus:outline-none ${
                     !notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
                   }`}
                 >
@@ -192,7 +193,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Link
             href="/admin/notifications"
             onClick={() => setNotifOpen(false)}
-            className="block text-center text-sm text-team-blue hover:bg-gray-50 dark:hover:bg-gray-700/50 py-3 border-t border-gray-100 dark:border-gray-700 font-medium"
+            className="block text-center text-sm text-team-blue hover:bg-gray-50 dark:hover:bg-gray-700/50 py-3 border-t border-gray-100 dark:border-gray-700 font-medium focus:ring-2 focus:ring-team-blue focus:outline-none"
           >
             View all notifications
           </Link>
@@ -343,14 +344,39 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-gray-100'}`}>
+      {/* Skip to main content link */}
+      <a
+        href="#admin-main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:bg-white focus:text-team-blue focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+
       {/* Mobile Header */}
       <div className="lg:hidden bg-team-blue text-white p-4 flex items-center justify-between sticky top-0 z-50">
-        <Link href="/admin" className="text-xl font-bold">PC United Admin</Link>
+        <Link href="/admin" className="text-xl font-bold focus:ring-2 focus:ring-team-blue focus:outline-none focus:rounded">PC United Admin</Link>
         <div className="flex items-center gap-1">
           {!isParent && <NotifBell />}
           <button
+            onClick={toggleDarkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-2 rounded-lg hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-team-blue focus:outline-none"
+          >
+            {darkMode ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
+          <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover:bg-blue-700 transition-colors"
+            aria-label={sidebarOpen ? 'Close sidebar menu' : 'Open sidebar menu'}
+            aria-expanded={sidebarOpen}
+            className="p-2 rounded-lg hover:bg-blue-700 transition-colors focus:ring-2 focus:ring-team-blue focus:outline-none"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {sidebarOpen ? (
@@ -376,7 +402,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           overflow-hidden
         `}>
           {/* Navigation */}
-          <nav className="px-3 py-4 mt-16 lg:mt-0 overflow-y-auto h-full">
+          <nav role="navigation" aria-label="Admin sidebar" className="px-3 py-4 mt-16 lg:mt-0 overflow-y-auto h-full">
             <div className="hidden lg:flex items-center justify-center gap-2 mb-4 py-1">
               <Image src="/logo.png" alt="PC United" width={collapsed ? 28 : 40} height={collapsed ? 28 : 40} className="transition-all duration-300" />
               {!collapsed && <Link href="/admin" className="text-base font-bold">PC United Admin</Link>}
@@ -392,7 +418,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   onClick={() => setSidebarOpen(false)}
                   title={collapsed ? item.name : undefined}
                   className={`
-                    flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg transition-colors text-sm relative
+                    flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg transition-colors text-sm relative focus:ring-2 focus:ring-team-blue focus:outline-none
                     ${isActive
                       ? 'bg-blue-700 text-white'
                       : 'text-blue-100 hover:bg-blue-700/50'
@@ -419,7 +445,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   href={action.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center space-x-2.5 px-2.5 py-2 rounded-lg transition-colors text-white text-sm
+                    flex items-center space-x-2.5 px-2.5 py-2 rounded-lg transition-colors text-white text-sm focus:ring-2 focus:ring-team-blue focus:outline-none
                     ${action.color}
                   `}
                 >
@@ -437,7 +463,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <button
               onClick={toggleDarkMode}
               title={collapsed ? (darkMode ? 'Light Mode' : 'Dark Mode') : undefined}
-              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors w-full text-sm`}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors w-full text-sm focus:ring-2 focus:ring-team-blue focus:outline-none`}
             >
               {darkMode ? (
                 <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,7 +481,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Link
               href="/"
               title={collapsed ? 'Back to Site' : undefined}
-              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors text-sm`}
+              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-blue-100 hover:bg-blue-700/50 transition-colors text-sm focus:ring-2 focus:ring-team-blue focus:outline-none`}
             >
               <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -465,7 +492,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <button
               onClick={handleLogout}
               title={collapsed ? 'Logout' : undefined}
-              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-red-300 hover:bg-red-500/20 transition-colors w-full text-sm`}
+              aria-label="Logout"
+              className={`flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg text-red-300 hover:bg-red-500/20 transition-colors w-full text-sm focus:ring-2 focus:ring-team-blue focus:outline-none`}
             >
               <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -479,8 +507,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Floating collapse toggle - desktop only */}
         <button
           onClick={toggleCollapsed}
-          className={`hidden lg:flex fixed z-50 top-1/2 -translate-y-1/2 items-center justify-center w-6 h-12 bg-team-blue hover:bg-blue-700 text-blue-200 hover:text-white rounded-r-md shadow-md transition-all duration-300 ${collapsed ? 'left-16' : 'left-64'}`}
+          className={`hidden lg:flex fixed z-50 top-1/2 -translate-y-1/2 items-center justify-center w-6 h-12 bg-team-blue hover:bg-blue-700 text-blue-200 hover:text-white rounded-r-md shadow-md transition-all duration-300 focus:ring-2 focus:ring-team-blue focus:outline-none ${collapsed ? 'left-16' : 'left-64'}`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!collapsed}
         >
           <svg className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -496,7 +526,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         )}
 
         {/* Main Content */}
-        <main className={`flex-1 min-h-screen overflow-x-hidden transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} ${darkMode ? 'bg-gray-900' : ''}`}>
+        <main id="admin-main-content" className={`flex-1 min-h-screen overflow-x-hidden transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} ${darkMode ? 'bg-gray-900' : ''}`}>
           {children}
         </main>
       </div>

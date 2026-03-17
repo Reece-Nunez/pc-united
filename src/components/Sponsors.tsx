@@ -33,9 +33,9 @@ export default async function Sponsors() {
             {sponsors.map((sponsor) => (
               <div
                 key={sponsor.id}
-                className="group flex flex-col items-center gap-3 transition duration-300 hover:scale-105"
+                className="group flex flex-col items-center gap-3 cursor-pointer"
               >
-                <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center w-48 h-48 group-hover:shadow-lg transition duration-300">
+                <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center w-48 h-48 group-hover:shadow-xl transition-shadow duration-200">
                   <Image
                     src={sponsor.logo_url!}
                     alt={sponsor.business_name}

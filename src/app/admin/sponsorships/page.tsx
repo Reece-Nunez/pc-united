@@ -16,6 +16,8 @@ import {
 import { uploadToS3Direct } from '@/lib/s3';
 import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { SkeletonTable } from '@/components/admin/Skeleton';
 
 type SponsorshipWithStatus = Sponsorship & { status?: string };
 
@@ -411,6 +413,7 @@ function Content() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -483,9 +486,8 @@ function Content() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading sponsorships...</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <SkeletonTable rows={8} />
           </div>
         ) : (
           <DataTable<SponsorshipWithStatus>

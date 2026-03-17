@@ -73,7 +73,7 @@ export default function Header() {
           scrolled ? 'h-16' : 'h-20'
         }`}>
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group" onClick={handleLogoTap}>
+          <Link href="/" className="flex items-center gap-3 group rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50" onClick={handleLogoTap}>
             <Image
               src="/logo.png"
               alt="Ponca City United FC Logo"
@@ -93,10 +93,10 @@ export default function Header() {
               <Link
                 key={href}
                 href={href}
-                className={`relative px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                className={`relative px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-white/50 ${
                   isActive(href)
                     ? 'text-white'
-                    : 'text-white/70 hover:text-white'
+                    : 'text-white/80 hover:text-white'
                 }`}
               >
                 {label}
@@ -143,8 +143,9 @@ export default function Header() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden relative w-10 h-10 flex items-center justify-center text-white focus:outline-none"
-            aria-label="Toggle menu"
+            className="lg:hidden relative w-11 h-11 flex items-center justify-center text-white focus:outline-none focus:ring-2 focus:ring-white/50 rounded-lg"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMenuOpen}
           >
             <div className="w-6 h-5 relative flex flex-col justify-between">
               <span
@@ -175,6 +176,8 @@ export default function Header() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
+            role="navigation"
+            aria-label="Mobile navigation"
             className="lg:hidden overflow-hidden bg-team-blue/95 backdrop-blur-lg border-t border-white/10"
           >
             <div className="px-4 py-4 space-y-1">
@@ -185,7 +188,7 @@ export default function Header() {
                   className={`block px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
                     isActive(href)
                       ? 'bg-white/10 text-white border-l-2 border-team-red'
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      : 'text-white/80 hover:text-white hover:bg-white/5'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >

@@ -16,6 +16,7 @@ import {
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { uploadToS3, uploadToS3Direct, deleteFromS3, isS3Configured } from "@/lib/s3";
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 interface HighlightWithPlayer extends Highlight {
   players?: {
@@ -483,6 +484,7 @@ function HighlightsAdminContent() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>

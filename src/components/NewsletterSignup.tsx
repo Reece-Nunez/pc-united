@@ -44,12 +44,13 @@ export default function NewsletterSignup() {
   };
 
   return (
-    <section className="py-16 bg-team-blue">
+    <section className="py-20 bg-gradient-to-b from-team-blue to-blue-950">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
+        <p className="text-team-red text-sm font-semibold tracking-wider uppercase mb-3">Get Updated</p>
+        <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">
           Stay in the Loop
         </h2>
-        <p className="text-blue-200 mb-6">
+        <p className="text-blue-300 mb-8 max-w-md mx-auto">
           Get updates on games, tournaments, and team news delivered to your inbox.
         </p>
 
@@ -58,22 +59,25 @@ export default function NewsletterSignup() {
             {message}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md mx-auto">
-            <div className="flex flex-col sm:flex-row gap-3">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md mx-auto">
+            <div className="flex items-center bg-white/5 border border-white/20 rounded-full p-1.5 focus-within:ring-2 focus-within:ring-team-red focus-within:border-transparent transition-all">
+              <label htmlFor="newsletter-email" className="sr-only">Email address</label>
               <input
+                id="newsletter-email"
                 type="email"
                 required
-                placeholder="Your email address"
+                autoComplete="email"
+                placeholder="Enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/30 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-team-red focus:border-transparent"
+                className="flex-1 bg-transparent px-5 py-2.5 text-white placeholder-blue-400 focus:outline-none text-sm"
               />
               <button
                 type="submit"
                 disabled={status === 'loading' || !turnstileToken}
-                className="bg-team-red hover:bg-red-700 disabled:bg-gray-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors whitespace-nowrap"
+                className="bg-team-red hover:bg-red-600 disabled:bg-gray-600 text-white font-semibold px-6 py-2.5 rounded-full transition-colors whitespace-nowrap text-sm cursor-pointer"
               >
-                {status === 'loading' ? 'Subscribing...' : 'Subscribe'}
+                {status === 'loading' ? 'Subscribing...' : 'Subscribe Now'}
               </button>
             </div>
             <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
@@ -81,7 +85,7 @@ export default function NewsletterSignup() {
         )}
 
         {status === 'error' && (
-          <p className="text-red-300 text-sm mt-3">{message}</p>
+          <p role="alert" className="text-red-300 text-sm mt-3">{message}</p>
         )}
       </div>
     </section>

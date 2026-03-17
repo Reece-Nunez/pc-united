@@ -5,6 +5,7 @@ import AdminLayout from '@/components/AdminLayout';
 import toast from 'react-hot-toast';
 import { getAllSettings, updateSettings } from '@/lib/supabase';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -51,6 +52,7 @@ export default function SettingsPage() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>

@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ImageUpload from "@/components/ImageUpload";
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import AdminLayout from '@/components/AdminLayout';
 import toast from 'react-hot-toast';
 import {
@@ -37,6 +38,7 @@ import { createClient } from '@/lib/supabase-browser';
 import { getSeasonLabel, getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
 type ActiveTab = 'news' | 'events' | 'schedule' | 'announcements';
 
@@ -98,6 +100,9 @@ function TeamAdminContent() {
   const [bulkScoreMode, setBulkScoreMode] = useState(false);
   const [bulkScores, setBulkScores] = useState<Record<number, { our: string; opp: string }>>({});
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{open: boolean, title: string, message: string, onConfirm: () => void, confirmText?: string, cancelText?: string, variant?: 'danger' | 'warning' | 'info'}>({open: false, title: '', message: '', onConfirm: () => {}});
+  const [recapDialog, setRecapDialog] = useState<{open: boolean, onSubmit: (text: string) => void}>({open: false, onSubmit: () => {}});
+  const [recapText, setRecapText] = useState('');
 
   const [newsForm, setNewsForm] = useState<NewsForm>({
     title: '',
@@ -214,19 +219,30 @@ function TeamAdminContent() {
         createAdminNotification({ type: 'news', title: 'News Published: ' + newsForm.title, message: newsForm.excerpt || newsForm.title, link: '/admin/team?tab=news' });
 
         // Send newsletter to subscribers if published
-        if (formData.published && window.confirm('This will email all newsletter subscribers. Continue?')) {
-          fetch('/api/newsletter/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'news',
-              title: newsForm.title,
-              excerpt: newsForm.excerpt,
-              slug: formData.slug,
-              featuredImage: newsForm.featured_image,
-              author: newsForm.author,
-            }),
-          }).catch(err => console.error('Newsletter send failed:', err));
+        if (formData.published) {
+          const capturedNewsForm = { ...newsForm };
+          const capturedSlug = formData.slug;
+          setConfirmDialog({
+            open: true,
+            title: 'Send Newsletter',
+            message: 'This will email all newsletter subscribers. Continue?',
+            confirmText: 'Send',
+            variant: 'info',
+            onConfirm: () => {
+              fetch('/api/newsletter/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'news',
+                  title: capturedNewsForm.title,
+                  excerpt: capturedNewsForm.excerpt,
+                  slug: capturedSlug,
+                  featuredImage: capturedNewsForm.featured_image,
+                  author: capturedNewsForm.author,
+                }),
+              }).catch(err => console.error('Newsletter send failed:', err));
+            },
+          });
         }
       }
       
@@ -320,23 +336,38 @@ function TeamAdminContent() {
 
         // Prompt for quick game recap if scores were just added
         if (!hadScores && hasScores) {
-          if (window.confirm('Create a quick news recap for this game?')) {
-            const recapText = window.prompt('Enter a quick game recap (1-2 sentences):');
-            if (recapText) {
-              const recapTitle = `Game Recap: PCU ${scheduleForm.our_score} - ${scheduleForm.opponent_score} vs ${scheduleForm.opponent}`;
-              const recapSlug = recapTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
-              await createNews({
-                title: recapTitle,
-                slug: recapSlug,
-                content: recapText,
-                excerpt: recapText,
-                published: true,
-                publish_date: new Date().toISOString(),
-                author: 'PCU Staff',
+          const capturedScheduleForm = { ...scheduleForm };
+          setConfirmDialog({
+            open: true,
+            title: 'Create Game Recap',
+            message: 'Create a quick news recap for this game?',
+            confirmText: 'Create Recap',
+            variant: 'info',
+            onConfirm: () => {
+              setRecapText('');
+              setRecapDialog({
+                open: true,
+                onSubmit: async (text: string) => {
+                  if (text) {
+                    const recapTitle = `Game Recap: PCU ${capturedScheduleForm.our_score} - ${capturedScheduleForm.opponent_score} vs ${capturedScheduleForm.opponent}`;
+                    const recapSlug = recapTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+                    await createNews({
+                      title: recapTitle,
+                      slug: recapSlug,
+                      content: text,
+                      excerpt: text,
+                      published: true,
+                      publish_date: new Date().toISOString(),
+                      author: 'PCU Staff',
+                    });
+                    toast.success('Game recap created!');
+                    fetchAllData();
+                  }
+                  setRecapDialog({ open: false, onSubmit: () => {} });
+                },
               });
-              toast.success('Game recap created!');
-            }
-          }
+            },
+          });
         }
 
         setEditingSchedule(null);
@@ -347,34 +378,66 @@ function TeamAdminContent() {
           g.opponent.toLowerCase() === scheduleForm.opponent.toLowerCase() &&
           g.game_date && g.game_date.split('T')[0] === newDate
         );
+
+        const doCreateScheduleItem = async () => {
+          const result = await createScheduleItem(scheduleForm);
+          if (result.error) throw new Error(result.error.message);
+          toast.success('Schedule item created successfully!');
+          logActivity('create', 'schedule', result.data?.[0]?.id || scheduleForm.opponent, userEmail, { opponent: scheduleForm.opponent });
+          createAdminNotification({ type: 'schedule', title: 'New Game: vs ' + scheduleForm.opponent, message: scheduleForm.opponent + ' - ' + scheduleForm.game_date, link: '/admin/team?tab=schedule' });
+
+          // Send newsletter for new game
+          const gd = new Date(scheduleForm.game_date);
+          fetch('/api/newsletter/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'game_scheduled',
+              opponent: scheduleForm.opponent,
+              gameDate: gd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+              gameTime: gd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+              location: scheduleForm.location,
+              homeAway: scheduleForm.home_game ? 'Home Game' : 'Away Game',
+              gameType: scheduleForm.game_type,
+            }),
+          }).catch(err => console.error('Newsletter send failed:', err));
+        };
+
         if (duplicate) {
-          if (!window.confirm(`A game vs ${scheduleForm.opponent} on ${newDate} already exists. Add anyway?`)) {
-            setLoading(false);
-            return;
-          }
+          setConfirmDialog({
+            open: true,
+            title: 'Duplicate Game',
+            message: `A game vs ${scheduleForm.opponent} on ${newDate} already exists. Add anyway?`,
+            confirmText: 'Add Anyway',
+            variant: 'warning',
+            onConfirm: async () => {
+              try {
+                await doCreateScheduleItem();
+                setScheduleForm({
+                  opponent: '',
+                  game_date: '',
+                  location: '',
+                  home_game: true,
+                  game_type: 'league',
+                  season: getSeasonFromDate(''),
+                  our_score: undefined,
+                  opponent_score: undefined,
+                  status: 'scheduled',
+                  notes: ''
+                });
+                fetchAllData();
+              } catch (error: any) {
+                toast.error(error.message);
+              } finally {
+                setLoading(false);
+              }
+            },
+          });
+          setLoading(false);
+          return;
         }
 
-        const result = await createScheduleItem(scheduleForm);
-        if (result.error) throw new Error(result.error.message);
-        toast.success('Schedule item created successfully!');
-        logActivity('create', 'schedule', result.data?.[0]?.id || scheduleForm.opponent, userEmail, { opponent: scheduleForm.opponent });
-        createAdminNotification({ type: 'schedule', title: 'New Game: vs ' + scheduleForm.opponent, message: scheduleForm.opponent + ' - ' + scheduleForm.game_date, link: '/admin/team?tab=schedule' });
-
-        // Send newsletter for new game
-        const gd = new Date(scheduleForm.game_date);
-        fetch('/api/newsletter/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'game_scheduled',
-            opponent: scheduleForm.opponent,
-            gameDate: gd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
-            gameTime: gd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-            location: scheduleForm.location,
-            homeAway: scheduleForm.home_game ? 'Home Game' : 'Away Game',
-            gameType: scheduleForm.game_type,
-          }),
-        }).catch(err => console.error('Newsletter send failed:', err));
+        await doCreateScheduleItem();
       }
       
       setScheduleForm({
@@ -625,6 +688,7 @@ function TeamAdminContent() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">Team Content</h1>
           <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base">Manage news, events, schedules, and announcements for the team.</p>
@@ -1503,6 +1567,49 @@ function TeamAdminContent() {
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        variant={confirmDialog.variant}
+      />
+      {/* Recap text input dialog (replaces window.prompt) */}
+      {recapDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 animate-fade-in" onClick={() => setRecapDialog({ open: false, onSubmit: () => {} })} />
+          <div className="relative z-10 w-full max-w-md mx-4 bg-white dark:bg-gray-800 rounded-xl shadow-2xl animate-fade-in-scale p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Game Recap</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Enter a quick game recap (1-2 sentences):</p>
+            <textarea
+              value={recapText}
+              onChange={(e) => setRecapText(e.target.value)}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-team-blue focus:border-transparent"
+              rows={3}
+              autoFocus
+              placeholder="e.g. PCU dominated possession in a strong home victory..."
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRecapDialog({ open: false, onSubmit: () => {} })}
+                className="px-4 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => recapDialog.onSubmit(recapText)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors duration-150"
+              >
+                Create Recap
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

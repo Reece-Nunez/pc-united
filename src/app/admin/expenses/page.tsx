@@ -8,6 +8,8 @@ import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { getCurrentSeason, getAvailableSeasons, getSeasonLabel, isDateInSeason, type Season } from '@/lib/seasons';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { SkeletonTable } from '@/components/admin/Skeleton';
 
 const CATEGORIES = [
   'Equipment',
@@ -321,6 +323,7 @@ export default function ExpensesPage() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -660,9 +663,7 @@ export default function ExpensesPage() {
           </div>
 
           {loading && expenses.length === 0 ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
-            </div>
+            <SkeletonTable rows={6} />
           ) : filteredExpenses.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <p className="text-sm">No expenses found for {selectedSeason.label}{filterCategory !== 'all' ? ` in ${filterCategory}` : ''}.</p>

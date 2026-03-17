@@ -13,11 +13,14 @@ import {
 } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 
 function Content() {
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [confirmDialog, setConfirmDialog] = useState<{open: boolean, title: string, message: string, onConfirm: () => void}>({open: false, title: '', message: '', onConfirm: () => {}});
   const userEmail = useCurrentUser();
 
   const fetchSubscribers = useCallback(async () => {
@@ -83,24 +86,26 @@ function Content() {
     }
   };
 
-  const handleDelete = async (subscriber: NewsletterSubscriber) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the subscriber "${subscriber.email}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    try {
-      const { error } = await deleteNewsletterSubscriber(subscriber.id);
-      if (error) {
-        toast.error('Failed to delete subscriber: ' + error.message);
-      } else {
-        setSubscribers((prev) => prev.filter((s) => s.id !== subscriber.id));
-        toast.success('Subscriber deleted');
-        logActivity('delete', 'newsletter_subscriber', subscriber.id, userEmail);
-      }
-    } catch {
-      toast.error('Failed to delete subscriber');
-    }
+  const handleDelete = (subscriber: NewsletterSubscriber) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Subscriber',
+      message: `Are you sure you want to delete the subscriber "${subscriber.email}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          const { error } = await deleteNewsletterSubscriber(subscriber.id);
+          if (error) {
+            toast.error('Failed to delete subscriber: ' + error.message);
+          } else {
+            setSubscribers((prev) => prev.filter((s) => s.id !== subscriber.id));
+            toast.success('Subscriber deleted');
+            logActivity('delete', 'newsletter_subscriber', subscriber.id, userEmail);
+          }
+        } catch {
+          toast.error('Failed to delete subscriber');
+        }
+      },
+    });
   };
 
   const totalCount = subscribers.length;
@@ -178,6 +183,7 @@ function Content() {
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
+        <div className="mb-4"><Breadcrumbs /></div>
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
@@ -246,6 +252,13 @@ function Content() {
           pageSize={25}
         />
       </div>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+      />
     </AdminLayout>
   );
 }
