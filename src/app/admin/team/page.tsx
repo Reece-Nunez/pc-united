@@ -825,11 +825,10 @@ function TeamAdminContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
-                  <input
-                    type="text"
+                  <PlacesAutocomplete
                     value={eventForm.location || ''}
-                    onChange={(e) => handleFormChange(eventForm, setEventForm, 'location', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => handleFormChange(eventForm, setEventForm, 'location', val)}
+                    placeholder="Search for a location"
                   />
                 </div>
 
