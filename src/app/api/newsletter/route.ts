@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { subscribeNewsletter } from '@/lib/supabase';
+import { verifyTurnstileToken } from '@/lib/turnstile';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const { email, turnstileToken } = await request.json();
+
+    if (!turnstileToken || !(await verifyTurnstileToken(turnstileToken))) {
+      return NextResponse.json(
+        { error: 'Bot verification failed. Please try again.' },
+        { status: 400 }
+      );
+    }
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(

@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendContactFormNotification, ContactFormData } from '@/lib/email';
 import { createAdminNotification } from '@/lib/supabase';
+import { verifyTurnstileToken } from '@/lib/turnstile';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    if (!body.turnstileToken || !(await verifyTurnstileToken(body.turnstileToken))) {
+      return NextResponse.json(
+        { error: 'Bot verification failed. Please try again.' },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!body.name || !body.email || !body.message) {

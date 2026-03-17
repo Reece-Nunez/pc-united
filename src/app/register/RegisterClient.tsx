@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { submitRegistration, Registration } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
 import { getCurrentSeason } from '@/lib/seasons';
+import { verifyTurnstileClient } from '@/lib/turnstile';
+import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 import toast from 'react-hot-toast';
 
 const DEFAULT_MAX_ROSTER_SIZE = 25;
@@ -50,6 +52,8 @@ export default function RegisterClient() {
   const [registrationClosed, setRegistrationClosed] = useState(false);
   const [currentCount, setCurrentCount] = useState(0);
   const [maxRosterSize, setMaxRosterSize] = useState(DEFAULT_MAX_ROSTER_SIZE);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const currentSeason = getCurrentSeason();
 
@@ -125,9 +129,23 @@ export default function RegisterClient() {
       return;
     }
 
+    if (!turnstileToken) {
+      toast.error('Please wait for bot verification to complete.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      const verified = await verifyTurnstileClient(turnstileToken);
+      if (!verified) {
+        toast.error('Bot verification failed. Please try again.');
+        turnstileRef.current?.reset();
+        setTurnstileToken(null);
+        setIsSubmitting(false);
+        return;
+      }
+
       const result = await submitRegistration(formData);
       
       if (result.error) {
@@ -668,6 +686,8 @@ export default function RegisterClient() {
                   <strong>Liability Waiver (Required):</strong> I understand that soccer involves inherent risks and hereby release Ponca City United FC, its coaches, volunteers, and facilities from any liability for injuries that may occur during participation in club activities. I acknowledge that my child is physically fit to participate in soccer activities.
                 </label>
               </div>
+
+              <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-semibold text-team-blue mb-2">Next Steps:</h3>

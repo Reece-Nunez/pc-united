@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-browser';
+import { verifyTurnstileClient } from '@/lib/turnstile';
+import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 import toast from 'react-hot-toast';
 import ToastProvider from '@/components/ToastProvider';
 
@@ -31,6 +33,8 @@ function LoginContent() {
   const [resending, setResending] = useState(false);
   const [showEmailNotConfirmed, setShowEmailNotConfirmed] = useState(false);
   const [exchangingCode, setExchangingCode] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -105,6 +109,17 @@ function LoginContent() {
       toast.error('Please enter your phone number.');
       return;
     }
+    if (!turnstileToken) {
+      toast.error('Please wait for bot verification to complete.');
+      return;
+    }
+    const verified = await verifyTurnstileClient(turnstileToken);
+    if (!verified) {
+      toast.error('Bot verification failed. Please try again.');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+      return;
+    }
     // Ensure phone starts with + country code
     const formattedPhone = trimmedPhone.startsWith('+') ? trimmedPhone : `+1${trimmedPhone.replace(/\D/g, '')}`;
     setLoading(true);
@@ -146,8 +161,23 @@ function LoginContent() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!turnstileToken) {
+      toast.error('Please wait for bot verification to complete.');
+      return;
+    }
+
     setLoading(true);
     setShowEmailNotConfirmed(false);
+
+    const verified = await verifyTurnstileClient(turnstileToken);
+    if (!verified) {
+      toast.error('Bot verification failed. Please try again.');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+      setLoading(false);
+      return;
+    }
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -217,6 +247,8 @@ function LoginContent() {
         )}
 
         <div className="bg-white rounded-xl shadow-2xl p-8 space-y-5">
+          <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
+
           {/* Email / Phone toggle */}
           <div className="flex rounded-lg border border-gray-200 overflow-hidden">
             <button
@@ -283,7 +315,7 @@ function LoginContent() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !turnstileToken}
                 className="w-full bg-team-blue hover:bg-blue-800 disabled:bg-gray-400 text-white font-semibold py-2.5 rounded-lg transition-colors"
               >
                 {loading ? 'Signing in...' : 'Sign In'}

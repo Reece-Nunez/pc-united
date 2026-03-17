@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-browser';
 import { createAdminNotification } from '@/lib/supabase';
+import { verifyTurnstileClient } from '@/lib/turnstile';
+import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 import toast from 'react-hot-toast';
 import ToastProvider from '@/components/ToastProvider';
 
@@ -18,7 +20,9 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [signupComplete, setSignupComplete] = useState(false);
   const [cooldown, setCooldown] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const lastSubmitTime = useRef<number>(0);
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const handleGoogleSignup = async () => {
     const supabase = createClient();
@@ -71,7 +75,21 @@ export default function SignupPage() {
     }
     lastSubmitTime.current = now;
 
+    if (!turnstileToken) {
+      toast.error('Please wait for bot verification to complete.');
+      return;
+    }
+
     setLoading(true);
+
+    const verified = await verifyTurnstileClient(turnstileToken);
+    if (!verified) {
+      toast.error('Bot verification failed. Please try again.');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+      setLoading(false);
+      return;
+    }
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = phone.trim() ? (phone.trim().startsWith('+') ? phone.trim() : `+1${phone.trim().replace(/\D/g, '')}`) : undefined;
@@ -346,9 +364,11 @@ export default function SignupPage() {
             />
           </div>
 
+          <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
+
           <button
             type="submit"
-            disabled={loading || cooldown}
+            disabled={loading || cooldown || !turnstileToken}
             className="w-full bg-team-blue hover:bg-blue-800 disabled:bg-gray-400 text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
             {loading ? 'Creating account...' : 'Create Account'}

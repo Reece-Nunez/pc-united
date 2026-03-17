@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { uploadToS3Direct } from '@/lib/s3';
+import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 
 const SPONSORSHIP_LEVELS = [
   {
@@ -66,7 +67,9 @@ export default function SponsorshipForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const today = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -126,6 +129,9 @@ export default function SponsorshipForm() {
       if (!formData.signature) {
         throw new Error('Please provide your signature.');
       }
+      if (!turnstileToken) {
+        throw new Error('Please wait for bot verification to complete.');
+      }
 
       // Upload logo if provided
       let logoUrl = '';
@@ -150,6 +156,7 @@ export default function SponsorshipForm() {
           amount: parseFloat(formData.amount) || selectedLevel?.amount || 0,
           logo_url: logoUrl,
           signature_date: new Date().toISOString(),
+          turnstileToken,
         }),
       });
 
@@ -161,6 +168,8 @@ export default function SponsorshipForm() {
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setSubmitting(false);
       setUploadProgress(0);
@@ -482,6 +491,8 @@ export default function SponsorshipForm() {
             </div>
           </div>
 
+          <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
+
           {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
@@ -492,7 +503,7 @@ export default function SponsorshipForm() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !turnstileToken}
             className="w-full bg-team-red hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-4 rounded-lg transition duration-300 cursor-pointer text-lg"
           >
             {submitting ? 'Submitting...' : 'Submit Sponsorship Commitment'}

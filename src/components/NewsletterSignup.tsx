@@ -1,22 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 
 export default function NewsletterSignup() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+    if (!turnstileToken) {
+      setStatus('error');
+      setMessage('Please wait for bot verification to complete.');
+      return;
+    }
 
     setStatus('loading');
     try {
       const res = await fetch('/api/newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken }),
       });
       const data = await res.json();
 
@@ -30,6 +38,8 @@ export default function NewsletterSignup() {
     } catch (err: any) {
       setStatus('error');
       setMessage(err.message || 'Something went wrong. Try again.');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     }
   };
 
@@ -48,22 +58,25 @@ export default function NewsletterSignup() {
             {message}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              required
-              placeholder="Your email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/30 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-team-red focus:border-transparent"
-            />
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              className="bg-team-red hover:bg-red-700 disabled:bg-gray-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors whitespace-nowrap"
-            >
-              {status === 'loading' ? 'Subscribing...' : 'Subscribe'}
-            </button>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                required
+                placeholder="Your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/30 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-team-red focus:border-transparent"
+              />
+              <button
+                type="submit"
+                disabled={status === 'loading' || !turnstileToken}
+                className="bg-team-red hover:bg-red-700 disabled:bg-gray-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors whitespace-nowrap"
+              >
+                {status === 'loading' ? 'Subscribing...' : 'Subscribe'}
+              </button>
+            </div>
+            <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
           </form>
         )}
 

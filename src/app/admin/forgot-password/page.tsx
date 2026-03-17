@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-browser';
+import { verifyTurnstileClient } from '@/lib/turnstile';
+import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 import toast from 'react-hot-toast';
 import ToastProvider from '@/components/ToastProvider';
 
@@ -11,10 +13,27 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetRef>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!turnstileToken) {
+      toast.error('Please wait for bot verification to complete.');
+      return;
+    }
+
     setLoading(true);
+
+    const verified = await verifyTurnstileClient(turnstileToken);
+    if (!verified) {
+      toast.error('Bot verification failed. Please try again.');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+      setLoading(false);
+      return;
+    }
 
     const supabase = createClient();
     const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.poncacityunited.com';
@@ -119,9 +138,11 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
+          <TurnstileWidget ref={turnstileRef} onSuccess={setTurnstileToken} />
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !turnstileToken}
             className="w-full bg-team-blue hover:bg-blue-800 disabled:bg-gray-400 text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
             {loading ? 'Sending...' : 'Send Reset Link'}

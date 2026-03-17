@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ContactForm from "@/components/ContactForm";
 import { EnvelopeIcon, PhoneIcon, MapPinIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 export default function ContactPage() {
@@ -95,72 +96,7 @@ export default function ContactPage() {
               </div>
             </div>
             
-            <div className="bg-white p-8 rounded-lg shadow-lg">
-              <h3 className="text-2xl font-bold text-team-blue mb-6">Send Us a Message</h3>
-              <form className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Your Name *</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
-                  <input 
-                    type="email" 
-                    required
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                  <input 
-                    type="tel" 
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Player's Birth Year (if applicable)</label>
-                  <select className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none">
-                    <option value="">Select birth year</option>
-                    <option value="2015">2015</option>
-                    <option value="2016">2016</option>
-                    <option value="2017">2017</option>
-                    <option value="2018">2018</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-                  <select className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none">
-                    <option value="">Select a topic</option>
-                    <option value="registration">Player Registration</option>
-                    <option value="tryouts">Team Information</option>
-                    <option value="schedule">Schedule Questions</option>
-                    <option value="travel">Travel Tournament Info</option>
-                    <option value="sponsorship">Sponsorship Request</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Message *</label>
-                  <textarea 
-                    rows={5}
-                    required
-                    placeholder="Tell us how we can help you..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-team-blue focus:outline-none"
-                  ></textarea>
-                </div>
-                <button 
-                  type="submit" 
-                  className="w-full bg-team-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition duration-300 cursor-pointer"
-                >
-                  Send Message
-                </button>
-              </form>
-            </div>
+            <ContactForm />
           </div>
         </div>
       </section>
