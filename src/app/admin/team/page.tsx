@@ -71,15 +71,16 @@ function TeamAdminContent() {
   const [loading, setLoading] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
 
-  // Helper function to convert UTC date to local datetime-local format
-  const toLocalDateTimeString = (utcDateString: string): string => {
-    if (!utcDateString) return '';
-    const date = new Date(utcDateString);
-    // Get timezone offset in minutes and convert to milliseconds
-    const timezoneOffset = date.getTimezoneOffset() * 60000;
-    // Adjust for timezone and format as YYYY-MM-DDTHH:MM
-    const localDate = new Date(date.getTime() - timezoneOffset);
-    return localDate.toISOString().slice(0, 16);
+  // Strip timezone suffix so the value is treated as local time
+  // Supabase stores what was entered (e.g. 12:00) but returns it with
+  // a +00:00 suffix.  Stripping the suffix lets the datetime-local
+  // input show the original value without any UTC conversion.
+  const toLocalDateTimeString = (dateString: string): string => {
+    if (!dateString) return '';
+    // Remove any timezone offset or Z suffix, keep YYYY-MM-DDTHH:MM
+    const stripped = dateString.replace(/[+-]\d{2}:?\d{0,2}$|Z$/g, '');
+    // Ensure we only return up to minutes (YYYY-MM-DDTHH:MM)
+    return stripped.slice(0, 16);
   };
 
   // Data states
