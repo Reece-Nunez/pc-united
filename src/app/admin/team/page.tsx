@@ -272,8 +272,8 @@ function TeamAdminContent() {
     try {
       const sanitizedEvent = {
         ...eventForm,
-        end_date: eventForm.end_date || null,
-        event_date: eventForm.event_date || null,
+        end_date: eventForm.end_date || undefined,
+        event_date: eventForm.event_date || undefined,
       };
       if (editingEvent) {
         const result = await updateEvent(editingEvent.id, sanitizedEvent);
@@ -473,7 +473,7 @@ function TeamAdminContent() {
     try {
       const sanitizedAnnouncement = {
         ...announcementForm,
-        expires_at: announcementForm.expires_at || null,
+        expires_at: announcementForm.expires_at || undefined,
       };
       if (editingAnnouncement) {
         const result = await updateAnnouncement(editingAnnouncement.id, sanitizedAnnouncement);
