@@ -270,14 +270,19 @@ function TeamAdminContent() {
     setLoading(true);
     
     try {
+      const sanitizedEvent = {
+        ...eventForm,
+        end_date: eventForm.end_date || null,
+        event_date: eventForm.event_date || null,
+      };
       if (editingEvent) {
-        const result = await updateEvent(editingEvent.id, eventForm);
+        const result = await updateEvent(editingEvent.id, sanitizedEvent);
         if (result.error) throw new Error(result.error.message);
         toast.success('Event updated successfully!');
         logActivity('update', 'event', editingEvent.id, userEmail, { title: eventForm.title });
         setEditingEvent(null);
       } else {
-        const result = await createEvent(eventForm);
+        const result = await createEvent(sanitizedEvent);
         if (result.error) throw new Error(result.error.message);
         toast.success('Event created successfully!');
         logActivity('create', 'event', result.data?.[0]?.id || eventForm.title, userEmail, { title: eventForm.title });
@@ -466,14 +471,18 @@ function TeamAdminContent() {
     setLoading(true);
     
     try {
+      const sanitizedAnnouncement = {
+        ...announcementForm,
+        expires_at: announcementForm.expires_at || null,
+      };
       if (editingAnnouncement) {
-        const result = await updateAnnouncement(editingAnnouncement.id, announcementForm);
+        const result = await updateAnnouncement(editingAnnouncement.id, sanitizedAnnouncement);
         if (result.error) throw new Error(result.error.message);
         toast.success('Announcement updated successfully!');
         logActivity('update', 'announcement', editingAnnouncement.id, userEmail, { title: announcementForm.title });
         setEditingAnnouncement(null);
       } else {
-        const result = await createAnnouncement(announcementForm);
+        const result = await createAnnouncement(sanitizedAnnouncement);
         if (result.error) throw new Error(result.error.message);
         toast.success('Announcement created successfully!');
         logActivity('create', 'announcement', result.data?.[0]?.id || announcementForm.title, userEmail, { title: announcementForm.title });
