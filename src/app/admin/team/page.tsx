@@ -28,6 +28,7 @@ import {
   addOpponent,
   deleteOpponent,
   getSetting,
+  getTournamentEvents,
   News,
   Event,
   Schedule,
@@ -86,6 +87,7 @@ function TeamAdminContent() {
   const [events, setEvents] = useState<Event[]>([]);
   const [schedule, setSchedule] = useState<Schedule[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [tournamentEvents, setTournamentEvents] = useState<{id: number, title: string, event_date: string, event_type: string}[]>([]);
 
   // Form states
   const [editingNews, setEditingNews] = useState<News | null>(null);
@@ -138,7 +140,8 @@ function TeamAdminContent() {
     our_score: undefined,
     opponent_score: undefined,
     status: 'scheduled',
-    notes: ''
+    notes: '',
+    event_id: undefined as number | undefined
   });
 
   const [announcementForm, setAnnouncementForm] = useState<AnnouncementForm>({
@@ -161,12 +164,13 @@ function TeamAdminContent() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [newsResult, eventsResult, scheduleResult, announcementsResult, opponentsResult] = await Promise.all([
+      const [newsResult, eventsResult, scheduleResult, announcementsResult, opponentsResult, tournamentResult] = await Promise.all([
         getNews(),
         getEvents(),
         getSchedule(),
         getActiveAnnouncements(),
-        getOpponents()
+        getOpponents(),
+        getTournamentEvents()
       ]);
 
       if (!newsResult.error) setNews(newsResult.data || []);
@@ -174,6 +178,7 @@ function TeamAdminContent() {
       if (!scheduleResult.error) setSchedule(scheduleResult.data || []);
       if (!announcementsResult.error) setAnnouncements(announcementsResult.data || []);
       if (!opponentsResult.error) setOpponents((opponentsResult.data || []).map(o => o.name));
+      if (!tournamentResult.error) setTournamentEvents(tournamentResult.data || []);
 
       // Load home field setting
       getSetting('home_field_location').then(({ value }) => {
@@ -427,7 +432,8 @@ function TeamAdminContent() {
                   our_score: undefined,
                   opponent_score: undefined,
                   status: 'scheduled',
-                  notes: ''
+                  notes: '',
+                  event_id: undefined
                 });
                 fetchAllData();
               } catch (error: any) {
@@ -454,9 +460,10 @@ function TeamAdminContent() {
         our_score: undefined,
         opponent_score: undefined,
         status: 'scheduled',
-        notes: ''
+        notes: '',
+        event_id: undefined
       });
-      
+
       fetchAllData();
     } catch (error: any) {
       toast.error(error.message);
@@ -629,9 +636,10 @@ function TeamAdminContent() {
         break;
       case 'schedule':
         setEditingSchedule(item);
-        setScheduleForm({ 
+        setScheduleForm({
           ...item,
-          game_date: toLocalDateTimeString(item.game_date || '')
+          game_date: toLocalDateTimeString(item.game_date || ''),
+          event_id: item.event_id || undefined
         });
         break;
       case 'announcements':
@@ -681,7 +689,8 @@ function TeamAdminContent() {
       our_score: undefined,
       opponent_score: undefined,
       status: 'scheduled',
-      notes: ''
+      notes: '',
+      event_id: undefined
     });
     setAnnouncementForm({
       title: '',
@@ -1106,6 +1115,24 @@ function TeamAdminContent() {
                     <option value="playoff">Playoff</option>
                     <option value="indoor">Indoor</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tournament / Event (Optional)</label>
+                  <select
+                    value={scheduleForm.event_id || ''}
+                    onChange={(e) => {
+                      const val = e.target.value ? parseInt(e.target.value) : undefined;
+                      setScheduleForm(prev => ({ ...prev, event_id: val }));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  >
+                    <option value="">None</option>
+                    {tournamentEvents.map(evt => (
+                      <option key={evt.id} value={evt.id}>{evt.title} ({new Date(evt.event_date).toLocaleDateString()})</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Link this game to a tournament or event</p>
                 </div>
 
                 <div>

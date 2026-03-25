@@ -5,7 +5,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import AdminLayout from '@/components/AdminLayout';
 import DropZone from '@/components/admin/DropZone';
-import { getGalleryImagesWithTags, createGalleryImage, deleteGalleryImage, GalleryImage, createAdminNotification, getPlayers, tagPlayerInImage, untagPlayerFromImage } from '@/lib/supabase';
+import { getGalleryImagesWithTags, createGalleryImage, deleteGalleryImage, GalleryImage, createAdminNotification, getPlayers, tagPlayerInImage, untagPlayerFromImage, getAllEvents, Event } from '@/lib/supabase';
 import { uploadToS3Direct } from '@/lib/s3';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/lib/audit';
@@ -42,6 +42,8 @@ function Content() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filter, setFilter] = useState('all');
   const [taggingImageId, setTaggingImageId] = useState<number | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventId, setEventId] = useState<number | undefined>(undefined);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const userEmail = useCurrentUser();
 
@@ -58,9 +60,15 @@ function Content() {
     }
   };
 
+  const fetchEvents = async () => {
+    const { data } = await getAllEvents();
+    setEvents(data || []);
+  };
+
   useEffect(() => {
     fetchImages();
     fetchPlayers();
+    fetchEvents();
   }, []);
 
   // Close tag dropdown when clicking outside
@@ -100,6 +108,7 @@ function Content() {
       image_url: result.url,
       category,
       uploaded_by: userEmail || undefined,
+      event_id: eventId,
     });
 
     if (error) {
@@ -110,6 +119,7 @@ function Content() {
       createAdminNotification({ type: 'gallery', title: `Gallery Image Uploaded: ${title.trim() || selectedFile.name}`, message: `A new ${category} image "${title.trim()}" was added to the gallery.`, link: '/admin/gallery' });
       setTitle('');
       setCategory('other');
+      setEventId(undefined);
       setSelectedFile(null);
       fetchImages();
     }
@@ -215,6 +225,19 @@ function Content() {
                   <option value="event">Event</option>
                   <option value="team">Team</option>
                   <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event (Optional)</label>
+                <select
+                  value={eventId || ''}
+                  onChange={(e) => setEventId(e.target.value ? parseInt(e.target.value) : undefined)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent outline-none text-sm"
+                >
+                  <option value="">None</option>
+                  {events.map(evt => (
+                    <option key={evt.id} value={evt.id}>{evt.title}</option>
+                  ))}
                 </select>
               </div>
               <button

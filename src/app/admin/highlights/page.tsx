@@ -12,6 +12,8 @@ import {
   deleteHighlight,
   Highlight,
   createAdminNotification,
+  getAllEvents,
+  Event,
 } from "@/lib/supabase";
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
@@ -28,6 +30,7 @@ function HighlightsAdminContent() {
   const searchParams = useSearchParams();
   const [highlights, setHighlights] = useState<HighlightWithPlayer[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingHighlight, setEditingHighlight] = useState<number | null>(null);
@@ -42,7 +45,8 @@ function HighlightsAdminContent() {
     highlight_date: new Date().toISOString().split('T')[0],
     type: 'goal' as const,
     video_url: null as string | null,
-    assist_by: ''
+    assist_by: '',
+    event_id: undefined as number | undefined
   });
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -86,22 +90,25 @@ function HighlightsAdminContent() {
   async function fetchData() {
     try {
       setLoading(true);
-      const [highlightsResult, playersResult] = await Promise.all([
+      const [highlightsResult, playersResult, eventsResult] = await Promise.all([
         getHighlights(),
-        getPlayers()
+        getPlayers(),
+        getAllEvents()
       ]);
-      
+
       if (highlightsResult.error) {
         setError(highlightsResult.error.message);
       } else if (highlightsResult.data) {
         setHighlights(highlightsResult.data);
       }
-      
+
       if (playersResult.error) {
         setError(playersResult.error.message);
       } else if (playersResult.data) {
         setPlayers(playersResult.data);
       }
+
+      setEvents(eventsResult.data || []);
     } catch (err) {
       setError('Failed to fetch data');
     } finally {
@@ -226,7 +233,8 @@ function HighlightsAdminContent() {
         highlight_date: newHighlightForm.highlight_date,
         type: newHighlightForm.type,
         video_url: videoUrl || undefined,
-        assist_by: newHighlightForm.assist_by || undefined
+        assist_by: newHighlightForm.assist_by || undefined,
+        event_id: newHighlightForm.event_id || undefined
       };
       
       const { error } = await createHighlight(highlightData);
@@ -239,7 +247,8 @@ function HighlightsAdminContent() {
         highlight_date: new Date().toISOString().split('T')[0],
         type: 'goal',
         video_url: null,
-        assist_by: ''
+        assist_by: '',
+        event_id: undefined
       });
       // Clean up preview URL and file
       if (previewUrl) {
@@ -636,6 +645,19 @@ function HighlightsAdminContent() {
                       <option value="">No assist</option>
                       {players.map(player => (
                         <option key={player.id} value={player.name}>{player.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event (Optional)</label>
+                    <select
+                      value={newHighlightForm.event_id || ''}
+                      onChange={(e) => handleNewFormChange('event_id', e.target.value ? parseInt(e.target.value) : undefined)}
+                      className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded"
+                    >
+                      <option value="">None</option>
+                      {events.map(evt => (
+                        <option key={evt.id} value={evt.id}>{evt.title}</option>
                       ))}
                     </select>
                   </div>

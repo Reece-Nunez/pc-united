@@ -672,7 +672,7 @@ export default function TeamClient() {
               ) : (
                 <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3">
                   {events.map((event) => (
-                    <div key={event.id} className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition duration-300">
+                    <Link key={event.id} href={`/team/events/${event.id}`} className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition duration-300 block">
                       {event.featured_image && (
                         <div className="aspect-video bg-gray-300">
                           <Image
@@ -716,8 +716,14 @@ export default function TeamClient() {
                             </div>
                           )}
                         </div>
+                        <div className="mt-4 text-team-blue font-semibold text-sm flex items-center gap-1">
+                          View Details
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -725,7 +731,7 @@ export default function TeamClient() {
           )}
         </div>
       </section>
-      
+
       {/* GameChanger Widget Script */}
       <Script 
         src="https://widgets.gc.com/static/js/sdk.v1.js"

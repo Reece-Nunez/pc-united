@@ -189,6 +189,7 @@ export interface Highlight {
   type: 'goal' | 'assist' | 'save' | 'defense' | 'performance' | 'multiple';
   video_url?: string;
   assist_by?: string;
+  event_id?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -435,6 +436,7 @@ export interface Schedule {
   opponent_score?: number;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed';
   notes?: string;
+  event_id?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -654,6 +656,66 @@ export async function deleteEvent(id: number) {
     .eq('id', id);
     
   return { data, error };
+}
+
+export async function getEventById(id: number) {
+  if (!isSupabaseConfigured) {
+    return { data: null, error: { message: 'Supabase is not configured.' } };
+  }
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('id', id)
+    .single();
+  return { data: data as Event | null, error };
+}
+
+export async function getScheduleByEventId(eventId: number) {
+  if (!isSupabaseConfigured) {
+    return { data: null, error: { message: 'Supabase is not configured.' } };
+  }
+  const { data, error } = await supabase
+    .from('schedule')
+    .select('*')
+    .eq('event_id', eventId)
+    .order('game_date', { ascending: true });
+  return { data: data as Schedule[] | null, error };
+}
+
+export async function getGalleryImagesByEventId(eventId: number) {
+  if (!isSupabaseConfigured) {
+    return { data: null, error: { message: 'Supabase is not configured.' } };
+  }
+  const { data, error } = await supabase
+    .from('gallery_images')
+    .select('*')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+  return { data: data as GalleryImage[] | null, error };
+}
+
+export async function getHighlightsByEventId(eventId: number) {
+  if (!isSupabaseConfigured) {
+    return { data: null, error: { message: 'Supabase is not configured.' } };
+  }
+  const { data, error } = await supabase
+    .from('highlights')
+    .select('*, players(name)')
+    .eq('event_id', eventId)
+    .order('highlight_date', { ascending: false });
+  return { data, error };
+}
+
+export async function getTournamentEvents() {
+  if (!isSupabaseConfigured) {
+    return { data: null, error: { message: 'Supabase is not configured.' } };
+  }
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, title, event_date, event_type')
+    .eq('event_type', 'tournament')
+    .order('event_date', { ascending: false });
+  return { data: data as Pick<Event, 'id' | 'title' | 'event_date' | 'event_type'>[] | null, error };
 }
 
 // Schedule CRUD Functions
@@ -894,6 +956,7 @@ export interface GalleryImage {
   image_url: string;
   category: 'game' | 'practice' | 'event' | 'team' | 'other';
   uploaded_by?: string;
+  event_id?: number;
   created_at?: string;
 }
 
