@@ -273,7 +273,6 @@ function TeamAdminContent() {
       const sanitizedEvent = {
         ...eventForm,
         end_date: eventForm.end_date || undefined,
-        event_date: eventForm.event_date || undefined,
       };
       if (editingEvent) {
         const result = await updateEvent(editingEvent.id, sanitizedEvent);
