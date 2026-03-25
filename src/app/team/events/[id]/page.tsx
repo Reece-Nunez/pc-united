@@ -112,7 +112,71 @@ export default async function EventDetailPage({ params }: PageProps) {
   const games = scheduleItems || [];
   const images = galleryImages || [];
   const eventHighlights = highlights || [];
-  const isTournament = event.event_type === 'tournament' && games.length >= 2;
+  // Separate games by bracket_round
+  const groupGames = games
+    .filter((g) => g.bracket_round === 'group')
+    .sort((a, b) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
+  const knockoutGames = games.filter((g) =>
+    ['quarterfinal', 'semifinal', 'final', 'third_place'].includes(g.bracket_round || '')
+  );
+  const otherGames = games.filter((g) => !g.bracket_round);
+  const hasTournamentBracket = groupGames.length > 0 || knockoutGames.length > 0;
+
+  // Build group standings from group games (PC United perspective only)
+  const buildStandings = () => {
+    const teamStats: Record<string, { gp: number; w: number; d: number; l: number; gf: number; ga: number }> = {};
+    const ensureTeam = (name: string) => {
+      if (!teamStats[name]) teamStats[name] = { gp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
+    };
+    ensureTeam('PC United');
+
+    for (const game of groupGames) {
+      ensureTeam(game.opponent);
+      if (game.status !== 'completed' || game.our_score == null || game.opponent_score == null) continue;
+
+      const pcGoals = game.our_score;
+      const oppGoals = game.opponent_score;
+
+      teamStats['PC United'].gp += 1;
+      teamStats['PC United'].gf += pcGoals;
+      teamStats['PC United'].ga += oppGoals;
+      teamStats[game.opponent].gp += 1;
+      teamStats[game.opponent].gf += oppGoals;
+      teamStats[game.opponent].ga += pcGoals;
+
+      if (pcGoals > oppGoals) {
+        teamStats['PC United'].w += 1;
+        teamStats[game.opponent].l += 1;
+      } else if (pcGoals < oppGoals) {
+        teamStats['PC United'].l += 1;
+        teamStats[game.opponent].w += 1;
+      } else {
+        teamStats['PC United'].d += 1;
+        teamStats[game.opponent].d += 1;
+      }
+    }
+
+    return Object.entries(teamStats)
+      .map(([team, s]) => ({
+        team,
+        ...s,
+        gd: s.gf - s.ga,
+        pts: s.w * 3 + s.d,
+      }))
+      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+  };
+
+  const standings = groupGames.length > 0 ? buildStandings() : [];
+
+  // Knockout game helpers
+  const semiFinals: (Schedule | null)[] = [
+    knockoutGames.find((g) => g.bracket_round === 'semifinal' && g.notes?.includes('#1')) ||
+      knockoutGames.filter((g) => g.bracket_round === 'semifinal')[0] || null,
+    knockoutGames.find((g) => g.bracket_round === 'semifinal' && g.notes?.includes('#2')) ||
+      knockoutGames.filter((g) => g.bracket_round === 'semifinal')[1] || null,
+  ];
+  const finalGame = knockoutGames.find((g) => g.bracket_round === 'final') || null;
+  const thirdPlaceGame = knockoutGames.find((g) => g.bracket_round === 'third_place') || null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -286,16 +350,225 @@ export default async function EventDetailPage({ params }: PageProps) {
         )}
       </section>
 
-      {/* Games / Results Section */}
-      {games.length > 0 && (
+      {/* Group Standings Table */}
+      {groupGames.length > 0 && (
+        <section className="bg-gray-50 py-12 md:py-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-team-blue mb-6">Group Stage Standings</h2>
+            <div className="overflow-x-auto bg-white rounded-lg shadow-lg">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-team-blue text-white">
+                    <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Team</th>
+                    <th className="px-3 py-2 text-center">GP</th>
+                    <th className="px-3 py-2 text-center">W</th>
+                    <th className="px-3 py-2 text-center">D</th>
+                    <th className="px-3 py-2 text-center">L</th>
+                    <th className="px-3 py-2 text-center">GF</th>
+                    <th className="px-3 py-2 text-center">GA</th>
+                    <th className="px-3 py-2 text-center">GD</th>
+                    <th className="px-3 py-2 text-center font-bold">PTS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standings.map((row, i) => (
+                    <tr
+                      key={row.team}
+                      className={`border-b border-gray-100 ${
+                        row.team === 'PC United'
+                          ? 'bg-team-blue/5 font-semibold'
+                          : i % 2 === 0
+                            ? 'bg-white'
+                            : 'bg-gray-50'
+                      }`}
+                    >
+                      <td className="px-3 py-2">{i + 1}</td>
+                      <td className={`px-3 py-2 ${row.team === 'PC United' ? 'text-team-blue' : ''}`}>{row.team}</td>
+                      <td className="px-3 py-2 text-center">{row.gp}</td>
+                      <td className="px-3 py-2 text-center">{row.w}</td>
+                      <td className="px-3 py-2 text-center">{row.d}</td>
+                      <td className="px-3 py-2 text-center">{row.l}</td>
+                      <td className="px-3 py-2 text-center">{row.gf}</td>
+                      <td className="px-3 py-2 text-center">{row.ga}</td>
+                      <td className="px-3 py-2 text-center">{row.gd > 0 ? `+${row.gd}` : row.gd}</td>
+                      <td className="px-3 py-2 text-center font-bold">{row.pts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">* Standings reflect PC United&apos;s games only. Other teams&apos; head-to-head results are not tracked.</p>
+          </div>
+        </section>
+      )}
+
+      {/* Group Stage Schedule */}
+      {groupGames.length > 0 && (
+        <section className="py-12 md:py-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-team-blue mb-6">Group Stage Games</h2>
+            <div className="space-y-4">
+              {groupGames.map((game) => {
+                const gameDate = parseAsLocalTime(game.game_date);
+                const isWin =
+                  game.status === 'completed' && (game.our_score ?? 0) > (game.opponent_score ?? 0);
+                const isLoss =
+                  game.status === 'completed' && (game.our_score ?? 0) < (game.opponent_score ?? 0);
+
+                return (
+                  <div
+                    key={game.id}
+                    className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${
+                      isWin ? 'border-green-500' : isLoss ? 'border-red-500' : 'border-team-blue'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900">
+                            {game.home_game ? 'PC United' : game.opponent} vs{' '}
+                            {game.home_game ? game.opponent : 'PC United'}
+                          </span>
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[game.status]}`}
+                          >
+                            {statusLabels[game.status]}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {gameDate.toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                          {' at '}
+                          {gameDate.toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                          {game.location && ` | ${game.location}`}
+                        </div>
+                      </div>
+                      {game.status === 'completed' &&
+                        game.our_score != null &&
+                        game.opponent_score != null && (
+                          <div className="text-right">
+                            <span
+                              className={`text-2xl font-bold ${
+                                isWin ? 'text-green-600' : isLoss ? 'text-red-600' : 'text-gray-700'
+                              }`}
+                            >
+                              {game.home_game
+                                ? `${game.our_score} - ${game.opponent_score}`
+                                : `${game.opponent_score} - ${game.our_score}`}
+                            </span>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Knockout Bracket */}
+      {knockoutGames.length > 0 && (
+        <section className="py-12 bg-white">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-team-blue mb-8">Knockout Stage</h2>
+            <div className="flex items-center justify-center gap-0">
+              {/* Semifinals Column */}
+              <div className="flex flex-col gap-16">
+                {semiFinals.map((game, i) => (
+                  <div key={game?.id || `semi-${i}`} className="bg-gray-50 rounded-lg shadow-md p-4 w-64 border-l-4 border-team-blue">
+                    <p className="text-xs text-gray-500 font-medium mb-2">Semifinal {i + 1}</p>
+                    {game ? (
+                      <>
+                        <div className={`flex justify-between items-center py-1 ${game.status === 'completed' && (game.our_score ?? 0) > (game.opponent_score ?? 0) ? 'font-bold text-team-blue' : ''}`}>
+                          <span>{game.home_game ? 'PC United' : game.opponent}</span>
+                          <span>{game.status === 'completed' ? (game.home_game ? game.our_score : game.opponent_score) : ''}</span>
+                        </div>
+                        <div className="border-t border-gray-200 my-1" />
+                        <div className={`flex justify-between items-center py-1 ${game.status === 'completed' && (game.opponent_score ?? 0) > (game.our_score ?? 0) ? 'font-bold text-team-blue' : ''}`}>
+                          <span>{game.home_game ? game.opponent : 'PC United'}</span>
+                          <span>{game.status === 'completed' ? (game.home_game ? game.opponent_score : game.our_score) : ''}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">{parseAsLocalTime(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      </>
+                    ) : (
+                      <p className="text-gray-400 text-sm">TBD</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Connector Lines */}
+              <div className="flex flex-col items-center w-12">
+                <div className="w-full border-t-2 border-gray-300 relative top-[50%]" />
+                <div className="h-32 border-r-2 border-gray-300" />
+                <div className="w-full border-b-2 border-gray-300 relative bottom-[50%]" />
+              </div>
+
+              {/* Final Column */}
+              <div className="flex flex-col justify-center">
+                {finalGame ? (
+                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg shadow-md p-4 w-64 border-l-4 border-yellow-500">
+                    <p className="text-xs text-yellow-700 font-bold mb-2 uppercase">Final</p>
+                    <div className={`flex justify-between items-center py-1 ${finalGame.status === 'completed' && (finalGame.our_score ?? 0) > (finalGame.opponent_score ?? 0) ? 'font-bold text-team-blue' : ''}`}>
+                      <span>{finalGame.home_game ? 'PC United' : finalGame.opponent}</span>
+                      <span>{finalGame.status === 'completed' ? (finalGame.home_game ? finalGame.our_score : finalGame.opponent_score) : ''}</span>
+                    </div>
+                    <div className="border-t border-yellow-200 my-1" />
+                    <div className={`flex justify-between items-center py-1 ${finalGame.status === 'completed' && (finalGame.opponent_score ?? 0) > (finalGame.our_score ?? 0) ? 'font-bold text-team-blue' : ''}`}>
+                      <span>{finalGame.home_game ? finalGame.opponent : 'PC United'}</span>
+                      <span>{finalGame.status === 'completed' ? (finalGame.home_game ? finalGame.opponent_score : finalGame.our_score) : ''}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{parseAsLocalTime(finalGame.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg shadow-md p-4 w-64 border-l-4 border-gray-300">
+                    <p className="text-xs text-gray-500 font-bold mb-2 uppercase">Final</p>
+                    <p className="text-gray-400 text-sm">TBD</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Third Place Game */}
+            {thirdPlaceGame && (
+              <div className="mt-8 flex justify-center">
+                <div className="bg-gray-50 rounded-lg shadow-md p-4 w-64 border-l-4 border-gray-400">
+                  <p className="text-xs text-gray-500 font-bold mb-2 uppercase">3rd Place</p>
+                  <div className={`flex justify-between items-center py-1 ${thirdPlaceGame.status === 'completed' && (thirdPlaceGame.our_score ?? 0) > (thirdPlaceGame.opponent_score ?? 0) ? 'font-bold text-team-blue' : ''}`}>
+                    <span>{thirdPlaceGame.home_game ? 'PC United' : thirdPlaceGame.opponent}</span>
+                    <span>{thirdPlaceGame.status === 'completed' ? (thirdPlaceGame.home_game ? thirdPlaceGame.our_score : thirdPlaceGame.opponent_score) : ''}</span>
+                  </div>
+                  <div className="border-t border-gray-200 my-1" />
+                  <div className={`flex justify-between items-center py-1 ${thirdPlaceGame.status === 'completed' && (thirdPlaceGame.opponent_score ?? 0) > (thirdPlaceGame.our_score ?? 0) ? 'font-bold text-team-blue' : ''}`}>
+                    <span>{thirdPlaceGame.home_game ? thirdPlaceGame.opponent : 'PC United'}</span>
+                    <span>{thirdPlaceGame.status === 'completed' ? (thirdPlaceGame.home_game ? thirdPlaceGame.opponent_score : thirdPlaceGame.our_score) : ''}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">{parseAsLocalTime(thirdPlaceGame.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Games & Results (non-tournament or untagged games) */}
+      {otherGames.length > 0 && (
         <section className="bg-gray-50 py-12 md:py-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              {event.event_type === 'tournament' ? 'Tournament Games' : 'Games & Results'}
+              {hasTournamentBracket ? 'Other Games' : event.event_type === 'tournament' ? 'Tournament Games' : 'Games & Results'}
             </h2>
 
             <div className="space-y-4">
-              {games.map((game) => {
+              {otherGames.map((game) => {
                 const gameDate = parseAsLocalTime(game.game_date);
                 const isWin =
                   game.status === 'completed' &&
@@ -376,21 +649,9 @@ export default async function EventDetailPage({ params }: PageProps) {
         </section>
       )}
 
-      {/* Tournament Bracket */}
-      {isTournament && (
-        <section className="py-12 md:py-16">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8">
-              Tournament Bracket
-            </h2>
-            <TournamentBracket games={games} />
-          </div>
-        </section>
-      )}
-
       {/* Gallery Section */}
       {images.length > 0 && (
-        <section className={`${isTournament ? 'bg-gray-50' : ''} py-12 md:py-16`}>
+        <section className={`${hasTournamentBracket ? 'bg-gray-50' : ''} py-12 md:py-16`}>
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Gallery</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -534,178 +795,3 @@ export default async function EventDetailPage({ params }: PageProps) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Tournament Bracket Component                                       */
-/* ------------------------------------------------------------------ */
-
-function TournamentBracket({ games }: { games: Schedule[] }) {
-  // Sort games chronologically
-  const sorted = [...games].sort(
-    (a, b) =>
-      new Date(a.game_date).getTime() - new Date(b.game_date).getTime()
-  );
-
-  // Organize into rounds
-  const totalGames = sorted.length;
-  const rounds: Schedule[][] = [];
-
-  if (totalGames <= 2) {
-    // 2 games: treat first as semifinal, second as final
-    if (totalGames === 2) {
-      rounds.push([sorted[0]]);
-      rounds.push([sorted[1]]);
-    } else {
-      rounds.push(sorted);
-    }
-  } else if (totalGames <= 4) {
-    // Split: first half as round 1, rest as round 2+
-    const half = Math.ceil(totalGames / 2);
-    rounds.push(sorted.slice(0, half));
-    rounds.push(sorted.slice(half));
-  } else if (totalGames <= 7) {
-    // quarterfinals (4) + semifinals (2) + final (1)
-    rounds.push(sorted.slice(0, 4));
-    rounds.push(sorted.slice(4, 6));
-    if (sorted.length > 6) rounds.push(sorted.slice(6));
-  } else {
-    // Just chunk into groups of decreasing size
-    let remaining = [...sorted];
-    let chunkSize = Math.ceil(remaining.length / 2);
-    while (remaining.length > 0) {
-      rounds.push(remaining.slice(0, chunkSize));
-      remaining = remaining.slice(chunkSize);
-      chunkSize = Math.max(1, Math.ceil(chunkSize / 2));
-    }
-  }
-
-  const roundNames = (count: number, index: number): string => {
-    const fromEnd = count - 1 - index;
-    if (fromEnd === 0) return 'Final';
-    if (fromEnd === 1) return 'Semifinals';
-    if (fromEnd === 2) return 'Quarterfinals';
-    return `Round ${index + 1}`;
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <div className="flex items-stretch gap-0 min-w-max">
-        {rounds.map((round, roundIdx) => (
-          <div key={roundIdx} className="flex items-stretch">
-            {/* Round column */}
-            <div className="flex flex-col justify-around min-w-[220px] px-2">
-              <div className="text-center mb-4">
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  {roundNames(rounds.length, roundIdx)}
-                </span>
-              </div>
-              {round.map((game) => {
-                const isWin =
-                  game.status === 'completed' &&
-                  game.our_score != null &&
-                  game.opponent_score != null &&
-                  game.our_score > game.opponent_score;
-                const isLoss =
-                  game.status === 'completed' &&
-                  game.our_score != null &&
-                  game.opponent_score != null &&
-                  game.our_score < game.opponent_score;
-                const isCompleted = game.status === 'completed';
-
-                return (
-                  <div key={game.id} className="my-3">
-                    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                      {/* PC United row */}
-                      <div
-                        className={`flex items-center justify-between px-3 py-2 ${
-                          isWin
-                            ? 'bg-team-blue/5 border-l-4 border-team-blue'
-                            : isLoss
-                              ? 'border-l-4 border-red-500'
-                              : 'border-l-4 border-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`text-sm font-semibold ${
-                            isWin ? 'text-team-blue' : 'text-gray-700'
-                          }`}
-                        >
-                          PC United
-                        </span>
-                        <span
-                          className={`text-sm font-bold ${
-                            isWin ? 'text-team-blue' : 'text-gray-700'
-                          }`}
-                        >
-                          {isCompleted && game.our_score != null
-                            ? game.our_score
-                            : ''}
-                        </span>
-                      </div>
-
-                      {/* Divider with vs */}
-                      <div className="flex items-center px-3">
-                        <div className="flex-1 border-t border-gray-200" />
-                        <span className="px-2 text-xs text-gray-400">
-                          {isCompleted ? '' : 'vs'}
-                        </span>
-                        <div className="flex-1 border-t border-gray-200" />
-                      </div>
-
-                      {/* Opponent row */}
-                      <div
-                        className={`flex items-center justify-between px-3 py-2 ${
-                          isLoss
-                            ? 'bg-red-50 border-l-4 border-red-500'
-                            : isWin
-                              ? 'border-l-4 border-gray-300'
-                              : 'border-l-4 border-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`text-sm font-semibold ${
-                            isLoss ? 'text-red-600' : 'text-gray-700'
-                          }`}
-                        >
-                          {game.opponent}
-                        </span>
-                        <span
-                          className={`text-sm font-bold ${
-                            isLoss ? 'text-red-600' : 'text-gray-700'
-                          }`}
-                        >
-                          {isCompleted && game.opponent_score != null
-                            ? game.opponent_score
-                            : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Connector lines between rounds */}
-            {roundIdx < rounds.length - 1 && (
-              <div className="flex flex-col justify-around w-8">
-                {round.length > 1 &&
-                  Array.from({ length: Math.ceil(round.length / 2) }).map(
-                    (_, i) => (
-                      <div key={i} className="flex flex-col items-stretch my-3">
-                        <div className="border-r-2 border-t-2 border-gray-300 h-8 rounded-tr" />
-                        <div className="border-r-2 border-b-2 border-gray-300 h-8 rounded-br" />
-                      </div>
-                    )
-                  )}
-                {round.length === 1 && (
-                  <div className="flex items-center h-full">
-                    <div className="border-t-2 border-gray-300 w-full" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

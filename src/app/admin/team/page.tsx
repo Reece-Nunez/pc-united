@@ -142,7 +142,8 @@ function TeamAdminContent() {
     opponent_score: undefined,
     status: 'scheduled',
     notes: '',
-    event_id: undefined as number | undefined
+    event_id: undefined as number | undefined,
+    bracket_round: undefined as 'group' | 'quarterfinal' | 'semifinal' | 'final' | 'third_place' | undefined
   });
 
   const [announcementForm, setAnnouncementForm] = useState<AnnouncementForm>({
@@ -434,7 +435,8 @@ function TeamAdminContent() {
                   opponent_score: undefined,
                   status: 'scheduled',
                   notes: '',
-                  event_id: undefined
+                  event_id: undefined,
+                  bracket_round: undefined
                 });
                 fetchAllData();
               } catch (error: any) {
@@ -462,7 +464,8 @@ function TeamAdminContent() {
         opponent_score: undefined,
         status: 'scheduled',
         notes: '',
-        event_id: undefined
+        event_id: undefined,
+        bracket_round: undefined
       });
 
       fetchAllData();
@@ -640,7 +643,8 @@ function TeamAdminContent() {
         setScheduleForm({
           ...item,
           game_date: toLocalDateTimeString(item.game_date || ''),
-          event_id: item.event_id || undefined
+          event_id: item.event_id || undefined,
+          bracket_round: item.bracket_round || undefined
         });
         break;
       case 'announcements':
@@ -691,7 +695,8 @@ function TeamAdminContent() {
       opponent_score: undefined,
       status: 'scheduled',
       notes: '',
-      event_id: undefined
+      event_id: undefined,
+      bracket_round: undefined
     });
     setAnnouncementForm({
       title: '',
@@ -1135,6 +1140,25 @@ function TeamAdminContent() {
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Link this game to a tournament or event</p>
                 </div>
+
+                {scheduleForm.event_id && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bracket Round</label>
+                    <select
+                      value={scheduleForm.bracket_round || ''}
+                      onChange={(e) => setScheduleForm(prev => ({ ...prev, bracket_round: (e.target.value || undefined) as any }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    >
+                      <option value="">Select round</option>
+                      <option value="group">Group Stage</option>
+                      <option value="quarterfinal">Quarterfinal</option>
+                      <option value="semifinal">Semifinal</option>
+                      <option value="final">Final</option>
+                      <option value="third_place">3rd Place</option>
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Categorize this game within the tournament bracket</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Season</label>

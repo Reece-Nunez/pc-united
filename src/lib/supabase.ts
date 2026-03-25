@@ -437,6 +437,7 @@ export interface Schedule {
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed';
   notes?: string;
   event_id?: number;
+  bracket_round?: 'group' | 'quarterfinal' | 'semifinal' | 'final' | 'third_place';
   created_at?: string;
   updated_at?: string;
 }
