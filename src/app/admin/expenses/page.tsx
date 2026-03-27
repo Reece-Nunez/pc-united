@@ -568,7 +568,7 @@ export default function ExpensesPage() {
                             });
                             const data = await res.json();
                             if (!data.success) throw new Error(data.error);
-                            const upload = await fetch(data.presignedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+                            const upload = await fetch(data.presignedUrl, { method: 'PUT', headers: { 'Content-Type': file.type, 'Content-Disposition': 'inline', 'Cache-Control': 'max-age=31536000' }, body: file });
                             if (!upload.ok) throw new Error('Upload failed');
                             setForm(prev => ({ ...prev, receipt_url: data.publicUrl }));
                             toast.success('Receipt uploaded');

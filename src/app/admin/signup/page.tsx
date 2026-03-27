@@ -8,7 +8,7 @@ import { createAdminNotification } from '@/lib/supabase';
 import { verifyTurnstileClient } from '@/lib/turnstile';
 import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 import toast from 'react-hot-toast';
-import ToastProvider from '@/components/ToastProvider';
+
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -213,7 +213,6 @@ export default function SignupPage() {
   // ── Signup form ──
   return (
     <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center px-4">
-      <ToastProvider />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Image
