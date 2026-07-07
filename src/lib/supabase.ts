@@ -1115,6 +1115,56 @@ export async function deleteExpense(id: number) {
   return { error };
 }
 
+// ─── Income (non-sponsor fundraising) ───────────────────────────────
+
+export interface Income {
+  id: number;
+  description: string;
+  amount: number;
+  category: string;
+  source?: string;
+  income_date: string;
+  payment_method?: string;
+  notes?: string;
+  season?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function getIncome() {
+  const { data, error } = await supabase
+    .from('income')
+    .select('*')
+    .order('income_date', { ascending: false });
+  return { data: data as Income[] | null, error };
+}
+
+export async function createIncome(income: Omit<Income, 'id' | 'created_at' | 'updated_at'>) {
+  const { data, error } = await supabase
+    .from('income')
+    .insert([income])
+    .select();
+  return { data, error };
+}
+
+export async function updateIncome(id: number, updates: Partial<Income>) {
+  const { data, error } = await supabase
+    .from('income')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+  return { data, error };
+}
+
+export async function deleteIncome(id: number) {
+  const { error } = await supabase
+    .from('income')
+    .delete()
+    .eq('id', id);
+  return { error };
+}
+
 // ─── Site Settings ──────────────────────────────────────────────────
 
 export async function getSetting(key: string) {

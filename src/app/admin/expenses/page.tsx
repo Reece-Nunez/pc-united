@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import toast from 'react-hot-toast';
-import { getExpenses, createExpense, updateExpense, deleteExpense, getSponsorships, Expense } from '@/lib/supabase';
+import { getExpenses, createExpense, updateExpense, deleteExpense, getSponsorships, getIncome, createIncome, updateIncome, deleteIncome, Expense, Income } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { getCurrentSeason, getAvailableSeasons, getSeasonLabel, isDateInSeason, type Season } from '@/lib/seasons';
@@ -29,6 +29,20 @@ const CATEGORIES = [
 ];
 
 const PAYMENT_METHODS = ['Check', 'Cash', 'Venmo', 'Bank Transfer', 'Credit Card', 'Other'];
+
+// Non-sponsor fundraising income categories (sponsorships are tracked separately).
+const INCOME_CATEGORIES = ['Fundraiser', 'Water Sales', 'Concessions', 'Donation', 'Registration Fees', 'Merchandise', 'Other'];
+
+interface IncomeForm {
+  description: string;
+  amount: string;
+  category: string;
+  source: string;
+  income_date: string;
+  payment_method: string;
+  notes: string;
+  season: string;
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   'Equipment': '#3b82f6',
@@ -71,9 +85,21 @@ const emptyForm: ExpenseForm = {
   season: getCurrentSeason().label,
 };
 
+const emptyIncomeForm: IncomeForm = {
+  description: '',
+  amount: '',
+  category: 'Fundraiser',
+  source: '',
+  income_date: new Date().toISOString().split('T')[0],
+  payment_method: 'Cash',
+  notes: '',
+  season: getCurrentSeason().label,
+};
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [income, setIncome] = useState<Income[]>([]);
+  const [sponsorRevenue, setSponsorRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -83,6 +109,9 @@ export default function ExpensesPage() {
   const receiptInputRef = useRef<HTMLInputElement>(null);
   const [selectedSeason, setSelectedSeason] = useState<Season>(getCurrentSeason());
   const [filterCategory, setFilterCategory] = useState('all');
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
+  const [incomeForm, setIncomeForm] = useState<IncomeForm>(emptyIncomeForm);
+  const [showIncomeForm, setShowIncomeForm] = useState(false);
   const seasons = useMemo(() => getAvailableSeasons(8), []);
 
   useEffect(() => {
@@ -96,18 +125,21 @@ export default function ExpensesPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [expensesRes, sponsorshipsRes] = await Promise.all([
+      const [expensesRes, sponsorshipsRes, incomeRes] = await Promise.all([
         getExpenses(),
         getSponsorships(),
+        getIncome(),
       ]);
       if (!expensesRes.error) setExpenses(expensesRes.data || []);
+      if (!incomeRes.error) setIncome(incomeRes.data || []);
 
-      // Calculate total revenue from approved/completed sponsorships (excluding Services/In-Kind)
+      // Calculate revenue from approved/completed sponsorships (excluding Services/In-Kind).
+      // Fundraising income is added on top of this — see totalRevenue below.
       const sponsorships = sponsorshipsRes.data || [];
       const revenue = sponsorships
         .filter((s: any) => (s.status === 'approved' || s.status === 'completed') && s.payment_method !== 'Services/In-Kind')
         .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
-      setTotalRevenue(revenue);
+      setSponsorRevenue(revenue);
     } catch (error: any) {
       toast.error('Error loading data');
     } finally {
@@ -134,6 +166,33 @@ export default function ExpensesPage() {
       .reduce((sum, e) => sum + Number(e.amount), 0),
     [expenses, selectedSeason]
   );
+
+  // All-time expenses across every season. Used for the running balance so
+  // that prior seasons' spending carries forward (rolls over) instead of the
+  // full revenue being "recycled" each season. See balance calc below.
+  const totalAllExpenses = useMemo(() =>
+    expenses.reduce((sum, e) => sum + Number(e.amount), 0),
+    [expenses]
+  );
+
+  // Fundraising income (water sales, donations, etc.), separate from sponsors.
+  const filteredIncome = useMemo(() =>
+    income.filter(i => i.income_date && isDateInSeason(i.income_date, selectedSeason)),
+    [income, selectedSeason]
+  );
+
+  const seasonIncome = useMemo(() =>
+    filteredIncome.reduce((sum, i) => sum + Number(i.amount), 0),
+    [filteredIncome]
+  );
+
+  const totalAllIncome = useMemo(() =>
+    income.reduce((sum, i) => sum + Number(i.amount), 0),
+    [income]
+  );
+
+  // Total revenue = approved sponsorships (all-time) + all fundraising income.
+  const totalRevenue = sponsorRevenue + totalAllIncome;
 
   // Category breakdown for pie chart
   const categoryData = useMemo(() => {
@@ -227,7 +286,108 @@ export default function ExpensesPage() {
     setShowForm(false);
   };
 
-  const balance = totalRevenue - allSeasonExpenses;
+  const handleIncomeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = {
+        description: incomeForm.description,
+        amount: parseFloat(incomeForm.amount),
+        category: incomeForm.category,
+        source: incomeForm.source || undefined,
+        income_date: incomeForm.income_date,
+        payment_method: incomeForm.payment_method,
+        notes: incomeForm.notes || undefined,
+        season: incomeForm.season,
+        created_by: userEmail || undefined,
+      };
+
+      if (editingIncome) {
+        const result = await updateIncome(editingIncome.id, data);
+        if (result.error) throw new Error(result.error.message);
+        toast.success('Income updated');
+        logActivity('update', 'income', editingIncome.id, userEmail, { description: incomeForm.description });
+        setEditingIncome(null);
+      } else {
+        const result = await createIncome(data);
+        if (result.error) throw new Error(result.error.message);
+        toast.success('Income added');
+        logActivity('create', 'income', result.data?.[0]?.id || incomeForm.description, userEmail, { description: incomeForm.description });
+      }
+
+      setIncomeForm(emptyIncomeForm);
+      setShowIncomeForm(false);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIncomeEdit = (entry: Income) => {
+    setEditingIncome(entry);
+    setIncomeForm({
+      description: entry.description,
+      amount: entry.amount.toString(),
+      category: entry.category,
+      source: entry.source || '',
+      income_date: entry.income_date,
+      payment_method: entry.payment_method || 'Cash',
+      notes: entry.notes || '',
+      season: entry.season || '',
+    });
+    setShowIncomeForm(true);
+  };
+
+  const doIncomeDelete = async (id: number) => {
+    setLoading(true);
+    try {
+      const result = await deleteIncome(id);
+      if (result.error) throw new Error(result.error.message);
+      toast.success('Income deleted');
+      logActivity('delete', 'income', id, userEmail);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Inline toast confirmation (project rule: no window.confirm / alert).
+  const handleIncomeDelete = (id: number) => {
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-gray-900 dark:text-white">Delete this income entry?</span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { toast.dismiss(t.id); doIncomeDelete(id); }}
+            className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
+  };
+
+  const cancelIncomeEdit = () => {
+    setEditingIncome(null);
+    setIncomeForm(emptyIncomeForm);
+    setShowIncomeForm(false);
+  };
+
+  // Running bank balance = all revenue ever minus all expenses ever. This is
+  // the true money remaining and is independent of which season is selected,
+  // so leftover funds roll over from one season into the next.
+  const balance = totalRevenue - totalAllExpenses;
 
   const exportCSV = () => {
     if (filteredExpenses.length === 0) {
@@ -299,8 +459,11 @@ export default function ExpensesPage() {
 <p class="date">Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
 <table class="summary">
   <tr><td class="label">Total Revenue:</td><td>${fmt(totalRevenue)}</td></tr>
-  <tr><td class="label">Total Expenses:</td><td>${fmt(allSeasonExpenses)}</td></tr>
-  <tr><td class="label">Balance:</td><td>${balance < 0 ? '-' : ''}${fmt(balance)}</td></tr>
+  <tr><td class="label">&nbsp;&nbsp;Sponsorships:</td><td>${fmt(sponsorRevenue)}</td></tr>
+  <tr><td class="label">&nbsp;&nbsp;Fundraising income:</td><td>${fmt(totalAllIncome)}</td></tr>
+  <tr><td class="label">Total Expenses (all seasons):</td><td>${fmt(totalAllExpenses)}</td></tr>
+  <tr><td class="label">Current Balance:</td><td>${balance < 0 ? '-' : ''}${fmt(balance)}</td></tr>
+  <tr><td class="label">${selectedSeason.label} Expenses:</td><td>${fmt(allSeasonExpenses)}</td></tr>
 </table>
 <table class="expenses">
   <thead><tr>
@@ -369,7 +532,10 @@ export default function ExpensesPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Revenue</p>
             <p className="text-2xl font-bold text-green-600 mt-1">${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-            <p className="text-xs text-gray-400 mt-1">From approved sponsorships</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Sponsors ${sponsorRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {totalAllIncome > 0 && <> + fundraising ${totalAllIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</>}
+            </p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{selectedSeason.label} Expenses</p>
@@ -381,7 +547,7 @@ export default function ExpensesPage() {
             <p className={`text-2xl font-bold mt-1 ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {balance < 0 ? '-' : ''}${Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Revenue minus {selectedSeason.label.toLowerCase()} expenses</p>
+            <p className="text-xs text-gray-400 mt-1">Total revenue minus all expenses (rolls over each season)</p>
           </div>
         </div>
 
@@ -640,6 +806,192 @@ export default function ExpensesPage() {
               ) : (
                 <p className="text-gray-400 text-sm text-center py-8">No expenses this season</p>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Income / Fundraising */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm mb-8">
+          <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Fundraising Income ({filteredIncome.length})
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Water sales, donations, gate fees &mdash; anything that isn&apos;t a sponsorship.
+                {seasonIncome > 0 && <> {selectedSeason.label}: <span className="font-semibold text-green-600">+${seasonIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></>}
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowIncomeForm(!showIncomeForm); if (editingIncome) cancelIncomeEdit(); }}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shrink-0"
+            >
+              {showIncomeForm ? 'Cancel' : '+ Add Income'}
+            </button>
+          </div>
+
+          {showIncomeForm && (
+            <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+              <form onSubmit={handleIncomeSubmit} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description *</label>
+                  <input
+                    type="text"
+                    value={incomeForm.description}
+                    onChange={(e) => setIncomeForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
+                    required
+                    placeholder="e.g. Water bottle sales"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-400 text-sm">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={incomeForm.amount}
+                      onChange={(e) => setIncomeForm(prev => ({ ...prev, amount: e.target.value }))}
+                      className="w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
+                      required
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label>
+                  <input
+                    type="date"
+                    value={incomeForm.income_date}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
+                    onChange={(e) => setIncomeForm(prev => ({
+                      ...prev,
+                      income_date: e.target.value,
+                      season: getSeasonLabel(e.target.value),
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category *</label>
+                  <select
+                    value={incomeForm.category}
+                    onChange={(e) => setIncomeForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
+                  >
+                    {INCOME_CATEGORIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
+                  <select
+                    value={incomeForm.payment_method}
+                    onChange={(e) => setIncomeForm(prev => ({ ...prev, payment_method: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
+                  >
+                    {PAYMENT_METHODS.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
+                  <input
+                    type="text"
+                    value={incomeForm.source}
+                    onChange={(e) => setIncomeForm(prev => ({ ...prev, source: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
+                    placeholder="Who / what event"
+                  />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-3 flex gap-3 pt-1">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                  >
+                    {editingIncome ? 'Update Income' : 'Add Income'}
+                  </button>
+                  {editingIncome && (
+                    <button
+                      type="button"
+                      onClick={cancelIncomeEdit}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+
+          {filteredIncome.length === 0 ? (
+            <div className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm">
+              No fundraising income recorded for {selectedSeason.label}.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 md:px-6 py-3">Description</th>
+                    <th className="px-4 md:px-6 py-3">Category</th>
+                    <th className="px-4 md:px-6 py-3 hidden md:table-cell">Source</th>
+                    <th className="px-4 md:px-6 py-3">Date</th>
+                    <th className="px-4 md:px-6 py-3 text-right">Amount</th>
+                    <th className="px-4 md:px-6 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredIncome.map(entry => (
+                    <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-4 md:px-6 py-3">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{entry.description}</p>
+                        {entry.notes && <p className="text-xs text-gray-400 truncate max-w-[200px] hidden md:block">{entry.notes}</p>}
+                      </td>
+                      <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400">{entry.category}</td>
+                      <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">{entry.source || '-'}</td>
+                      <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400">{new Date(entry.income_date).toLocaleDateString()}</td>
+                      <td className="px-4 md:px-6 py-3 text-sm font-semibold text-green-600 text-right">
+                        +${Number(entry.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-4 md:px-6 py-3 text-right">
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => handleIncomeEdit(entry)}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleIncomeDelete(entry.id)}
+                            className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300 dark:border-gray-600">
+                    <td colSpan={4} className="px-4 md:px-6 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right">
+                      {selectedSeason.label} Total:
+                    </td>
+                    <td className="px-4 md:px-6 py-3 text-sm font-bold text-green-600 text-right">
+                      +${seasonIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           )}
         </div>
