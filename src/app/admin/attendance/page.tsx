@@ -22,6 +22,13 @@ const STATUSES: { key: AttendanceStatus; label: string; on: string }[] = [
 
 const rsvpLabel: Record<string, string> = { going: 'Going', maybe: 'Maybe', not_going: 'Not going' };
 
+// A parent's RSVP seeds attendance: "not going" pre-marks Absent (the coach can
+// still override). "going"/"maybe" only show as a badge — showing up is the
+// coach's affirmative call.
+const RSVP_TO_ATTENDANCE: Partial<Record<string, AttendanceStatus>> = { not_going: 'absent' };
+const effectiveStatus = (row?: Attendance): AttendanceStatus | null =>
+  row?.attendance ?? (row?.rsvp ? RSVP_TO_ATTENDANCE[row.rsvp] ?? null : null);
+
 export default function AttendancePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [games, setGames] = useState<Schedule[]>([]);
@@ -32,6 +39,10 @@ export default function AttendancePage() {
   const [rows, setRows] = useState<Record<number, Attendance>>({}); // player_id -> row
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
+  const [showClosed, setShowClosed] = useState(false);
+
+  // Start of today: a session stays open all its day and closes once the day passes.
+  const startOfToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -53,7 +64,17 @@ export default function AttendancePage() {
     return [...g, ...e].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [games, events]);
 
+  // Open = today or future (attendance can still be taken). Past sessions close
+  // and become view-only, preserving the saved present/absent list.
+  const openSessions = useMemo(() =>
+    sessions.filter(s => new Date(s.date).getTime() >= startOfToday).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [sessions, startOfToday]);
+  const pastSessions = useMemo(() =>
+    sessions.filter(s => new Date(s.date).getTime() < startOfToday),
+    [sessions, startOfToday]);
+
   const selectedSession = sessions.find(s => s.key === sessionKey) || null;
+  const isClosed = selectedSession ? new Date(selectedSession.date).getTime() < startOfToday : false;
 
   useEffect(() => {
     if (!selectedSession) { setRows({}); return; }
@@ -74,14 +95,14 @@ export default function AttendancePage() {
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { present: 0, absent: 0, late: 0, excused: 0 };
-    activeRoster.forEach(p => { const a = rows[p.id]?.attendance; if (a && c[a] !== undefined) c[a]++; });
+    activeRoster.forEach(p => { const a = effectiveStatus(rows[p.id]); if (a && c[a] !== undefined) c[a]++; });
     return c;
   }, [activeRoster, rows]);
 
   const mark = async (player: Player, status: AttendanceStatus) => {
-    if (!selectedSession) return;
-    const current = rows[player.id]?.attendance;
-    const next = current === status ? null : status; // toggle off if same
+    if (!selectedSession || isClosed) return;
+    const explicit = rows[player.id]?.attendance;
+    const next = explicit === status ? null : status; // toggle off an explicit mark
     // optimistic
     setRows(prev => ({ ...prev, [player.id]: { ...(prev[player.id] || { id: 0, player_id: player.id }), attendance: next } }));
     const keyArg = selectedSession.kind === 'game' ? { schedule_id: selectedSession.id } : { event_id: selectedSession.id };
@@ -117,17 +138,33 @@ export default function AttendancePage() {
           <select value={sessionKey} onChange={e => setSessionKey(e.target.value)}
             className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
             <option value="">Select a game or practice…</option>
-            {sessions.map(s => (
+            {openSessions.map(s => (
               <option key={s.key} value={s.key}>
                 {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {s.kind === 'game' ? 'Game' : 'Event'} · {s.label}
               </option>
             ))}
+            {showClosed && pastSessions.length > 0 && (
+              <optgroup label="Closed — view only">
+                {pastSessions.map(s => (
+                  <option key={s.key} value={s.key}>
+                    {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {s.kind === 'game' ? 'Game' : 'Event'} · {s.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)}
             className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
             <option value="All">All Teams</option>
             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
+          {pastSessions.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+              <input type="checkbox" checked={showClosed} onChange={e => setShowClosed(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-team-blue focus:ring-team-blue" />
+              Show past
+            </label>
+          )}
         </div>
 
         {!selectedSession ? (
@@ -145,6 +182,11 @@ export default function AttendancePage() {
               ))}
             </div>
 
+            {isClosed && (
+              <div className="mb-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300">
+                This session has closed — showing the saved attendance (view only).
+              </div>
+            )}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
                 {selectedSession?.label} · {activeRoster.length} player{activeRoster.length !== 1 ? 's' : ''}
@@ -158,22 +200,33 @@ export default function AttendancePage() {
                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
                   {activeRoster.map(player => {
                     const row = rows[player.id];
+                    const eff = effectiveStatus(row);
                     return (
                       <div key={player.id} className="flex items-center justify-between gap-3 p-3 md:px-5">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{player.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {player.teams?.name || '—'}
-                            {row?.rsvp && <span className="ml-2">· RSVP: {rsvpLabel[row.rsvp] || row.rsvp}</span>}
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{player.name}</p>
+                            {row?.rsvp && (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                row.rsvp === 'going' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : row.rsvp === 'maybe' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                RSVP: {rsvpLabel[row.rsvp] || row.rsvp}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{player.teams?.name || '—'}</p>
                         </div>
                         <div className="flex gap-1 shrink-0">
                           {STATUSES.map(s => (
                             <button
                               key={s.key}
                               onClick={() => mark(player, s.key)}
-                              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                                row?.attendance === s.key ? s.on : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                              disabled={isClosed}
+                              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors disabled:cursor-default ${
+                                eff === s.key
+                                  ? s.on
+                                  : `bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 ${isClosed ? 'opacity-50' : 'hover:bg-gray-200'}`
                               }`}
                             >
                               {s.label}
