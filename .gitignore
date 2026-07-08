@@ -40,6 +40,9 @@ data.sql
 schema.sql
 /supabase/.temp/
 
+# graphify knowledge graph (regenerable artifact; git hook keeps it fresh locally)
+graphify-out/
+
 # vercel
 .vercel
 
