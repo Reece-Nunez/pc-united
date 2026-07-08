@@ -47,6 +47,7 @@ export default function MedicalFormsPage() {
   const [sendModal, setSendModal] = useState<MedicalForm | null>(null);
   const [sendPhone, setSendPhone] = useState('');
   const [sending, setSending] = useState(false);
+  const [viewForm, setViewForm] = useState<MedicalForm | null>(null);
 
   const printRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
@@ -377,7 +378,7 @@ export default function MedicalFormsPage() {
                             <button onClick={() => copyLink(form.token)} className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200">Copy link</button>
                             <button onClick={() => openSend(form)} className="text-xs px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100">Send text</button>
                             {done && (
-                              <a href={formLink(form.token)} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100">View</a>
+                              <button onClick={() => setViewForm(form)} className="text-xs px-2 py-1 rounded bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100">View</button>
                             )}
                             <button onClick={() => handleDelete(form)} className="text-xs px-2 py-1 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100">Delete</button>
                           </div>
@@ -413,6 +414,33 @@ export default function MedicalFormsPage() {
                 {sending ? 'Sending…' : 'Send text'}
               </button>
               <button onClick={() => setSendModal(null)} disabled={sending} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 text-sm">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View completed form modal */}
+      {viewForm && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto" onClick={() => setViewForm(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 sticky top-0 bg-white rounded-t-xl">
+              <h2 className="text-base font-semibold text-gray-900">
+                {viewForm.player_name || viewForm.players?.name || 'Medical Release'}
+              </h2>
+              <button onClick={() => setViewForm(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="p-4 overflow-x-auto">
+              <MedicalFormPrintable form={viewForm} />
+              {(viewForm.insurance_card_front_url || viewForm.insurance_card_back_url) && (
+                <div className="mt-4 flex flex-wrap gap-4 text-sm">
+                  {viewForm.insurance_card_front_url && (
+                    <a href={viewForm.insurance_card_front_url} target="_blank" rel="noopener noreferrer" className="text-team-blue hover:underline">Insurance card — front ↗</a>
+                  )}
+                  {viewForm.insurance_card_back_url && (
+                    <a href={viewForm.insurance_card_back_url} target="_blank" rel="noopener noreferrer" className="text-team-blue hover:underline">Insurance card — back ↗</a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
