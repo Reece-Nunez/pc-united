@@ -373,6 +373,50 @@ export async function getAttendanceForPlayers(playerIds: number[]) {
   return { data: data as Attendance[] | null, error };
 }
 
+// ─── Per-game stats ─────────────────────────────────────────────────
+
+export interface GameStat {
+  id: number;
+  schedule_id: number;
+  player_id: number;
+  goals?: number;
+  assists?: number;
+  yellow_cards?: number;
+  red_cards?: number;
+  saves?: number;
+  clean_sheet?: boolean;
+  minutes?: number;
+  note?: string;
+  updated_at?: string;
+  players?: { id: number; name: string; jersey_number: number; position?: string; team_id?: number | null; teams?: { id: number; name: string } | null } | null;
+  schedule?: { id: number; opponent: string; game_date: string } | null;
+}
+
+export async function getGameStats(scheduleId: number) {
+  const { data, error } = await supabase
+    .from('game_stats')
+    .select('*, players (id, name, jersey_number, position, team_id, teams (id, name))')
+    .eq('schedule_id', scheduleId);
+  return { data: data as GameStat[] | null, error };
+}
+
+export async function upsertGameStat(row: Partial<GameStat> & { schedule_id: number; player_id: number }) {
+  const { data, error } = await supabase
+    .from('game_stats')
+    .upsert([{ ...row, updated_at: new Date().toISOString() }], { onConflict: 'schedule_id,player_id' })
+    .select();
+  return { data, error };
+}
+
+export async function getGameStatsForPlayer(playerId: number) {
+  const { data, error } = await supabase
+    .from('game_stats')
+    .select('*, schedule (id, opponent, game_date)')
+    .eq('player_id', playerId)
+    .order('id', { ascending: false });
+  return { data: data as GameStat[] | null, error };
+}
+
 // Player CRUD Functions
 export async function getPlayers() {
   if (!isSupabaseConfigured) {
@@ -1429,6 +1473,17 @@ export async function createMedicalFormRequest(
   const { data, error } = await supabase
     .from('medical_forms')
     .insert([{ ...input, status: 'sent' }])
+    .select()
+    .single();
+  return { data: data as MedicalForm | null, error };
+}
+
+// Universal link: create a brand-new completed form linked to the picked player
+// (player_id may be null if the child wasn't on the roster — admin links later).
+export async function createMedicalFormSubmission(fields: Partial<MedicalForm> & { player_id?: number | null }) {
+  const { data, error } = await supabase
+    .from('medical_forms')
+    .insert([{ ...fields, status: 'completed', completed_at: new Date().toISOString() }])
     .select()
     .single();
   return { data: data as MedicalForm | null, error };

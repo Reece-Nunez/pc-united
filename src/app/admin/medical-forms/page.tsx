@@ -260,7 +260,24 @@ export default function MedicalFormsPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Medical Forms</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Send, collect, and export player medical release forms</p>
           </div>
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(`${window.location.origin}/forms/medical`);
+                toast.success('Universal form link copied — share it in the group chat');
+              } catch {
+                toast.error('Could not copy the link');
+              }
+            }}
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0"
+          >
+            Copy group-chat link
+          </button>
         </div>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3 mb-6">
+          Share the group-chat link and each parent picks their own child — or generate a specific player&apos;s link below to text individually.
+        </p>
 
         {/* Generate + export toolbar */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5 mb-6 flex flex-col lg:flex-row lg:items-center gap-4 lg:justify-between">

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { submitMedicalForm, MedicalForm } from '@/lib/supabase';
+import { submitMedicalForm, createMedicalFormSubmission, MedicalForm, Player } from '@/lib/supabase';
 
 // Field keys we let the parent fill (everything except server-managed columns).
 type FieldKey =
@@ -22,7 +22,12 @@ My player son/daughter has received a physical examination by a licensed medical
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 
-export default function MedicalFormClient({ form }: { form: MedicalForm }) {
+export default function MedicalFormClient({ form: formProp, roster }: { form?: MedicalForm; roster?: Player[] }) {
+  // Two modes: edit an existing per-kid request (has formProp/token), or the
+  // universal link where a parent picks their child and a new record is created.
+  const createMode = !formProp;
+  const form = formProp ?? ({} as MedicalForm);
+  const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [submitted, setSubmitted] = useState(form.status === 'completed');
   const [saving, setSaving] = useState(false);
   const [consent, setConsent] = useState<boolean>(!!form.consent_agreed);
@@ -103,14 +108,19 @@ export default function MedicalFormClient({ form }: { form: MedicalForm }) {
 
     setSaving(true);
     try {
-      const { error } = await submitMedicalForm(form.token, {
+      const payload = {
         ...f,
         date_of_birth: f.date_of_birth || undefined,
         signed_date: f.signed_date || todayISO(),
         consent_agreed: consent,
         insurance_card_front_url: frontUrl || undefined,
         insurance_card_back_url: backUrl || undefined,
-      } as Partial<MedicalForm>);
+      } as Partial<MedicalForm>;
+      // Create mode (universal link): make a new record linked to the picked
+      // roster player. Edit mode: update the existing per-kid request by token.
+      const { error } = createMode
+        ? (await createMedicalFormSubmission({ ...payload, player_id: selectedPlayerId ? parseInt(selectedPlayerId) : null }))
+        : (await submitMedicalForm(form.token, payload));
       if (error) throw new Error(error.message);
       setSubmitted(true);
       toast.success('Medical release submitted — thank you!');
@@ -145,6 +155,35 @@ export default function MedicalFormClient({ form }: { form: MedicalForm }) {
         <h1 className="text-2xl md:text-3xl font-bold text-team-blue">Parent/Guardian Consent &amp; Medical Release</h1>
         <p className="text-gray-600 mt-2">Please complete and sign this form for your player. Fields marked * are required.</p>
       </div>
+
+      {/* Child picker — universal link only */}
+      {createMode && roster && roster.length > 0 && (
+        <Section title="Which player is this for?">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Select your child *</label>
+          <select
+            value={selectedPlayerId}
+            onChange={(e) => {
+              setSelectedPlayerId(e.target.value);
+              const child = roster.find(p => String(p.id) === e.target.value);
+              if (child) set('player_name', child.name);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
+          >
+            <option value="">Select your child…</option>
+            {['U11', 'U12'].map(tn => roster.some(p => p.teams?.name === tn) && (
+              <optgroup key={tn} label={tn}>
+                {roster.filter(p => p.teams?.name === tn).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </optgroup>
+            ))}
+            {roster.filter(p => !p.teams).length > 0 && (
+              <optgroup label="Other">
+                {roster.filter(p => !p.teams).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </optgroup>
+            )}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Don&apos;t see your child? Enter their name below and your coach will match it.</p>
+        </Section>
+      )}
 
       {/* Player */}
       <Section title="Player Information">
