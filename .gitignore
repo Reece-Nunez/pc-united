@@ -34,6 +34,12 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# database dumps (contain auth data / PII — never commit)
+auth_data.sql
+data.sql
+schema.sql
+/supabase/.temp/
+
 # vercel
 .vercel
 
