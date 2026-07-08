@@ -1492,20 +1492,44 @@ export interface MedicalForm {
   players?: { id: number; name: string; jersey_number: number } | null;
 }
 
+// medical_forms is default-deny under RLS because it holds sensitive PII (see
+// supabase/migrations/20260707_harden_medical_forms_rls.sql). The anon key can no
+// longer read or write the table directly. Instead:
+//   * the public token path uses the SECURITY DEFINER RPCs get_medical_form /
+//     submit_medical_form, each scoped to the single row matching the token;
+//   * admin CRUD goes through the authenticated, service-role API route below.
+
+// Admin operations run from the admin page (client-side), so a same-origin relative
+// fetch carries the Supabase auth cookie the route uses to authorize the caller.
+async function medicalFormsAdminApi(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  opts: { body?: unknown; query?: string } = {}
+) {
+  try {
+    const res = await fetch(`/api/admin/medical-forms${opts.query || ''}`, {
+      method,
+      headers: opts.body ? { 'Content-Type': 'application/json' } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { data: null, error: { message: json.error || `Request failed (${res.status})` } };
+    }
+    return { data: json.data ?? null, error: null };
+  } catch (err: any) {
+    return { data: null, error: { message: err?.message || 'Network error' } };
+  }
+}
+
 export async function getMedicalForms() {
-  const { data, error } = await supabase
-    .from('medical_forms')
-    .select('*, players(id, name, jersey_number)')
-    .order('created_at', { ascending: false });
+  const { data, error } = await medicalFormsAdminApi('GET');
   return { data: data as MedicalForm[] | null, error };
 }
 
+// Public fill page: read the one row matching the unguessable token. Returns null
+// data when the token is unknown (RPC yields SQL NULL), matching the old .single().
 export async function getMedicalFormByToken(token: string) {
-  const { data, error } = await supabase
-    .from('medical_forms')
-    .select('*, players(id, name, jersey_number)')
-    .eq('token', token)
-    .single();
+  const { data, error } = await supabase.rpc('get_medical_form', { p_token: token });
   return { data: data as MedicalForm | null, error };
 }
 
@@ -1513,55 +1537,36 @@ export async function getMedicalFormByToken(token: string) {
 export async function createMedicalFormRequest(
   input: { player_id?: number | null; player_name?: string; season?: string; created_by?: string; sent_to_phone?: string }
 ) {
-  const { data, error } = await supabase
-    .from('medical_forms')
-    .insert([{ ...input, status: 'sent' }])
-    .select()
-    .single();
+  const { data, error } = await medicalFormsAdminApi('POST', { body: input });
   return { data: data as MedicalForm | null, error };
 }
 
 // Universal link: create a brand-new completed form linked to the picked player
 // (player_id may be null if the child wasn't on the roster — admin links later).
+// Public path, so it goes through a SECURITY DEFINER RPC that only accepts the
+// parent-fillable columns (the table is default-deny under RLS).
 export async function createMedicalFormSubmission(fields: Partial<MedicalForm> & { player_id?: number | null }) {
-  const { data, error } = await supabase
-    .from('medical_forms')
-    .insert([{ ...fields, status: 'completed', completed_at: new Date().toISOString() }])
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('create_medical_form_submission', {
+    p_player_id: fields.player_id ?? null,
+    p_fields: fields,
+  });
   return { data: data as MedicalForm | null, error };
 }
 
-// Parent submits the completed form (looked up by token).
+// Parent submits the completed form (looked up by token). The RPC only applies the
+// parent-fillable columns and forces status/completed_at server-side.
 export async function submitMedicalForm(token: string, fields: Partial<MedicalForm>) {
-  const { data, error } = await supabase
-    .from('medical_forms')
-    .update({
-      ...fields,
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('token', token)
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('submit_medical_form', { p_token: token, p_fields: fields });
   return { data: data as MedicalForm | null, error };
 }
 
 export async function updateMedicalForm(id: number, updates: Partial<MedicalForm>) {
-  const { data, error } = await supabase
-    .from('medical_forms')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select();
+  const { data, error } = await medicalFormsAdminApi('PATCH', { body: { id, updates } });
   return { data, error };
 }
 
 export async function deleteMedicalForm(id: number) {
-  const { error } = await supabase
-    .from('medical_forms')
-    .delete()
-    .eq('id', id);
+  const { error } = await medicalFormsAdminApi('DELETE', { query: `?id=${id}` });
   return { error };
 }
 
