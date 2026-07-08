@@ -394,6 +394,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     ? navItems.filter((item) => parentAllowedHrefs.includes(item.href))
     : navItems;
 
+  // Group the sidebar into labeled sections (keyed by href so the item list
+  // above stays untouched). Order here is the display order of the groups.
+  const NAV_SECTIONS = ['Overview', 'Team', 'Content', 'Families', 'Finances', 'Admin'] as const;
+  const sectionFor = (href: string): typeof NAV_SECTIONS[number] =>
+    href === '/admin' || href === '/admin/notifications' ? 'Overview'
+      : ['/admin/players', '/admin/teams', '/admin/coaches', '/admin/attendance', '/admin/game-stats'].includes(href) ? 'Team'
+      : ['/admin/team', '/admin/highlights', '/admin/gallery', '/admin/newsletter'].includes(href) ? 'Content'
+      : ['/admin/my-family', '/admin/parents', '/admin/medical-forms'].includes(href) ? 'Families'
+      : ['/admin/sponsorships', '/admin/expenses', '/admin/dues'].includes(href) ? 'Finances'
+      : 'Admin';
+
   const quickActions = isParent
     ? [
       { name: 'Upload Photo', href: '/admin/gallery?action=add', color: 'bg-blue-500 hover:bg-blue-600' },
@@ -470,32 +481,45 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Image src="/logo.png" alt="PC United" width={collapsed ? 28 : 40} height={collapsed ? 28 : 40} className="transition-all duration-300" />
               {!collapsed && <Link href="/admin" className="text-base font-bold">PC United Admin</Link>}
             </div>
-            {!collapsed && <div className="text-[11px] uppercase text-blue-300 font-semibold mb-2 px-2">Navigation</div>}
-            {filteredNavItems.map((item) => {
-              const isActive = pathname === item.href ||
-                (item.href !== '/admin' && pathname.startsWith(item.href));
+            {NAV_SECTIONS.map((section) => {
+              const items = filteredNavItems.filter((item) => sectionFor(item.href) === section);
+              if (items.length === 0) return null;
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  title={collapsed ? item.name : undefined}
-                  className={`
-                    flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg transition-colors text-sm relative focus:ring-2 focus:ring-team-blue focus:outline-none
-                    ${isActive
-                      ? 'bg-blue-700 text-white'
-                      : 'text-blue-100 hover:bg-blue-700/50'
-                    }
-                  `}
-                >
-                  <span className="shrink-0">{item.icon}</span>
-                  <span className={`font-medium flex-1 ${collapsed ? 'lg:hidden' : ''}`}>{item.name}</span>
-                  {item.badge && (
-                    <span className={`bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center ${collapsed ? 'lg:absolute lg:-top-1 lg:-right-1 lg:px-1 lg:min-w-[18px] lg:text-[10px]' : ''}`}>
-                      {item.badge > 9 ? '9+' : item.badge}
-                    </span>
+                <div key={section} className="mb-2">
+                  {!collapsed && (
+                    <div className="text-[11px] uppercase text-blue-300 font-semibold mb-1 mt-2 px-2 tracking-wider">{section}</div>
                   )}
-                </Link>
+                  {collapsed && <div className="hidden lg:block border-t border-blue-700/40 my-2" />}
+                  <div className="space-y-0.5">
+                    {items.map((item) => {
+                      const isActive = pathname === item.href ||
+                        (item.href !== '/admin' && pathname.startsWith(item.href));
+                      return (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          onClick={() => setSidebarOpen(false)}
+                          title={collapsed ? item.name : undefined}
+                          className={`
+                            flex items-center space-x-2.5 ${collapsed ? 'lg:space-x-0 lg:justify-center' : ''} px-2.5 py-2 rounded-lg transition-colors text-sm relative focus:ring-2 focus:ring-team-blue focus:outline-none
+                            ${isActive
+                              ? 'bg-blue-700 text-white'
+                              : 'text-blue-100 hover:bg-blue-700/50'
+                            }
+                          `}
+                        >
+                          <span className="shrink-0">{item.icon}</span>
+                          <span className={`font-medium flex-1 ${collapsed ? 'lg:hidden' : ''}`}>{item.name}</span>
+                          {item.badge && (
+                            <span className={`bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center ${collapsed ? 'lg:absolute lg:-top-1 lg:-right-1 lg:px-1 lg:min-w-[18px] lg:text-[10px]' : ''}`}>
+                              {item.badge > 9 ? '9+' : item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
 
