@@ -3,9 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
-import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses, getParentPlayers, linkParentToPlayer, unlinkParentFromPlayer } from '@/lib/supabase';
+import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses, getParentPlayers, linkParentToPlayer, unlinkParentFromPlayer, getTeams, type Team } from '@/lib/supabase';
 import { getRecentActivity } from '@/lib/audit';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { SkeletonCard } from '@/components/admin/Skeleton';
@@ -51,44 +50,53 @@ export default function AdminDashboard() {
   const [showPlayerSelector, setShowPlayerSelector] = useState(false);
   const [linkingPlayer, setLinkingPlayer] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | 'all'>('all');
 
   const availableSeasons = useMemo(() => getAvailableSeasons(8), []);
   const [selectedSeason, setSelectedSeason] = useState<Season>(getCurrentSeason());
 
-  // Derive chart data from raw data + selected season
-  const { performanceData, topScorers, gameScores } = useMemo(() => {
-    const seasonSchedule = allSchedule.filter((g: any) => g.game_date && isDateInSeason(g.game_date, selectedSeason));
-    const completed = seasonSchedule.filter((g: any) => g.status === 'completed' && g.our_score != null && g.opponent_score != null);
+  // The team switcher filters the whole admin dashboard down to one coached team.
+  const teamPlayers = useMemo(
+    () => (selectedTeamId === 'all' ? allPlayers : allPlayers.filter((p: any) => p.team_id === selectedTeamId)),
+    [allPlayers, selectedTeamId]
+  );
+  const teamSchedule = useMemo(
+    () => (selectedTeamId === 'all' ? allSchedule : allSchedule.filter((g: any) => g.team_id === selectedTeamId)),
+    [allSchedule, selectedTeamId]
+  );
+  const selectedTeam = selectedTeamId === 'all' ? null : teams.find((t) => t.id === selectedTeamId) || null;
 
-    // Performance chart data: wins/losses/draws by month
-    const monthMap: Record<string, { wins: number; losses: number; draws: number }> = {};
+  // Streamlined season insights: record, goals, and scorers — scoped to the
+  // selected team + season. Replaces the old three-chart recharts block.
+  const insights = useMemo(() => {
+    const seasonGames = teamSchedule.filter((g: any) => g.game_date && isDateInSeason(g.game_date, selectedSeason));
+    const completed = seasonGames.filter((g: any) => g.status === 'completed' && g.our_score != null && g.opponent_score != null);
+
+    let wins = 0, losses = 0, draws = 0, goalsFor = 0, goalsAgainst = 0;
     completed.forEach((g: any) => {
-      const month = new Date(g.game_date).toLocaleDateString('en-US', { month: 'short' });
-      if (!monthMap[month]) monthMap[month] = { wins: 0, losses: 0, draws: 0 };
-      if (g.our_score > g.opponent_score) monthMap[month].wins++;
-      else if (g.our_score < g.opponent_score) monthMap[month].losses++;
-      else monthMap[month].draws++;
+      goalsFor += g.our_score;
+      goalsAgainst += g.opponent_score;
+      if (g.our_score > g.opponent_score) wins++;
+      else if (g.our_score < g.opponent_score) losses++;
+      else draws++;
     });
-    const performanceData = Object.entries(monthMap).map(([month, data]) => ({ month, ...data }));
+    const total = completed.length;
+    const winPct = total ? Math.round((wins / total) * 100) : 0;
 
-    // Game scores line chart
-    const gameScores = completed
-      .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime())
-      .map((g: any) => ({
-        game: `vs ${g.opponent}`,
-        'Goals For': g.our_score,
-        'Goals Against': g.opponent_score,
-      }));
-
-    // Top scorers
-    const topScorers = allPlayers
-      .filter((p: any) => p.player_stats?.[0]?.goals > 0)
+    const topScorers = teamPlayers
+      .filter((p: any) => (p.player_stats?.[0]?.goals || 0) > 0)
       .sort((a: any, b: any) => (b.player_stats?.[0]?.goals || 0) - (a.player_stats?.[0]?.goals || 0))
       .slice(0, 5)
-      .map((p: any) => ({ name: p.name.split(' ')[0], goals: p.player_stats?.[0]?.goals || 0, assists: p.player_stats?.[0]?.assists || 0 }));
+      .map((p: any) => ({ name: p.name, goals: p.player_stats?.[0]?.goals || 0, assists: p.player_stats?.[0]?.assists || 0 }));
 
-    return { performanceData, topScorers, gameScores };
-  }, [allSchedule, allPlayers, selectedSeason]);
+    return { wins, losses, draws, total, goalsFor, goalsAgainst, winPct, topScorers };
+  }, [teamSchedule, teamPlayers, selectedSeason]);
+
+  const teamUpcomingCount = useMemo(
+    () => teamSchedule.filter((g: any) => g.status === 'upcoming' || g.status === 'scheduled').length,
+    [teamSchedule]
+  );
 
   useEffect(() => {
     async function fetchUserRole() {
@@ -116,7 +124,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes, expensesRes] = await Promise.all([
+        const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes, expensesRes, teamsRes] = await Promise.all([
           getPlayers(),
           getHighlights(),
           getNews(),
@@ -126,6 +134,7 @@ export default function AdminDashboard() {
           getGalleryImages(),
           getRecentActivity(5),
           getExpenses(),
+          getTeams(),
         ]);
 
         const players = playersRes.data || [];
@@ -135,6 +144,7 @@ export default function AdminDashboard() {
         setAllPlayers(players);
         setAllSchedule(schedule);
         setAllNews(newsRes.data || []);
+        setTeams((teamsRes.data || []).filter((t: Team) => t.active !== false));
 
         setStats({
           players: players.length,
@@ -171,14 +181,62 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  const statCards = [
-    { label: 'Players', value: stats.players, color: 'bg-blue-500', link: '/admin/players' },
-    { label: 'Highlights', value: stats.highlights, color: 'bg-orange-500', link: '/admin/highlights' },
-    { label: 'News', value: stats.news, color: 'bg-green-500', link: '/admin/team?tab=news' },
-    { label: 'Upcoming', value: stats.upcomingGames, color: 'bg-purple-500', link: '/admin/team?tab=schedule' },
-    { label: 'Subscribers', value: stats.subscribers, color: 'bg-pink-500', link: '/admin/newsletter' },
-    { label: 'Sponsors', value: stats.sponsorships, color: 'bg-yellow-500', link: '/admin/sponsorships' },
-    { label: 'Gallery', value: stats.gallery, color: 'bg-teal-500', link: '/admin/gallery' },
+  // KPI row. `scoped` cards react to the team switcher; the rest are club-wide
+  // (highlights, news, subscribers, etc. aren't tied to a team_id).
+  const adminStatCards = [
+    { label: 'Players', value: teamPlayers.length, link: '/admin/players', scoped: true },
+    { label: 'Upcoming', value: teamUpcomingCount, link: '/admin/team?tab=schedule', scoped: true },
+    { label: 'Highlights', value: stats.highlights, link: '/admin/highlights', scoped: false },
+    { label: 'News', value: stats.news, link: '/admin/team?tab=news', scoped: false },
+    { label: 'Subscribers', value: stats.subscribers, link: '/admin/newsletter', scoped: false },
+    { label: 'Sponsors', value: stats.sponsorships, link: '/admin/sponsorships', scoped: false },
+    { label: 'Gallery', value: stats.gallery, link: '/admin/gallery', scoped: false },
+  ];
+
+  // Quick-create shortcuts surfaced as a compact strip under the header.
+  const quickActions = [
+    { label: 'Add Player', href: '/admin/players?action=add' },
+    { label: 'Add Highlight', href: '/admin/highlights?action=add' },
+    { label: 'Write News', href: '/admin/team?tab=news&action=add' },
+    { label: 'Add Game', href: '/admin/team?tab=schedule&action=add' },
+    { label: 'Upload Photos', href: '/admin/gallery' },
+  ];
+
+  // Every admin area, grouped exactly like the sidebar — the "overview of
+  // everything in the admin system" the dashboard is meant to be.
+  const adminSections: { group: string; items: { name: string; href: string }[] }[] = [
+    { group: 'Overview', items: [
+      { name: 'Notifications', href: '/admin/notifications' },
+      { name: 'Calendar', href: '/admin/calendar' },
+    ] },
+    { group: 'Team', items: [
+      { name: 'Players', href: '/admin/players' },
+      { name: 'Teams', href: '/admin/teams' },
+      { name: 'Coaches', href: '/admin/coaches' },
+      { name: 'Attendance', href: '/admin/attendance' },
+      { name: 'Game Stats', href: '/admin/game-stats' },
+    ] },
+    { group: 'Content', items: [
+      { name: 'Team Content', href: '/admin/team' },
+      { name: 'Highlights', href: '/admin/highlights' },
+      { name: 'Gallery', href: '/admin/gallery' },
+      { name: 'Newsletter', href: '/admin/newsletter' },
+    ] },
+    { group: 'Families', items: [
+      { name: 'My Family', href: '/admin/my-family' },
+      { name: 'Parents', href: '/admin/parents' },
+      { name: 'Medical Forms', href: '/admin/medical-forms' },
+    ] },
+    { group: 'Finances', items: [
+      { name: 'Sponsorships', href: '/admin/sponsorships' },
+      { name: 'Expenses', href: '/admin/expenses' },
+      { name: 'Dues', href: '/admin/dues' },
+    ] },
+    { group: 'Admin', items: [
+      { name: 'Users', href: '/admin/users' },
+      { name: 'Activity Log', href: '/admin/activity' },
+      { name: 'Settings', href: '/admin/settings' },
+    ] },
   ];
 
   const typeColors: Record<string, string> = {
@@ -609,26 +667,66 @@ export default function AdminDashboard() {
       ) : (
       /* ===== ADMIN DASHBOARD ===== */
       <div className="p-4 md:p-8">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Header */}
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back! Here&apos;s an overview of your team.</p>
+            <p className="font-display text-xs uppercase tracking-[0.2em] text-team-blue/60 dark:text-blue-300/70">Ponca City United</p>
+            <h1 className="font-display text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mt-1">Dashboard</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {selectedTeam ? (
+                <>Viewing <span className="font-medium text-gray-700 dark:text-gray-200">{selectedTeam.name}</span>{selectedTeam.season ? ` · ${selectedTeam.season}` : ''}</>
+              ) : (
+                'Every team, every section — your whole club at a glance.'
+              )}
+            </p>
           </div>
-          <select
-            value={selectedSeason.key}
-            onChange={(e) => {
-              const season = availableSeasons.find(s => s.key === e.target.value);
-              if (season) setSelectedSeason(season);
-            }}
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium shadow-sm focus:ring-2 focus:ring-team-blue focus:border-team-blue"
-          >
-            {availableSeasons.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            {teams.length > 0 && (
+              <select
+                value={String(selectedTeamId)}
+                onChange={(e) => setSelectedTeamId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                aria-label="Filter dashboard by team"
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium shadow-sm focus:ring-2 focus:ring-team-blue focus:border-team-blue focus:outline-none"
+              >
+                <option value="all">All Teams</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
+            <select
+              value={selectedSeason.key}
+              onChange={(e) => {
+                const season = availableSeasons.find(s => s.key === e.target.value);
+                if (season) setSelectedSeason(season);
+              }}
+              aria-label="Select season"
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium shadow-sm focus:ring-2 focus:ring-team-blue focus:border-team-blue focus:outline-none"
+            >
+              {availableSeasons.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Quick actions */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {quickActions.map((action) => (
+            <Link
+              key={action.label}
+              href={action.href}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:border-team-blue/50 hover:text-team-blue dark:hover:text-blue-300 transition-colors focus:ring-2 focus:ring-team-blue focus:outline-none"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {action.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* KPIs */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
             {Array.from({ length: 7 }).map((_, i) => (
@@ -637,172 +735,183 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
-            {statCards.map((stat) => (
+            {adminStatCards.map((stat) => (
               <Link
                 key={stat.label}
                 href={stat.link}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4"
+                className="group rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-4 hover:border-team-blue/40 hover:shadow-sm transition-all focus:ring-2 focus:ring-team-blue focus:outline-none"
               >
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
-                <div className={`h-1 w-8 ${stat.color} rounded-full mt-2`} />
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-400">{stat.label}</p>
+                  {stat.scoped && selectedTeam && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-team-red" title={`Filtered to ${selectedTeam.name}`} />
+                  )}
+                </div>
+                <p className="font-display text-3xl font-bold text-gray-900 dark:text-white tabular-nums leading-none">{stat.value}</p>
               </Link>
             ))}
           </div>
         )}
 
-        {/* Financial Overview */}
+        {/* Financials (club-wide) */}
         {!loading && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Revenue</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Revenue</p>
+              <p className="font-display text-2xl font-bold text-green-600 dark:text-green-400 tabular-nums">
                 ${financials.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Expenses</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Expenses</p>
+              <p className="font-display text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums">
                 ${financials.expenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Balance</p>
-              <p className={`text-2xl font-bold ${financials.revenue - financials.expenses >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Balance</p>
+              <p className={`font-display text-2xl font-bold tabular-nums ${financials.revenue - financials.expenses >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 ${(financials.revenue - financials.expenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
         )}
 
-        {/* Charts Row */}
-        {!loading && (performanceData.length > 0 || topScorers.length > 0) && (
-          <div className="grid lg:grid-cols-2 gap-6 mb-8">
-            {/* Season Performance */}
-            {performanceData.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{selectedSeason.label} Performance</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={performanceData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="wins" fill="#22c55e" name="Wins" radius={[2, 2, 0, 0]} />
-                    <Bar dataKey="losses" fill="#ef4444" name="Losses" radius={[2, 2, 0, 0]} />
-                    <Bar dataKey="draws" fill="#eab308" name="Draws" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+        {/* Team snapshot: record · next game · scorers (scoped to the switcher) */}
+        {!loading && (
+          <div className="grid gap-6 lg:grid-cols-3 mb-8">
+            {/* Season record */}
+            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-6">
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white">Record</h2>
+                <span className="text-xs text-gray-400">{selectedSeason.label}</span>
               </div>
-            )}
-
-            {/* Top Scorers */}
-            {topScorers.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Scorers</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={topScorers} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="goals" fill="#dc2626" name="Goals" radius={[0, 2, 2, 0]} />
-                    <Bar dataKey="assists" fill="#3b82f6" name="Assists" radius={[0, 2, 2, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Goals Chart */}
-        {!loading && gameScores.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Goals For vs Against</h2>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={gameScores}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="game" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="Goals For" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="Goals Against" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Next Upcoming Game */}
-        {!loading && (() => {
-          const now = new Date();
-          const upcoming = allSchedule
-            .filter((g: any) => (g.status === 'scheduled' || g.status === 'upcoming') && new Date(g.game_date) >= now)
-            .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
-          const next = upcoming[0];
-          if (!next) return null;
-          const gameDate = new Date(next.game_date);
-          const daysUntil = Math.ceil((gameDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          return (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Game</p>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    vs {next.opponent}
-                  </h2>
-                  <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    <span>{gameDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
-                    <span>{gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
-                    <span>{next.home_game ? 'Home' : 'Away'}</span>
+              {insights.total === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No completed games {selectedTeam ? `for ${selectedTeam.name} ` : ''}this season yet.</p>
+              ) : (
+                <>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="font-display text-4xl font-bold text-gray-900 dark:text-white tabular-nums leading-none">
+                        {insights.wins}<span className="text-gray-300 dark:text-gray-600">-</span>{insights.losses}<span className="text-gray-300 dark:text-gray-600">-</span>{insights.draws}
+                      </p>
+                      <p className="text-[11px] uppercase tracking-wide text-gray-400 mt-1.5">Win · Loss · Draw</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-display text-3xl font-bold text-team-blue dark:text-blue-400 tabular-nums leading-none">{insights.winPct}%</p>
+                      <p className="text-[11px] uppercase tracking-wide text-gray-400 mt-1.5">Win rate</p>
+                    </div>
                   </div>
-                  {next.location && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{next.location}</p>
-                  )}
-                </div>
-                <div className="text-center sm:text-right">
-                  <p className="text-3xl font-bold text-team-blue dark:text-blue-400">{daysUntil}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{daysUntil === 1 ? 'day away' : 'days away'}</p>
-                  {upcoming.length > 1 && (
-                    <Link href="/admin/team?tab=schedule" className="text-xs text-team-blue hover:underline mt-1 inline-block">
-                      +{upcoming.length - 1} more scheduled
-                    </Link>
-                  )}
-                </div>
-              </div>
+                  <div className="mt-5 grid grid-cols-2 gap-3 border-t border-gray-100 dark:border-gray-700 pt-4 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Goals for</span>
+                      <span className="font-display font-bold text-green-600 dark:text-green-400 tabular-nums">{insights.goalsFor}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Against</span>
+                      <span className="font-display font-bold text-red-600 dark:text-red-400 tabular-nums">{insights.goalsAgainst}</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-          );
-        })()}
 
-        {/* Bottom Row: Quick Actions + Recent Items + Activity */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-            <div className="space-y-2">
-              {[
-                { label: 'Add Player', href: '/admin/players?action=add', color: 'text-blue-600' },
-                { label: 'Add Highlight', href: '/admin/highlights?action=add', color: 'text-orange-600' },
-                { label: 'Write News', href: '/admin/team?tab=news&action=add', color: 'text-green-600' },
-                { label: 'Add Game', href: '/admin/team?tab=schedule&action=add', color: 'text-purple-600' },
-                { label: 'Upload Photos', href: '/admin/gallery', color: 'text-teal-600' },
-              ].map((action) => (
-                <Link
-                  key={action.label}
-                  href={action.href}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${action.color}`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span className="text-sm font-medium">{action.label}</span>
-                </Link>
-              ))}
+            {/* Next game */}
+            {(() => {
+              const now = new Date();
+              const upcoming = teamSchedule
+                .filter((g: any) => (g.status === 'scheduled' || g.status === 'upcoming') && new Date(g.game_date) >= now)
+                .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
+              const next = upcoming[0];
+              return (
+                <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-6">
+                  <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white mb-4">Next Game</h2>
+                  {!next ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No upcoming games {selectedTeam ? `for ${selectedTeam.name} ` : ''}scheduled.</p>
+                  ) : (() => {
+                    const gameDate = new Date(next.game_date);
+                    const daysUntil = Math.ceil((gameDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-display text-xl font-bold text-gray-900 dark:text-white truncate">vs {next.opponent}</p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            <span>{gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                            <span>{gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                            <span>{next.home_game ? 'Home' : 'Away'}</span>
+                          </div>
+                          {next.location && <p className="text-xs text-gray-400 mt-1 truncate">{next.location}</p>}
+                          {upcoming.length > 1 && (
+                            <Link href="/admin/team?tab=schedule" className="text-xs text-team-blue dark:text-blue-400 hover:underline mt-2 inline-block">
+                              +{upcoming.length - 1} more scheduled
+                            </Link>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-display text-3xl font-bold text-team-blue dark:text-blue-400 tabular-nums leading-none">{daysUntil}</p>
+                          <p className="text-[11px] text-gray-400 mt-1">{daysUntil === 1 ? 'day away' : 'days away'}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
+
+            {/* Top scorers */}
+            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-6">
+              <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Scorers</h2>
+              {insights.topScorers.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No goals recorded {selectedTeam ? `for ${selectedTeam.name} ` : ''}yet.</p>
+              ) : (
+                <ol className="space-y-2.5">
+                  {insights.topScorers.map((p, i) => (
+                    <li key={p.name} className="flex items-center gap-3">
+                      <span className="font-display text-sm font-bold text-gray-300 dark:text-gray-600 tabular-nums w-4 shrink-0">{i + 1}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate flex-1">{p.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums shrink-0">
+                        <span className="font-display font-bold text-gray-900 dark:text-white">{p.goals}</span>G · {p.assists}A
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
           </div>
+        )}
 
+        {/* Everything in the admin system */}
+        <div className="mb-8">
+          <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white">The Admin System</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 mt-0.5">Every section, one jump away.</p>
+          <div className="grid gap-x-6 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+            {adminSections.map((section) => (
+              <div key={section.group}>
+                <p className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-1">{section.group}</p>
+                <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700/60 overflow-hidden">
+                  {section.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors focus:ring-2 focus:ring-inset focus:ring-team-blue focus:outline-none"
+                    >
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{item.name}</span>
+                      <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-team-blue dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent items + activity */}
+        <div className="grid lg:grid-cols-2 gap-6">
           {/* Recent Items */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Items</h2>
+          <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-6">
+            <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Items</h2>
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-team-blue" />
@@ -833,9 +942,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+          <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
+              <h2 className="font-display text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
               <Link href="/admin/activity" className="text-xs text-team-blue hover:underline">View all</Link>
             </div>
             {recentActivity.length > 0 ? (
@@ -860,23 +969,22 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Help Section */}
-        <div className="mt-8 bg-gradient-to-r from-team-blue to-blue-700 rounded-xl p-6 text-white">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+        {/* Help footer */}
+        <div className="mt-8 rounded-xl bg-team-blue p-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold mb-2">Need Help?</h2>
-              <p className="text-blue-100">Use the sidebar to navigate between different sections of the admin panel.</p>
-              <p className="text-blue-100 mt-1">
+              <h2 className="font-display text-xl font-semibold mb-2">Need a hand?</h2>
+              <p className="text-white/70">
                 Email Reece Nunez at{' '}
                 <a href="mailto:rnunez@poncacityunited.com" className="text-white underline hover:no-underline font-medium">
                   rnunez@poncacityunited.com
                 </a>
-                {' '}for any questions.
+                {' '}for anything the sidebar can&apos;t answer.
               </p>
             </div>
             <Link
               href="/"
-              className="mt-4 md:mt-0 inline-flex items-center space-x-2 bg-white text-team-blue px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+              className="inline-flex items-center gap-2 self-start md:self-auto bg-white text-team-blue px-4 py-2 rounded-lg font-medium hover:bg-white/90 transition-colors focus:ring-2 focus:ring-white focus:outline-none"
             >
               <span>View Live Site</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
