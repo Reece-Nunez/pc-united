@@ -417,6 +417,49 @@ export async function getGameStatsForPlayer(playerId: number) {
   return { data: data as GameStat[] | null, error };
 }
 
+// ─── Player Dues / Payments ─────────────────────────────────────────
+
+export interface Dues {
+  id: number;
+  player_id: number;
+  season: string;
+  amount_owed: number;
+  amount_paid: number;
+  payment_method?: string;
+  note?: string;
+  due_date?: string;
+  updated_at?: string;
+  players?: { id: number; name: string; jersey_number: number; team_id?: number | null; teams?: { id: number; name: string } | null } | null;
+}
+
+export async function getDuesBySeason(season: string) {
+  const { data, error } = await supabase
+    .from('player_dues')
+    .select('*, players (id, name, jersey_number, team_id, teams (id, name))')
+    .eq('season', season);
+  return { data: data as Dues[] | null, error };
+}
+
+export async function upsertDues(row: { player_id: number; season: string; amount_owed?: number; amount_paid?: number; payment_method?: string; note?: string; due_date?: string; created_by?: string }) {
+  const { data, error } = await supabase
+    .from('player_dues')
+    .upsert([{ ...row, updated_at: new Date().toISOString() }], { onConflict: 'player_id,season' })
+    .select();
+  return { data, error };
+}
+
+export async function deleteDues(id: number) {
+  const { error } = await supabase.from('player_dues').delete().eq('id', id);
+  return { error };
+}
+
+// Dues rows for a set of players (for the parent's My Family view).
+export async function getDuesForPlayers(playerIds: number[]) {
+  if (playerIds.length === 0) return { data: [] as Dues[], error: null };
+  const { data, error } = await supabase.from('player_dues').select('*').in('player_id', playerIds);
+  return { data: data as Dues[] | null, error };
+}
+
 // Player CRUD Functions
 export async function getPlayers() {
   if (!isSupabaseConfigured) {

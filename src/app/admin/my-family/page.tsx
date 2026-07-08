@@ -7,9 +7,12 @@ import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import toast from 'react-hot-toast';
 import {
   getRoster, getParentChildrenForUser, createParentChildLink, getEvents, getAttendanceForPlayers, upsertRsvp,
-  ParentChild, Player, Event, Attendance, RsvpStatus,
+  getDuesForPlayers, ParentChild, Player, Event, Attendance, RsvpStatus, Dues,
 } from '@/lib/supabase';
+import { getCurrentSeason } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
+
+const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function MyFamilyPage() {
   const [links, setLinks] = useState<ParentChild[]>([]);
@@ -23,7 +26,9 @@ export default function MyFamilyPage() {
   const [saving, setSaving] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>({}); // `${eventId}:${playerId}` -> status
+  const [dues, setDues] = useState<Record<number, Dues>>({}); // player_id -> current-season dues
   const photoRef = useRef<HTMLInputElement>(null);
+  const currentSeason = getCurrentSeason().label;
 
   useEffect(() => {
     const supabase = createClient();
@@ -49,6 +54,12 @@ export default function MyFamilyPage() {
       const map: Record<string, RsvpStatus> = {};
       (attRes.data || []).forEach((a: Attendance) => { if (a.rsvp) map[`${a.event_id}:${a.player_id}`] = a.rsvp; });
       setRsvps(map);
+
+      // Current-season dues per child (read-only for parents).
+      const duesRes = await getDuesForPlayers(playerIds);
+      const dMap: Record<number, Dues> = {};
+      (duesRes.data || []).forEach((d: Dues) => { if (d.season === currentSeason && d.player_id) dMap[d.player_id] = d; });
+      setDues(dMap);
       setLoading(false);
     });
   }, []);
@@ -201,6 +212,16 @@ export default function MyFamilyPage() {
                   <p className="font-semibold text-gray-900 dark:text-white truncate">{link.players?.name || 'Player'}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{link.players?.teams?.name || 'No team'}</p>
                   <div className="mt-1">{statusBadge(link.status)}</div>
+                  {link.players?.id && dues[link.players.id] && (() => {
+                    const d = dues[link.players!.id];
+                    const bal = Number(d.amount_owed) - Number(d.amount_paid);
+                    if (Number(d.amount_owed) <= 0) return null;
+                    return (
+                      <p className={`text-xs mt-1 ${bal > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {currentSeason} dues: {bal > 0 ? `${money(bal)} due` : 'Paid'}
+                      </p>
+                    );
+                  })()}
                   {link.status === 'approved' && link.players?.id && (
                     <Link href={`/players/${link.players.id}`} className="text-team-blue text-sm hover:underline mt-1 inline-block">View profile →</Link>
                   )}
