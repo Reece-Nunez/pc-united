@@ -43,7 +43,7 @@ import AutocompleteInput from '@/components/admin/AutocompleteInput';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
-type ActiveTab = 'news' | 'events' | 'schedule' | 'announcements';
+type ActiveTab = 'news' | 'events' | 'schedule' | 'practices' | 'announcements';
 
 interface NewsForm extends Omit<News, 'id' | 'created_at' | 'updated_at'> {
   [key: string]: any;
@@ -159,6 +159,19 @@ function TeamAdminContent() {
     active: true,
     expires_at: ''
   });
+
+  // Practices are stored as events (event_type='practice') so they flow into
+  // the attendance page and the /rsvp link automatically.
+  const [practiceForm, setPracticeForm] = useState<{ team_id: number | null; event_date: string; location: string; note: string }>({
+    team_id: null,
+    event_date: '',
+    location: '',
+    note: '',
+  });
+
+  // Practices vs other events (both live in the events table).
+  const practices = events.filter(e => e.event_type === 'practice');
+  const nonPracticeEvents = events.filter(e => e.event_type !== 'practice');
 
   useEffect(() => {
     fetchAllData();
@@ -279,10 +292,38 @@ function TeamAdminContent() {
     }
   };
 
+  const handlePracticeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!practiceForm.event_date) { toast.error('Pick a date and time'); return; }
+    setLoading(true);
+    try {
+      const teamName = teams.find(t => t.id === practiceForm.team_id)?.name;
+      const title = teamName ? `${teamName} Practice` : 'Practice';
+      const result = await createEvent({
+        title,
+        description: practiceForm.note || undefined,
+        event_date: practiceForm.event_date,
+        location: practiceForm.location || undefined,
+        event_type: 'practice',
+        team_id: practiceForm.team_id,
+        registration_required: false,
+      } as Omit<Event, 'id' | 'created_at' | 'updated_at'>);
+      if (result.error) throw new Error(result.error.message);
+      toast.success('Practice scheduled');
+      logActivity('create', 'event', result.data?.[0]?.id || title, userEmail, { title, type: 'practice' });
+      setPracticeForm({ team_id: null, event_date: '', location: '', note: '' });
+      fetchAllData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEventSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const sanitizedEvent = {
         ...eventForm,
@@ -617,6 +658,7 @@ function TeamAdminContent() {
           break;
       }
 
+      if (!result) { setLoading(false); return; }
       if (result.error) throw new Error(result.error.message);
       toast.success(`${type.slice(0, -1)} deleted successfully!`);
       const entityType = type === 'events' ? 'event' : type === 'announcements' ? 'announcement' : type === 'news' ? 'news' : 'schedule';
@@ -732,6 +774,7 @@ function TeamAdminContent() {
                 { id: 'news', label: 'News' },
                 { id: 'events', label: 'Events' },
                 { id: 'schedule', label: 'Schedule' },
+                { id: 'practices', label: 'Practices' },
                 { id: 'announcements', label: 'Announcements' }
               ].map((tab) => (
                 <button
@@ -757,6 +800,7 @@ function TeamAdminContent() {
               {activeTab === 'news' && (editingNews ? 'Edit News Article' : 'Add New News Article')}
               {activeTab === 'events' && (editingEvent ? 'Edit Event' : 'Add New Event')}
               {activeTab === 'schedule' && (editingSchedule ? 'Edit Schedule Item' : 'Add New Schedule Item')}
+              {activeTab === 'practices' && 'Schedule a Practice'}
               {activeTab === 'announcements' && (editingAnnouncement ? 'Edit Announcement' : 'Add New Announcement')}
             </h2>
 
@@ -1286,6 +1330,59 @@ function TeamAdminContent() {
               </form>
             )}
 
+            {/* Practice Form */}
+            {activeTab === 'practices' && (
+              <form onSubmit={handlePracticeSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Team</label>
+                  <select
+                    value={practiceForm.team_id ?? ''}
+                    onChange={(e) => setPracticeForm(prev => ({ ...prev, team_id: e.target.value ? parseInt(e.target.value) : null }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  >
+                    <option value="">Both teams / club-wide</option>
+                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date &amp; Time</label>
+                  <input
+                    type="datetime-local"
+                    value={practiceForm.event_date}
+                    onChange={(e) => setPracticeForm(prev => ({ ...prev, event_date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                  <input
+                    type="text"
+                    value={practiceForm.location}
+                    onChange={(e) => setPracticeForm(prev => ({ ...prev, location: e.target.value }))}
+                    placeholder="e.g. Ponca City Soccer Complex"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={practiceForm.note}
+                    onChange={(e) => setPracticeForm(prev => ({ ...prev, note: e.target.value }))}
+                    placeholder="e.g. Bring cleats and water"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Practices show up on the Attendance page and the RSVP link so parents can mark who&apos;s coming.
+                </p>
+                <button type="submit" disabled={loading} className="w-full bg-team-blue text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium">
+                  {loading ? 'Saving…' : 'Schedule Practice'}
+                </button>
+              </form>
+            )}
+
             {/* Announcements Form */}
             {activeTab === 'announcements' && (
               <form onSubmit={handleAnnouncementSubmit} className="space-y-4">
@@ -1389,8 +1486,9 @@ function TeamAdminContent() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg md:text-xl font-semibold text-center md:text-left">
                 {activeTab === 'news' && `News Articles (${news.length})`}
-                {activeTab === 'events' && `Events (${events.length})`}
+                {activeTab === 'events' && `Events (${nonPracticeEvents.length})`}
                 {activeTab === 'schedule' && `Schedule`}
+                {activeTab === 'practices' && `Upcoming Practices (${practices.length})`}
                 {activeTab === 'announcements' && `Announcements (${announcements.length})`}
               </h2>
               {activeTab === 'schedule' && (
@@ -1455,7 +1553,7 @@ function TeamAdminContent() {
               ))}
 
               {/* Events List */}
-              {activeTab === 'events' && events.map((event) => (
+              {activeTab === 'events' && nonPracticeEvents.map((event) => (
                 <div key={event.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="flex-1">
@@ -1477,6 +1575,33 @@ function TeamAdminContent() {
                       </button>
                       <button
                         onClick={() => handleDelete('events', event.id)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Practices List */}
+              {activeTab === 'practices' && practices.map((practice) => (
+                <div key={practice.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">
+                        {practice.title}
+                        {practice.team_id && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 font-normal">{teams.find(t => t.id === practice.team_id)?.name}</span>}
+                      </h3>
+                      {practice.description && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{practice.description}</p>}
+                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span>{new Date(practice.event_date).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                        {practice.location && <span>{practice.location}</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
+                      <button
+                        onClick={() => handleDelete('events', practice.id)}
                         className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
                       >
                         Delete
@@ -1639,9 +1764,14 @@ function TeamAdminContent() {
                   No news articles found. Create your first article above.
                 </div>
               )}
-              {activeTab === 'events' && events.length === 0 && (
+              {activeTab === 'events' && nonPracticeEvents.length === 0 && (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No events found. Create your first event above.
+                </div>
+              )}
+              {activeTab === 'practices' && practices.length === 0 && (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  No upcoming practices. Schedule one above — it will appear on the Attendance page and the RSVP link.
                 </div>
               )}
               {activeTab === 'schedule' && schedule.length === 0 && (
