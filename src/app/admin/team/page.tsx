@@ -169,9 +169,10 @@ function TeamAdminContent() {
     note: '',
   });
 
-  // Practices vs other events (both live in the events table).
+  // Practices and games get their own tabs (Practices / Schedule); the Events
+  // tab is for tournaments, meetings, socials, and other calendar items.
   const practices = events.filter(e => e.event_type === 'practice');
-  const nonPracticeEvents = events.filter(e => e.event_type !== 'practice');
+  const nonPracticeEvents = events.filter(e => e.event_type !== 'practice' && e.event_type !== 'game');
 
   useEffect(() => {
     fetchAllData();
@@ -977,13 +978,12 @@ function TeamAdminContent() {
                     onChange={(e) => handleFormChange(eventForm, setEventForm, 'event_type', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
                   >
-                    <option value="game">Game</option>
-                    <option value="practice">Practice</option>
                     <option value="tournament">Tournament</option>
                     <option value="meeting">Meeting</option>
                     <option value="social">Social</option>
                     <option value="other">Other</option>
                   </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Scheduling a game? Use the <strong>Schedule</strong> tab. Practices go under the <strong>Practices</strong> tab.</p>
                 </div>
 
                 <div>

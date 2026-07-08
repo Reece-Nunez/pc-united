@@ -5,10 +5,13 @@ import AdminLayout from '@/components/AdminLayout';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import toast from 'react-hot-toast';
 import {
-  getAllEvents, getRoster, getTeams, getEventAttendance, upsertAttendance,
-  Event, Player, Team, Attendance, AttendanceStatus,
+  getAllEvents, getSchedule, getRoster, getTeams, getSessionAttendance, upsertAttendance,
+  Event, Schedule, Player, Team, Attendance, AttendanceStatus,
 } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
+
+// A session to take attendance for: a game (schedule) or an event/practice (events).
+type Session = { key: string; kind: 'game' | 'event'; id: number; label: string; date: string; team_id: number | null };
 
 const STATUSES: { key: AttendanceStatus; label: string; on: string }[] = [
   { key: 'present', label: 'Present', on: 'bg-green-600 text-white' },
@@ -21,9 +24,10 @@ const rsvpLabel: Record<string, string> = { going: 'Going', maybe: 'Maybe', not_
 
 export default function AttendancePage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [games, setGames] = useState<Schedule[]>([]);
   const [roster, setRoster] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [eventId, setEventId] = useState('');
+  const [sessionKey, setSessionKey] = useState('');
   const [teamFilter, setTeamFilter] = useState('All');
   const [rows, setRows] = useState<Record<number, Attendance>>({}); // player_id -> row
   const [loading, setLoading] = useState(true);
@@ -31,8 +35,9 @@ export default function AttendancePage() {
 
   useEffect(() => {
     (async () => {
-      const [evRes, rosterRes, teamsRes] = await Promise.all([getAllEvents(), getRoster(), getTeams()]);
+      const [evRes, gamesRes, rosterRes, teamsRes] = await Promise.all([getAllEvents(), getSchedule(), getRoster(), getTeams()]);
       if (!evRes.error) setEvents((evRes.data as Event[]) || []);
+      if (!gamesRes.error) setGames((gamesRes.data as Schedule[]) || []);
       if (!rosterRes.error && rosterRes.data) setRoster(rosterRes.data);
       if (!teamsRes.error) setTeams(teamsRes.data || []);
       setLoading(false);
@@ -41,17 +46,26 @@ export default function AttendancePage() {
     supabase.auth.getUser().then(({ data }: any) => { if (data?.user?.email) setUserEmail(data.user.email); });
   }, []);
 
+  // Games (from Schedule) + non-game events (practices/meetings/etc.), newest first.
+  const sessions = useMemo<Session[]>(() => {
+    const g: Session[] = games.map(x => ({ key: `g:${x.id}`, kind: 'game', id: x.id, label: `${x.home_game ? 'vs' : '@'} ${x.opponent}`, date: x.game_date, team_id: x.team_id ?? null }));
+    const e: Session[] = events.filter(x => x.event_type !== 'game').map(x => ({ key: `e:${x.id}`, kind: 'event', id: x.id, label: x.title, date: x.event_date, team_id: x.team_id ?? null }));
+    return [...g, ...e].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [games, events]);
+
+  const selectedSession = sessions.find(s => s.key === sessionKey) || null;
+
   useEffect(() => {
-    if (!eventId) { setRows({}); return; }
-    // Auto-select the team this event is for, so the roster filters to it.
-    const ev = events.find(e => String(e.id) === eventId);
-    if (ev?.team_id) setTeamFilter(String(ev.team_id));
-    getEventAttendance(parseInt(eventId)).then(({ data }) => {
+    if (!selectedSession) { setRows({}); return; }
+    if (selectedSession.team_id) setTeamFilter(String(selectedSession.team_id));
+    const keyArg = selectedSession.kind === 'game' ? { schedule_id: selectedSession.id } : { event_id: selectedSession.id };
+    getSessionAttendance(keyArg).then(({ data }) => {
       const map: Record<number, Attendance> = {};
       (data || []).forEach(r => { if (r.player_id) map[r.player_id] = r; });
       setRows(map);
     });
-  }, [eventId, events]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionKey, sessions]);
 
   const activeRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),
@@ -65,16 +79,15 @@ export default function AttendancePage() {
   }, [activeRoster, rows]);
 
   const mark = async (player: Player, status: AttendanceStatus) => {
-    if (!eventId) return;
+    if (!selectedSession) return;
     const current = rows[player.id]?.attendance;
     const next = current === status ? null : status; // toggle off if same
     // optimistic
-    setRows(prev => ({ ...prev, [player.id]: { ...(prev[player.id] || { id: 0, event_id: parseInt(eventId), player_id: player.id }), attendance: next } }));
-    const { error } = await upsertAttendance({ event_id: parseInt(eventId), player_id: player.id, attendance: next, marked_by: userEmail });
+    setRows(prev => ({ ...prev, [player.id]: { ...(prev[player.id] || { id: 0, player_id: player.id }), attendance: next } }));
+    const keyArg = selectedSession.kind === 'game' ? { schedule_id: selectedSession.id } : { event_id: selectedSession.id };
+    const { error } = await upsertAttendance({ ...keyArg, player_id: player.id, attendance: next, marked_by: userEmail });
     if (error) { toast.error(error.message); }
   };
-
-  const selectedEvent = events.find(e => String(e.id) === eventId);
 
   return (
     <AdminLayout>
@@ -101,12 +114,12 @@ export default function AttendancePage() {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5 mb-6 flex flex-col md:flex-row gap-3 md:items-center">
-          <select value={eventId} onChange={e => setEventId(e.target.value)}
+          <select value={sessionKey} onChange={e => setSessionKey(e.target.value)}
             className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-            <option value="">Select an event…</option>
-            {events.map(ev => (
-              <option key={ev.id} value={ev.id}>
-                {new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {ev.event_type} · {ev.title}
+            <option value="">Select a game or practice…</option>
+            {sessions.map(s => (
+              <option key={s.key} value={s.key}>
+                {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {s.kind === 'game' ? 'Game' : 'Event'} · {s.label}
               </option>
             ))}
           </select>
@@ -117,9 +130,9 @@ export default function AttendancePage() {
           </select>
         </div>
 
-        {!eventId ? (
+        {!selectedSession ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center text-gray-500 dark:text-gray-400 text-sm">
-            Pick an event above to take attendance.
+            Pick a game or practice above to take attendance.
           </div>
         ) : (
           <>
@@ -134,7 +147,7 @@ export default function AttendancePage() {
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-                {selectedEvent?.title} · {activeRoster.length} player{activeRoster.length !== 1 ? 's' : ''}
+                {selectedSession?.label} · {activeRoster.length} player{activeRoster.length !== 1 ? 's' : ''}
                 {teamFilter !== 'All' && ` · ${teams.find(t => String(t.id) === teamFilter)?.name || ''}`}
               </div>
               {loading ? (

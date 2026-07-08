@@ -327,7 +327,8 @@ export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 
 export interface Attendance {
   id: number;
-  event_id: number;
+  event_id?: number | null;
+  schedule_id?: number | null;
   player_id: number;
   rsvp?: RsvpStatus | null;
   rsvp_by?: string;
@@ -338,29 +339,48 @@ export interface Attendance {
   players?: { id: number; name: string; jersey_number: number; team_id?: number | null; teams?: { id: number; name: string } | null } | null;
 }
 
-export async function getEventAttendance(eventId: number) {
-  const { data, error } = await supabase
+// A session is either a game (schedule_id) or an event/practice (event_id).
+type SessionKey = { event_id?: number | null; schedule_id?: number | null };
+
+export async function getSessionAttendance(key: SessionKey) {
+  let q = supabase
     .from('event_attendance')
-    .select('*, players (id, name, jersey_number, team_id, teams (id, name))')
-    .eq('event_id', eventId);
+    .select('*, players (id, name, jersey_number, team_id, teams (id, name))');
+  q = key.schedule_id != null ? q.eq('schedule_id', key.schedule_id) : q.eq('event_id', key.event_id as number);
+  const { data, error } = await q;
   return { data: data as Attendance[] | null, error };
 }
 
-// Coach marks a player's attendance. Upsert only touches attendance columns so
-// it never clobbers a parent's rsvp on the same row.
-export async function upsertAttendance(row: { event_id: number; player_id: number; attendance: AttendanceStatus | null; marked_by?: string; note?: string }) {
+// Coach marks a player's attendance for a game or event. Upsert only touches the
+// attendance columns so it never clobbers a parent's rsvp on the same row.
+export async function upsertAttendance(row: SessionKey & { player_id: number; attendance: AttendanceStatus | null; marked_by?: string; note?: string }) {
   const { data, error } = await supabase
     .from('event_attendance')
-    .upsert([{ ...row, updated_at: new Date().toISOString() }], { onConflict: 'event_id,player_id' })
+    .upsert([{
+      event_id: row.event_id ?? null,
+      schedule_id: row.schedule_id ?? null,
+      player_id: row.player_id,
+      attendance: row.attendance,
+      marked_by: row.marked_by,
+      note: row.note,
+      updated_at: new Date().toISOString(),
+    }], { onConflict: 'event_id,schedule_id,player_id' })
     .select();
   return { data, error };
 }
 
-// Parent RSVPs for their child. Upsert only touches rsvp columns.
-export async function upsertRsvp(row: { event_id: number; player_id: number; rsvp: RsvpStatus; rsvp_by?: string }) {
+// Parent RSVPs for their child for a game or event. Upsert only touches rsvp cols.
+export async function upsertRsvp(row: SessionKey & { player_id: number; rsvp: RsvpStatus; rsvp_by?: string }) {
   const { data, error } = await supabase
     .from('event_attendance')
-    .upsert([{ ...row, updated_at: new Date().toISOString() }], { onConflict: 'event_id,player_id' })
+    .upsert([{
+      event_id: row.event_id ?? null,
+      schedule_id: row.schedule_id ?? null,
+      player_id: row.player_id,
+      rsvp: row.rsvp,
+      rsvp_by: row.rsvp_by,
+      updated_at: new Date().toISOString(),
+    }], { onConflict: 'event_id,schedule_id,player_id' })
     .select();
   return { data, error };
 }

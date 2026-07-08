@@ -6,13 +6,15 @@ import AdminLayout from '@/components/AdminLayout';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import toast from 'react-hot-toast';
 import {
-  getRoster, getParentChildrenForUser, createParentChildLink, getEvents, getAttendanceForPlayers, upsertRsvp,
-  getDuesForPlayers, ParentChild, Player, Event, Attendance, RsvpStatus, Dues,
+  getRoster, getParentChildrenForUser, createParentChildLink, getEvents, getSchedule, getAttendanceForPlayers, upsertRsvp,
+  getDuesForPlayers, ParentChild, Player, Event, Schedule, Attendance, RsvpStatus, Dues,
 } from '@/lib/supabase';
 import { getCurrentSeason } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+type FamilySession = { key: string; kind: 'game' | 'event'; id: number; label: string; date: string; sub: string; location?: string; team_id: number | null };
 
 export default function MyFamilyPage() {
   const [links, setLinks] = useState<ParentChild[]>([]);
@@ -25,7 +27,8 @@ export default function MyFamilyPage() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
-  const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>({}); // `${eventId}:${playerId}` -> status
+  const [games, setGames] = useState<Schedule[]>([]);
+  const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>({}); // `${sessionKey}:${playerId}` -> status
   const [dues, setDues] = useState<Record<number, Dues>>({}); // player_id -> current-season dues
   const photoRef = useRef<HTMLInputElement>(null);
   const currentSeason = getCurrentSeason().label;
@@ -42,17 +45,22 @@ export default function MyFamilyPage() {
         phone: u.user_metadata?.phone || '',
       };
       setUser(info);
-      const [linksRes, rosterRes, eventsRes] = await Promise.all([getParentChildrenForUser(u.id), getRoster(), getEvents()]);
+      const [linksRes, rosterRes, eventsRes, gamesRes] = await Promise.all([getParentChildrenForUser(u.id), getRoster(), getEvents(), getSchedule()]);
       const linkRows = linksRes.error ? [] : (linksRes.data || []);
       setLinks(linkRows);
       if (!rosterRes.error && rosterRes.data) setRoster(rosterRes.data);
       if (!eventsRes.error) setEvents((eventsRes.data as Event[]) || []);
+      if (!gamesRes.error) setGames((gamesRes.data as Schedule[]) || []);
 
-      // Pre-load existing RSVPs for this parent's children.
+      // Pre-load existing RSVPs for this parent's children (keyed by session).
       const playerIds = linkRows.filter(l => l.player_id).map(l => l.player_id as number);
       const attRes = await getAttendanceForPlayers(playerIds);
       const map: Record<string, RsvpStatus> = {};
-      (attRes.data || []).forEach((a: Attendance) => { if (a.rsvp) map[`${a.event_id}:${a.player_id}`] = a.rsvp; });
+      (attRes.data || []).forEach((a: Attendance) => {
+        if (!a.rsvp) return;
+        const sk = a.schedule_id != null ? `g:${a.schedule_id}` : `e:${a.event_id}`;
+        map[`${sk}:${a.player_id}`] = a.rsvp;
+      });
       setRsvps(map);
 
       // Current-season dues per child (read-only for parents).
@@ -120,14 +128,22 @@ export default function MyFamilyPage() {
     }
   };
 
-  const setRsvp = async (eventId: number, playerId: number, status: RsvpStatus) => {
-    setRsvps(prev => ({ ...prev, [`${eventId}:${playerId}`]: status }));
-    const { error } = await upsertRsvp({ event_id: eventId, player_id: playerId, rsvp: status, rsvp_by: user?.email });
+  const setRsvp = async (session: FamilySession, playerId: number, status: RsvpStatus) => {
+    setRsvps(prev => ({ ...prev, [`${session.key}:${playerId}`]: status }));
+    const keyArg = session.kind === 'game' ? { schedule_id: session.id } : { event_id: session.id };
+    const { error } = await upsertRsvp({ ...keyArg, player_id: playerId, rsvp: status, rsvp_by: user?.email });
     if (error) toast.error(error.message);
     else toast.success('RSVP saved');
   };
 
   const approvedChildren = links.filter(l => l.status === 'approved' && l.players);
+
+  // Upcoming games (from Schedule) + non-game events, newest-soonest first.
+  const now = Date.now();
+  const sessions: FamilySession[] = [
+    ...games.filter(g => new Date(g.game_date).getTime() >= now).map(g => ({ key: `g:${g.id}`, kind: 'game' as const, id: g.id, label: `${g.home_game ? 'vs' : '@'} ${g.opponent}`, date: g.game_date, sub: 'Game', location: g.location, team_id: g.team_id ?? null })),
+    ...events.filter(e => e.event_type !== 'game').map(e => ({ key: `e:${e.id}`, kind: 'event' as const, id: e.id, label: e.title, date: e.event_date, sub: e.event_type, location: e.location, team_id: e.team_id ?? null })),
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const RSVP_OPTIONS: { key: RsvpStatus; label: string; on: string }[] = [
     { key: 'going', label: 'Going', on: 'bg-green-600 text-white' },
@@ -231,32 +247,32 @@ export default function MyFamilyPage() {
           </div>
         )}
 
-        {/* Upcoming events — RSVP per child */}
-        {approvedChildren.length > 0 && events.length > 0 && (
+        {/* Upcoming games & practices — RSVP per child */}
+        {approvedChildren.length > 0 && sessions.length > 0 && (
           <div className="mt-8">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Upcoming Events</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Upcoming Games &amp; Practices</h2>
             <div className="space-y-3">
-              {events.map(ev => (
-                <div key={ev.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5">
+              {sessions.map(s => (
+                <div key={s.key} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5">
                   <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">{ev.title}</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{s.label}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                        {ev.event_type} · {new Date(ev.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                        {ev.location ? ` · ${ev.location}` : ''}
+                        {s.sub} · {new Date(s.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {s.location ? ` · ${s.location}` : ''}
                       </p>
                     </div>
                   </div>
                   <div className="space-y-2">
                     {approvedChildren.map(link => {
                       const pid = link.players!.id;
-                      const current = rsvps[`${ev.id}:${pid}`];
+                      const current = rsvps[`${s.key}:${pid}`];
                       return (
                         <div key={pid} className="flex items-center justify-between gap-3">
                           <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{link.players!.name}</span>
                           <div className="flex gap-1 shrink-0">
                             {RSVP_OPTIONS.map(o => (
-                              <button key={o.key} onClick={() => setRsvp(ev.id, pid, o.key)}
+                              <button key={o.key} onClick={() => setRsvp(s, pid, o.key)}
                                 className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${current === o.key ? o.on : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
                                 {o.label}
                               </button>
