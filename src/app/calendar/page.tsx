@@ -21,7 +21,7 @@ export default async function PublicCalendarPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <section className="bg-gradient-to-br from-team-blue to-blue-900 text-white py-10 md:py-14">
+      <section className="bg-team-blue text-white py-10 md:py-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
           <h1 className="text-3xl md:text-5xl font-bold">Team <span className="text-team-red">Calendar</span></h1>
           <p className="text-blue-100 mt-3">Games, practices, and events for Ponca City United FC</p>

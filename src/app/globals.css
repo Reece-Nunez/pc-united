@@ -17,6 +17,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: var(--font-oswald), 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
   /* Custom team colors */
@@ -30,4 +31,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Type pairing: Oswald (condensed, athletic) for headings, Inter for body.
+   Applied site-wide so no page is a one-font template. Use `.font-display`
+   to opt an element in (e.g. the wordmark, stat numerals). */
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-oswald), 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.005em;
 }

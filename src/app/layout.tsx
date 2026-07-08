@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Oswald } from "next/font/google";
 import "./globals.css";
 import ToastProvider from "@/components/ToastProvider";
 import { Analytics } from "@vercel/analytics/react";
@@ -7,6 +7,14 @@ import { Analytics } from "@vercel/analytics/react";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+});
+
+// Athletic condensed display face for headings — paired with Inter for body so
+// the site isn't a one-font (template) page. Self-hosted by next/font (no CDN).
+const oswald = Oswald({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-oswald",
 });
 
 export const metadata: Metadata = {
@@ -42,7 +50,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${oswald.variable} font-sans antialiased`}>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:bg-white focus:text-team-blue focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold focus:shadow-lg"

@@ -44,7 +44,7 @@ export default function NewsletterSignup() {
   };
 
   return (
-    <section className="py-20 bg-gradient-to-b from-team-blue to-blue-950">
+    <section className="py-20 bg-team-blue">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <p className="text-team-red text-sm font-semibold tracking-wider uppercase mb-3">Get Updated</p>
         <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">

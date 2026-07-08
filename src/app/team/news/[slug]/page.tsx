@@ -54,7 +54,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
       <Header />
 
       {/* Hero Section with Featured Image */}
-      <section className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white">
+      <section className="relative bg-team-blue text-white">
         {article.featured_image && (
           <div className="absolute inset-0 opacity-30">
             <Image

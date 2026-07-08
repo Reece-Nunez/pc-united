@@ -4,18 +4,17 @@ import AnimateOnScroll from './AnimateOnScroll';
 
 export default function Hero() {
   return (
-    <section id="main-content" className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white py-20">
+    <section id="main-content" className="relative bg-team-blue text-white py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <AnimateOnScroll variant="fadeInUp" duration={0.6}>
-            <p className="inline-block text-sm font-semibold tracking-wider uppercase text-team-red bg-white/10 border border-white/20 rounded-full px-4 py-1.5 mb-6">
-              U10 Developmental Team — Ponca City, OK
+            <p className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.18em] uppercase text-white/70 mb-6">
+              <span className="h-px w-8 bg-team-red" aria-hidden />
+              U11 &amp; U12 · Ponca City, Oklahoma
             </p>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold mb-6 leading-[1.1] tracking-tight">
+            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-[0.95] uppercase">
               Join Ponca City{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-team-red to-red-400">
-                United FC
-              </span>
+              <span className="text-team-red">United FC</span>
             </h1>
             <p className="text-lg md:text-xl mb-8 text-blue-200 leading-relaxed max-w-lg">
               Developing young athletes through quality soccer training, teamwork, and sportsmanship in Ponca City, Oklahoma.

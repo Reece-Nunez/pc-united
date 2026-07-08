@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { CalendarDaysIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { CalendarItem } from '@/lib/calendar';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -125,8 +126,8 @@ export default function EventCalendar({ items, canEdit = false, editHref }: {
                 <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700">{selected.kind === 'game' ? 'Game' : selected.typeLabel}</span>
                 {selected.teamName && <span className="ml-2 inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700">{selected.teamName}</span>}
               </p>
-              <p>📅 {fmtDateTime(selected.date)}</p>
-              {selected.location && <p>📍 {selected.location}</p>}
+              <p className="flex items-center gap-1.5"><CalendarDaysIcon className="w-4 h-4 text-gray-400 shrink-0" />{fmtDateTime(selected.date)}</p>
+              {selected.location && <p className="flex items-center gap-1.5"><MapPinIcon className="w-4 h-4 text-gray-400 shrink-0" />{selected.location}</p>}
               {selected.kind === 'game' && selected.ourScore != null && selected.opponentScore != null && (
                 <p className="font-semibold">Final: PCU {selected.ourScore} – {selected.opponentScore} {selected.opponent}</p>
               )}

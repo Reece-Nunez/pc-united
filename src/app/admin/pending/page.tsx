@@ -31,7 +31,7 @@ export default function PendingApprovalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-team-blue flex items-center justify-center px-4">
       <div className="w-full max-w-md text-center">
         <Image
           src="/logo.png"

@@ -29,7 +29,7 @@ export default function RegisterPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white py-12 md:py-20">
+      <section className="relative bg-team-blue text-white py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 md:mb-6">
@@ -64,30 +64,30 @@ export default function RegisterPage() {
       {/* Registration Benefits */}
       <section className="py-8 md:py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-4">Why Choose Ponca City United FC?</h2>
+          <div className="mb-10 max-w-xl">
+            <h2 className="text-3xl md:text-4xl font-bold text-team-blue uppercase leading-none">Why Choose Ponca City United FC?</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <MegaphoneIcon className="w-7 h-7 text-white" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-10 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+            <div className="pt-6 md:pt-0 md:pr-8">
+              <div className="flex items-center gap-2.5 mb-2">
+                <MegaphoneIcon className="w-5 h-5 text-team-red shrink-0" />
+                <h3 className="text-lg font-semibold text-team-blue">Professional Coaching</h3>
               </div>
-              <h3 className="text-lg font-semibold text-team-blue mb-2">Professional Coaching</h3>
-              <p className="text-gray-600 text-sm md:text-base">Experienced coaches focused on skill development and fun</p>
+              <p className="text-gray-600 text-sm md:text-base">Experienced coaches focused on skill development and fun.</p>
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrophyIcon className="w-7 h-7 text-white" />
+            <div className="pt-6 md:pt-0 md:px-8">
+              <div className="flex items-center gap-2.5 mb-2">
+                <TrophyIcon className="w-5 h-5 text-team-red shrink-0" />
+                <h3 className="text-lg font-semibold text-team-blue">Competitive Play</h3>
               </div>
-              <h3 className="text-lg font-semibold text-team-blue mb-2">Competitive Play</h3>
-              <p className="text-gray-600 text-sm md:text-base">Local and regional tournaments for all skill levels</p>
+              <p className="text-gray-600 text-sm md:text-base">Local and regional tournaments for all skill levels.</p>
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-team-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                <UserGroupIcon className="w-7 h-7 text-white" />
+            <div className="pt-6 md:pt-0 md:pl-8">
+              <div className="flex items-center gap-2.5 mb-2">
+                <UserGroupIcon className="w-5 h-5 text-team-red shrink-0" />
+                <h3 className="text-lg font-semibold text-team-blue">Team Spirit</h3>
               </div>
-              <h3 className="text-lg font-semibold text-team-blue mb-2">Team Spirit</h3>
-              <p className="text-gray-600 text-sm md:text-base">Building friendships and character through teamwork</p>
+              <p className="text-gray-600 text-sm md:text-base">Building friendships and character through teamwork.</p>
             </div>
           </div>
         </div>

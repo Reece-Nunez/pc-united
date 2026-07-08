@@ -204,7 +204,7 @@ export default function SignupPage() {
   // ── Success screen: Check your email ──
   if (signupComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-team-blue flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <Image
             src="/logo.png"
@@ -272,7 +272,7 @@ export default function SignupPage() {
 
   // ── Signup form ──
   return (
-    <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-team-blue flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Image

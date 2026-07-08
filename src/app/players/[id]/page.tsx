@@ -111,7 +111,7 @@ export default function PlayerProfile() {
     return (
       <div className="min-h-screen bg-white">
         <Header />
-        <section className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white py-20">
+        <section className="relative bg-team-blue text-white py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="animate-pulse grid md:grid-cols-2 gap-12 items-center">
               <div>
@@ -163,7 +163,7 @@ export default function PlayerProfile() {
       <Header />
       
       {/* Player Hero Section */}
-      <section className="relative bg-gradient-to-br from-team-blue to-blue-900 text-white py-12 md:py-20">
+      <section className="relative bg-team-blue text-white py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6">
             <Link href="/players" className="inline-flex items-center gap-1.5 text-blue-100 hover:text-white transition-colors cursor-pointer text-sm md:text-base">

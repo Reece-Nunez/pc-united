@@ -16,6 +16,7 @@ export default {
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-oswald)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         fadeIn: {

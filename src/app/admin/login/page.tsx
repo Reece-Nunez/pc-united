@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center">
+      <div className="min-h-screen bg-team-blue flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
       </div>
     }>
@@ -200,7 +200,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-team-blue to-blue-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-team-blue flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Image
