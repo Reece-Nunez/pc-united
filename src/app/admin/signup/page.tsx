@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-browser';
-import { createAdminNotification } from '@/lib/supabase';
+import { createAdminNotification, getRoster, createParentChildLink, Player } from '@/lib/supabase';
 import { verifyTurnstileClient } from '@/lib/turnstile';
 import TurnstileWidget, { type TurnstileWidgetRef } from '@/components/TurnstileWidget';
 import toast from 'react-hot-toast';
@@ -21,8 +21,44 @@ export default function SignupPage() {
   const [signupComplete, setSignupComplete] = useState(false);
   const [cooldown, setCooldown] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [roster, setRoster] = useState<Player[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState('');
+  const [childPhotoUrl, setChildPhotoUrl] = useState('');
+  const [uploadingChildPhoto, setUploadingChildPhoto] = useState(false);
   const lastSubmitTime = useRef<number>(0);
   const turnstileRef = useRef<TurnstileWidgetRef>(null);
+  const childPhotoInputRef = useRef<HTMLInputElement>(null);
+
+  // Load the roster so parents can pick their child during signup.
+  useEffect(() => {
+    getRoster().then(res => { if (!res.error && res.data) setRoster(res.data); });
+  }, []);
+
+  const uploadChildPhoto = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) { toast.error('Photo must be under 10MB'); return; }
+    setUploadingChildPhoto(true);
+    try {
+      const res = await fetch('/api/presigned-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type, fileSize: file.size, folder: 'player-photos' }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      const up = await fetch(data.presignedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type, 'Content-Disposition': 'inline', 'Cache-Control': 'max-age=31536000' },
+        body: file,
+      });
+      if (!up.ok) throw new Error('Upload failed');
+      setChildPhotoUrl(data.publicUrl);
+      toast.success('Photo uploaded');
+    } catch (err: any) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setUploadingChildPhoto(false);
+    }
+  };
 
   const handleGoogleSignup = async () => {
     const supabase = createClient();
@@ -64,6 +100,11 @@ export default function SignupPage() {
     }
     if (!/[^A-Za-z0-9]/.test(password)) {
       toast.error('Password must contain at least one special character');
+      return;
+    }
+
+    if (accountType === 'parent' && !selectedChildId) {
+      toast.error('Please select your child from the roster');
       return;
     }
 
@@ -120,6 +161,25 @@ export default function SignupPage() {
       setCooldown(true);
       setTimeout(() => setCooldown(false), 3000);
       return;
+    }
+
+    // Link the parent to their selected child (pending admin approval).
+    if (accountType === 'parent' && selectedChildId && data?.user?.id) {
+      const child = roster.find(p => String(p.id) === selectedChildId);
+      await createParentChildLink({
+        parent_user_id: data.user.id,
+        parent_name: name,
+        parent_email: normalizedEmail,
+        parent_phone: normalizedPhone,
+        player_id: parseInt(selectedChildId),
+        child_photo_url: childPhotoUrl || undefined,
+      });
+      createAdminNotification({
+        type: 'parent_link',
+        title: `Parent linked to ${child?.name || 'a player'}`,
+        message: `${name} (${normalizedEmail}) requested to link to ${child?.name || 'a player'}. Approve on the Parents page.`,
+        link: '/admin/parents',
+      });
     }
 
     const typeLabel = accountType === 'parent' ? 'Parent' : 'Coach';
@@ -265,6 +325,64 @@ export default function SignupPage() {
                 : 'Coach accounts require admin approval for full access.'}
             </p>
           </div>
+
+          {accountType === 'parent' && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+              <div>
+                <label htmlFor="child" className="block text-sm font-medium text-gray-700 mb-1">
+                  Your child <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="child"
+                  value={selectedChildId}
+                  onChange={(e) => setSelectedChildId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent outline-none bg-white"
+                >
+                  <option value="">Select your child…</option>
+                  {roster.some(p => p.teams?.name === 'U11' || p.team_id === 1) && (
+                    <optgroup label="U11">
+                      {roster.filter(p => p.teams?.name === 'U11').map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {roster.some(p => p.teams?.name === 'U12') && (
+                    <optgroup label="U12">
+                      {roster.filter(p => p.teams?.name === 'U12').map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {roster.filter(p => !p.teams).length > 0 && (
+                    <optgroup label="Other">
+                      {roster.filter(p => !p.teams).map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Don&apos;t see your child? Contact your coach to be added to the roster.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Photo of your child <span className="text-gray-400 font-normal">(optional)</span></label>
+                {childPhotoUrl ? (
+                  <div className="flex items-center gap-3 p-2 border border-gray-300 rounded-lg bg-white">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={childPhotoUrl} alt="Child" className="w-12 h-12 object-cover rounded" />
+                    <span className="text-sm text-green-600 flex-1">Photo added</span>
+                    <button type="button" onClick={() => { setChildPhotoUrl(''); if (childPhotoInputRef.current) childPhotoInputRef.current.value = ''; }} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => childPhotoInputRef.current?.click()} disabled={uploadingChildPhoto}
+                    className="w-full px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-team-blue hover:text-team-blue transition-colors disabled:opacity-50 bg-white">
+                    {uploadingChildPhoto ? 'Uploading…' : 'Upload a photo'}
+                  </button>
+                )}
+                <input ref={childPhotoInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadChildPhoto(file); }} />
+              </div>
+            </div>
+          )}
 
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">

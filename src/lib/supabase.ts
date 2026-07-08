@@ -238,6 +238,86 @@ export async function deleteTeam(id: number) {
   return { error };
 }
 
+// Lightweight roster for public pickers (e.g. parent signup child dropdown).
+export async function getRoster() {
+  const { data, error } = await supabase
+    .from('players')
+    .select('id, name, jersey_number, photo_url, status, team_id, teams (id, name)')
+    .order('team_id', { ascending: true })
+    .order('name', { ascending: true });
+  return { data: data as Player[] | null, error };
+}
+
+// ─── Parent ↔ Child links ───────────────────────────────────────────
+
+export interface ParentChild {
+  id: number;
+  parent_user_id?: string | null;
+  parent_name?: string;
+  parent_email?: string;
+  parent_phone?: string;
+  player_id?: number | null;
+  child_photo_url?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at?: string;
+  approved_at?: string;
+  approved_by?: string;
+  players?: { id: number; name: string; jersey_number: number; photo_url?: string; team_id?: number | null; teams?: { id: number; name: string } | null } | null;
+}
+
+export async function createParentChildLink(input: {
+  parent_user_id?: string | null;
+  parent_name?: string;
+  parent_email?: string;
+  parent_phone?: string;
+  player_id: number;
+  child_photo_url?: string;
+}) {
+  const { data, error } = await supabase
+    .from('parent_children')
+    .insert([{ ...input, status: 'pending' }])
+    .select()
+    .single();
+  return { data: data as ParentChild | null, error };
+}
+
+export async function getParentChildren() {
+  const { data, error } = await supabase
+    .from('parent_children')
+    .select('*, players (id, name, jersey_number, photo_url, team_id, teams (id, name))')
+    .order('created_at', { ascending: false });
+  return { data: data as ParentChild[] | null, error };
+}
+
+export async function getParentChildrenForUser(userId: string) {
+  const { data, error } = await supabase
+    .from('parent_children')
+    .select('*, players (id, name, jersey_number, photo_url, team_id, teams (id, name))')
+    .eq('parent_user_id', userId)
+    .order('created_at', { ascending: false });
+  return { data: data as ParentChild[] | null, error };
+}
+
+export async function approveParentChildLink(id: number, approvedBy: string) {
+  const { data, error } = await supabase
+    .from('parent_children')
+    .update({ status: 'approved', approved_at: new Date().toISOString(), approved_by: approvedBy })
+    .eq('id', id)
+    .select()
+    .single();
+  return { data: data as ParentChild | null, error };
+}
+
+export async function setParentChildStatus(id: number, status: 'pending' | 'approved' | 'rejected') {
+  const { data, error } = await supabase.from('parent_children').update({ status }).eq('id', id).select();
+  return { data, error };
+}
+
+export async function deleteParentChildLink(id: number) {
+  const { error } = await supabase.from('parent_children').delete().eq('id', id);
+  return { error };
+}
+
 // Player CRUD Functions
 export async function getPlayers() {
   if (!isSupabaseConfigured) {
@@ -1028,7 +1108,7 @@ export async function deleteGalleryImage(id: number) {
 
 export interface AdminNotification {
   id: number;
-  type: 'registration' | 'sponsorship' | 'contact' | 'player' | 'highlight' | 'news' | 'gallery' | 'user_signup' | 'event' | 'schedule' | 'announcement';
+  type: 'registration' | 'sponsorship' | 'contact' | 'player' | 'highlight' | 'news' | 'gallery' | 'user_signup' | 'event' | 'schedule' | 'announcement' | 'parent_link';
   title: string;
   message: string;
   link?: string;
