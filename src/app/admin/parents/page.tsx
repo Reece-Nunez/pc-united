@@ -55,9 +55,15 @@ export default function ParentsPage() {
     }
   };
 
-  // Parent accounts that don't yet have a link, so we only offer un-linked ones.
-  const linkedParentIds = new Set(links.map(l => l.parent_user_id).filter(Boolean));
-  const unlinkedAccounts = accounts.filter(a => !linkedParentIds.has(a.id));
+  // Which players each parent is already linked to — a parent can have several
+  // kids, so we don't hide already-linked parents; we just hide the specific
+  // children they're already connected to.
+  const childrenByParent = useMemo(() => {
+    const m: Record<string, Set<number>> = {};
+    links.forEach(l => { if (l.parent_user_id && l.player_id) (m[l.parent_user_id] ||= new Set<number>()).add(l.player_id); });
+    return m;
+  }, [links]);
+  const availableChildren = roster.filter(p => !(linkParentId && childrenByParent[linkParentId]?.has(p.id)));
 
   const handleLinkExisting = async () => {
     if (!linkParentId || !linkChildId) { toast.error('Pick a parent and a child'); return; }
@@ -76,7 +82,8 @@ export default function ParentsPage() {
       if (error) throw new Error(error.message.includes('duplicate') ? 'That parent is already linked to this child.' : error.message);
       logActivity('create', 'parent_link', linkChildId, userEmail, { action: 'link_existing', parent: acct.full_name });
       toast.success(`Linked ${acct.full_name} to their child`);
-      setLinkParentId(''); setLinkChildId(''); setShowLink(false);
+      // Keep the parent selected + panel open so siblings can be added in a row.
+      setLinkChildId('');
       fetchData();
     } catch (err: any) {
       toast.error(err.message || 'Could not link');
@@ -217,27 +224,30 @@ export default function ParentsPage() {
 
         {showLink && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5 mb-6">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Link an already-approved parent to their child</h2>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Link a parent to a child</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              For parents who signed up before child-linking existed. {unlinkedAccounts.length} un-linked parent account{unlinkedAccounts.length !== 1 ? 's' : ''}.
+              Connect an approved parent account to a player. A parent can be linked to multiple children — pick the parent, then each child (repeat for siblings).
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
-              <select value={linkParentId} onChange={e => setLinkParentId(e.target.value)}
+              <select value={linkParentId} onChange={e => { setLinkParentId(e.target.value); setLinkChildId(''); }}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
                 <option value="">Select a parent…</option>
-                {unlinkedAccounts.map(a => <option key={a.id} value={a.id}>{a.full_name || a.email} ({a.email})</option>)}
+                {accounts.map(a => {
+                  const n = childrenByParent[a.id]?.size || 0;
+                  return <option key={a.id} value={a.id}>{a.full_name || a.email} ({a.email}){n > 0 ? ` — ${n} kid${n !== 1 ? 's' : ''} linked` : ''}</option>;
+                })}
               </select>
               <select value={linkChildId} onChange={e => setLinkChildId(e.target.value)}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
                 <option value="">Select their child…</option>
-                {['U11', 'U12'].map(tn => roster.some(p => p.teams?.name === tn) && (
+                {['U11', 'U12'].map(tn => availableChildren.some(p => p.teams?.name === tn) && (
                   <optgroup key={tn} label={tn}>
-                    {roster.filter(p => p.teams?.name === tn).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    {availableChildren.filter(p => p.teams?.name === tn).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </optgroup>
                 ))}
-                {roster.filter(p => !p.teams).length > 0 && (
+                {availableChildren.filter(p => !p.teams).length > 0 && (
                   <optgroup label="Other">
-                    {roster.filter(p => !p.teams).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    {availableChildren.filter(p => !p.teams).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </optgroup>
                 )}
               </select>
