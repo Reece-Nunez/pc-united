@@ -318,6 +318,61 @@ export async function deleteParentChildLink(id: number) {
   return { error };
 }
 
+// ─── Event Attendance & RSVPs ───────────────────────────────────────
+
+export type RsvpStatus = 'going' | 'maybe' | 'not_going';
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
+export interface Attendance {
+  id: number;
+  event_id: number;
+  player_id: number;
+  rsvp?: RsvpStatus | null;
+  rsvp_by?: string;
+  attendance?: AttendanceStatus | null;
+  marked_by?: string;
+  note?: string;
+  updated_at?: string;
+  players?: { id: number; name: string; jersey_number: number; team_id?: number | null; teams?: { id: number; name: string } | null } | null;
+}
+
+export async function getEventAttendance(eventId: number) {
+  const { data, error } = await supabase
+    .from('event_attendance')
+    .select('*, players (id, name, jersey_number, team_id, teams (id, name))')
+    .eq('event_id', eventId);
+  return { data: data as Attendance[] | null, error };
+}
+
+// Coach marks a player's attendance. Upsert only touches attendance columns so
+// it never clobbers a parent's rsvp on the same row.
+export async function upsertAttendance(row: { event_id: number; player_id: number; attendance: AttendanceStatus | null; marked_by?: string; note?: string }) {
+  const { data, error } = await supabase
+    .from('event_attendance')
+    .upsert([{ ...row, updated_at: new Date().toISOString() }], { onConflict: 'event_id,player_id' })
+    .select();
+  return { data, error };
+}
+
+// Parent RSVPs for their child. Upsert only touches rsvp columns.
+export async function upsertRsvp(row: { event_id: number; player_id: number; rsvp: RsvpStatus; rsvp_by?: string }) {
+  const { data, error } = await supabase
+    .from('event_attendance')
+    .upsert([{ ...row, updated_at: new Date().toISOString() }], { onConflict: 'event_id,player_id' })
+    .select();
+  return { data, error };
+}
+
+// RSVP/attendance rows for a set of players (for the parent's My Family view).
+export async function getAttendanceForPlayers(playerIds: number[]) {
+  if (playerIds.length === 0) return { data: [] as Attendance[], error: null };
+  const { data, error } = await supabase
+    .from('event_attendance')
+    .select('*')
+    .in('player_id', playerIds);
+  return { data: data as Attendance[] | null, error };
+}
+
 // Player CRUD Functions
 export async function getPlayers() {
   if (!isSupabaseConfigured) {

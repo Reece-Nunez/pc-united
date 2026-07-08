@@ -5,7 +5,10 @@ import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import toast from 'react-hot-toast';
-import { getRoster, getParentChildrenForUser, createParentChildLink, ParentChild, Player } from '@/lib/supabase';
+import {
+  getRoster, getParentChildrenForUser, createParentChildLink, getEvents, getAttendanceForPlayers, upsertRsvp,
+  ParentChild, Player, Event, Attendance, RsvpStatus,
+} from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
 
 export default function MyFamilyPage() {
@@ -18,6 +21,8 @@ export default function MyFamilyPage() {
   const [childPhotoUrl, setChildPhotoUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>({}); // `${eventId}:${playerId}` -> status
   const photoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,9 +37,18 @@ export default function MyFamilyPage() {
         phone: u.user_metadata?.phone || '',
       };
       setUser(info);
-      const [linksRes, rosterRes] = await Promise.all([getParentChildrenForUser(u.id), getRoster()]);
-      if (!linksRes.error) setLinks(linksRes.data || []);
+      const [linksRes, rosterRes, eventsRes] = await Promise.all([getParentChildrenForUser(u.id), getRoster(), getEvents()]);
+      const linkRows = linksRes.error ? [] : (linksRes.data || []);
+      setLinks(linkRows);
       if (!rosterRes.error && rosterRes.data) setRoster(rosterRes.data);
+      if (!eventsRes.error) setEvents((eventsRes.data as Event[]) || []);
+
+      // Pre-load existing RSVPs for this parent's children.
+      const playerIds = linkRows.filter(l => l.player_id).map(l => l.player_id as number);
+      const attRes = await getAttendanceForPlayers(playerIds);
+      const map: Record<string, RsvpStatus> = {};
+      (attRes.data || []).forEach((a: Attendance) => { if (a.rsvp) map[`${a.event_id}:${a.player_id}`] = a.rsvp; });
+      setRsvps(map);
       setLoading(false);
     });
   }, []);
@@ -94,6 +108,21 @@ export default function MyFamilyPage() {
       setSaving(false);
     }
   };
+
+  const setRsvp = async (eventId: number, playerId: number, status: RsvpStatus) => {
+    setRsvps(prev => ({ ...prev, [`${eventId}:${playerId}`]: status }));
+    const { error } = await upsertRsvp({ event_id: eventId, player_id: playerId, rsvp: status, rsvp_by: user?.email });
+    if (error) toast.error(error.message);
+    else toast.success('RSVP saved');
+  };
+
+  const approvedChildren = links.filter(l => l.status === 'approved' && l.players);
+
+  const RSVP_OPTIONS: { key: RsvpStatus; label: string; on: string }[] = [
+    { key: 'going', label: 'Going', on: 'bg-green-600 text-white' },
+    { key: 'maybe', label: 'Maybe', on: 'bg-yellow-500 text-white' },
+    { key: 'not_going', label: 'Not going', on: 'bg-red-600 text-white' },
+  ];
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
@@ -178,6 +207,47 @@ export default function MyFamilyPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Upcoming events — RSVP per child */}
+        {approvedChildren.length > 0 && events.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Upcoming Events</h2>
+            <div className="space-y-3">
+              {events.map(ev => (
+                <div key={ev.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">{ev.title}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                        {ev.event_type} · {new Date(ev.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {ev.location ? ` · ${ev.location}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {approvedChildren.map(link => {
+                      const pid = link.players!.id;
+                      const current = rsvps[`${ev.id}:${pid}`];
+                      return (
+                        <div key={pid} className="flex items-center justify-between gap-3">
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{link.players!.name}</span>
+                          <div className="flex gap-1 shrink-0">
+                            {RSVP_OPTIONS.map(o => (
+                              <button key={o.key} onClick={() => setRsvp(ev.id, pid, o.key)}
+                                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${current === o.key ? o.on : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
+                                {o.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
