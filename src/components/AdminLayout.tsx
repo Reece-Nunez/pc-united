@@ -223,6 +223,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       ),
     },
     {
+      name: 'Calendar',
+      href: '/admin/calendar',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
       name: 'Players',
       href: '/admin/players',
       icon: (
@@ -388,7 +397,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ];
 
   const isParent = userRole === 'parent';
-  const parentAllowedHrefs = ['/admin', '/admin/gallery', '/admin/highlights', '/admin/players', '/admin/my-family'];
+  const parentAllowedHrefs = ['/admin', '/admin/calendar', '/admin/gallery', '/admin/highlights', '/admin/players', '/admin/my-family'];
 
   const filteredNavItems = isParent
     ? navItems.filter((item) => parentAllowedHrefs.includes(item.href))
@@ -398,7 +407,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   // above stays untouched). Order here is the display order of the groups.
   const NAV_SECTIONS = ['Overview', 'Team', 'Content', 'Families', 'Finances', 'Admin'] as const;
   const sectionFor = (href: string): typeof NAV_SECTIONS[number] =>
-    href === '/admin' || href === '/admin/notifications' ? 'Overview'
+    href === '/admin' || href === '/admin/notifications' || href === '/admin/calendar' ? 'Overview'
       : ['/admin/players', '/admin/teams', '/admin/coaches', '/admin/attendance', '/admin/game-stats'].includes(href) ? 'Team'
       : ['/admin/team', '/admin/highlights', '/admin/gallery', '/admin/newsletter'].includes(href) ? 'Content'
       : ['/admin/my-family', '/admin/parents', '/admin/medical-forms'].includes(href) ? 'Families'
