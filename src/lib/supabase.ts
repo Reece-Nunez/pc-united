@@ -690,6 +690,7 @@ export interface Event {
   registration_required: boolean;
   registration_link?: string;
   max_participants?: number;
+  team_id?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -701,6 +702,7 @@ export interface Schedule {
   location: string;
   home_game: boolean;
   game_type: 'league' | 'friendly' | 'tournament' | 'playoff' | 'indoor';
+  team_id?: number | null;
   season?: string;
   our_score?: number;
   opponent_score?: number;

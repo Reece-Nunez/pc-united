@@ -43,12 +43,15 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (!eventId) { setRows({}); return; }
+    // Auto-select the team this event is for, so the roster filters to it.
+    const ev = events.find(e => String(e.id) === eventId);
+    if (ev?.team_id) setTeamFilter(String(ev.team_id));
     getEventAttendance(parseInt(eventId)).then(({ data }) => {
       const map: Record<number, Attendance> = {};
       (data || []).forEach(r => { if (r.player_id) map[r.player_id] = r; });
       setRows(map);
     });
-  }, [eventId]);
+  }, [eventId, events]);
 
   const activeRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),
@@ -77,9 +80,24 @@ export default function AttendancePage() {
     <AdminLayout>
       <div className="p-4 md:p-8">
         <div className="mb-4"><Breadcrumbs /></div>
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Attendance</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Take attendance for games and practices</p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Attendance</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Take attendance for games and practices</p>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(`${window.location.origin}/rsvp`);
+                toast.success('RSVP link copied — share it in the group chat');
+              } catch {
+                toast.error('Could not copy the link');
+              }
+            }}
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0"
+          >
+            Copy RSVP link
+          </button>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5 mb-6 flex flex-col md:flex-row gap-3 md:items-center">

@@ -36,6 +36,9 @@ export default function GameStatsPage() {
 
   useEffect(() => {
     if (!scheduleId) { setRows({}); return; }
+    // Auto-select the team this game is for, so the roster filters to it.
+    const g = games.find(x => String(x.id) === scheduleId);
+    if (g?.team_id) setTeamFilter(String(g.team_id));
     getGameStats(parseInt(scheduleId)).then(({ data }) => {
       const map: Record<number, Row> = {};
       (data || []).forEach((s: GameStat) => {
@@ -46,7 +49,7 @@ export default function GameStatsPage() {
       });
       setRows(map);
     });
-  }, [scheduleId]);
+  }, [scheduleId, games]);
 
   const activeRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),

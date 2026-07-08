@@ -29,9 +29,11 @@ import {
   deleteOpponent,
   getSetting,
   getTournamentEvents,
+  getTeams,
   News,
   Event,
   Schedule,
+  Team,
   Announcement
 } from "@/lib/supabase";
 import { logActivity } from '@/lib/audit';
@@ -89,6 +91,7 @@ function TeamAdminContent() {
   const [schedule, setSchedule] = useState<Schedule[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [tournamentEvents, setTournamentEvents] = useState<{id: number, title: string, event_date: string, event_type: string}[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
 
   // Form states
   const [editingNews, setEditingNews] = useState<News | null>(null);
@@ -128,7 +131,8 @@ function TeamAdminContent() {
     featured_image: '',
     registration_required: false,
     registration_link: '',
-    max_participants: undefined
+    max_participants: undefined,
+    team_id: null,
   });
 
   const [scheduleForm, setScheduleForm] = useState<ScheduleForm>({
@@ -142,6 +146,7 @@ function TeamAdminContent() {
     opponent_score: undefined,
     status: 'scheduled',
     notes: '',
+    team_id: null,
     event_id: undefined as number | undefined,
     bracket_round: undefined as 'group' | 'quarterfinal' | 'semifinal' | 'final' | 'third_place' | undefined
   });
@@ -166,13 +171,14 @@ function TeamAdminContent() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [newsResult, eventsResult, scheduleResult, announcementsResult, opponentsResult, tournamentResult] = await Promise.all([
+      const [newsResult, eventsResult, scheduleResult, announcementsResult, opponentsResult, tournamentResult, teamsResult] = await Promise.all([
         getNews(),
         getEvents(),
         getSchedule(),
         getActiveAnnouncements(),
         getOpponents(),
-        getTournamentEvents()
+        getTournamentEvents(),
+        getTeams()
       ]);
 
       if (!newsResult.error) setNews(newsResult.data || []);
@@ -181,6 +187,7 @@ function TeamAdminContent() {
       if (!announcementsResult.error) setAnnouncements(announcementsResult.data || []);
       if (!opponentsResult.error) setOpponents((opponentsResult.data || []).map(o => o.name));
       if (!tournamentResult.error) setTournamentEvents(tournamentResult.data || []);
+      if (!teamsResult.error) setTeams(teamsResult.data || []);
 
       // Load home field setting
       getSetting('home_field_location').then(({ value }) => {
@@ -936,6 +943,18 @@ function TeamAdminContent() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Team</label>
+                  <select
+                    value={eventForm.team_id ?? ''}
+                    onChange={(e) => handleFormChange(eventForm, setEventForm, 'team_id', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  >
+                    <option value="">Both teams / club-wide</option>
+                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Featured Image</label>
                   <ImageUpload
                     currentImageUrl={eventForm.featured_image}
@@ -1120,6 +1139,18 @@ function TeamAdminContent() {
                     <option value="tournament">Tournament</option>
                     <option value="playoff">Playoff</option>
                     <option value="indoor">Indoor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Team</label>
+                  <select
+                    value={scheduleForm.team_id ?? ''}
+                    onChange={(e) => handleFormChange(scheduleForm, setScheduleForm, 'team_id', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  >
+                    <option value="">Both teams / unspecified</option>
+                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
 
