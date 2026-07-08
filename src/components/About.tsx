@@ -15,13 +15,13 @@ export default function About() {
           </div>
         </AnimateOnScroll>
 
-        <StaggerContainer className="grid md:grid-cols-3 gap-8">
+        <StaggerContainer className="grid md:grid-cols-3 gap-x-8 gap-y-10 divide-y md:divide-y-0 md:divide-x divide-gray-200">
           <StaggerItem>
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center">
-              <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
-                <ViewfinderCircleIcon className="w-7 h-7 text-white" />
+            <div className="pt-6 md:pt-0 md:pr-8">
+              <div className="flex items-center gap-2.5 mb-2">
+                <ViewfinderCircleIcon className="w-5 h-5 text-team-red shrink-0" />
+                <h3 className="text-xl font-bold text-team-blue">Skill Development</h3>
               </div>
-              <h3 className="text-xl font-bold text-team-blue mb-3">Skill Development</h3>
               <p className="text-gray-600">
                 Professional coaching focused on individual skill development and team strategy.
               </p>
@@ -29,11 +29,11 @@ export default function About() {
           </StaggerItem>
 
           <StaggerItem>
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center">
-              <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrophyIcon className="w-7 h-7 text-white" />
+            <div className="pt-6 md:pt-0 md:px-8">
+              <div className="flex items-center gap-2.5 mb-2">
+                <TrophyIcon className="w-5 h-5 text-team-red shrink-0" />
+                <h3 className="text-xl font-bold text-team-blue">Competitive Play</h3>
               </div>
-              <h3 className="text-xl font-bold text-team-blue mb-3">Competitive Play</h3>
               <p className="text-gray-600">
                 Opportunities to compete in local and regional tournaments and leagues.
               </p>
@@ -41,11 +41,11 @@ export default function About() {
           </StaggerItem>
 
           <StaggerItem>
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200 text-center">
-              <div className="w-16 h-16 bg-team-red rounded-full flex items-center justify-center mx-auto mb-4">
-                <UserGroupIcon className="w-7 h-7 text-white" />
+            <div className="pt-6 md:pt-0 md:pl-8">
+              <div className="flex items-center gap-2.5 mb-2">
+                <UserGroupIcon className="w-5 h-5 text-team-red shrink-0" />
+                <h3 className="text-xl font-bold text-team-blue">Team Spirit</h3>
               </div>
-              <h3 className="text-xl font-bold text-team-blue mb-3">Team Spirit</h3>
               <p className="text-gray-600">
                 Building character, teamwork, and lifelong friendships through soccer.
               </p>
