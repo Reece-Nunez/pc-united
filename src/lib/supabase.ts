@@ -272,10 +272,12 @@ export async function createParentChildLink(input: {
   parent_phone?: string;
   player_id: number;
   child_photo_url?: string;
+  status?: 'pending' | 'approved' | 'rejected';
 }) {
+  const { status = 'pending', ...rest } = input;
   const { data, error } = await supabase
     .from('parent_children')
-    .insert([{ ...input, status: 'pending' }])
+    .insert([{ ...rest, status }])
     .select()
     .single();
   return { data: data as ParentChild | null, error };

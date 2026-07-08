@@ -7,8 +7,10 @@ import { SkeletonTable } from '@/components/admin/Skeleton';
 import toast from 'react-hot-toast';
 import {
   getParentChildren, approveParentChildLink, setParentChildStatus, deleteParentChildLink,
-  updatePlayer, getTeams, ParentChild, Team,
+  updatePlayer, getTeams, getRoster, createParentChildLink, ParentChild, Team, Player,
 } from '@/lib/supabase';
+
+interface ParentAccount { id: string; email: string; full_name: string; phone: string; role: string; }
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 
@@ -20,6 +22,12 @@ export default function ParentsPage() {
   const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'all'>('pending');
   const [teamFilter, setTeamFilter] = useState<string>('All');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [accounts, setAccounts] = useState<ParentAccount[]>([]);
+  const [roster, setRoster] = useState<Player[]>([]);
+  const [showLink, setShowLink] = useState(false);
+  const [linkParentId, setLinkParentId] = useState('');
+  const [linkChildId, setLinkChildId] = useState('');
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -30,13 +38,50 @@ export default function ParentsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [linksRes, teamsRes] = await Promise.all([getParentChildren(), getTeams()]);
+      const [linksRes, teamsRes, rosterRes] = await Promise.all([getParentChildren(), getTeams(), getRoster()]);
       if (!linksRes.error) setLinks(linksRes.data || []);
       if (!teamsRes.error) setTeams(teamsRes.data || []);
+      if (!rosterRes.error && rosterRes.data) setRoster(rosterRes.data);
+      // Approved parent accounts (for the "link existing parent" tool).
+      try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        if (Array.isArray(data.users)) setAccounts(data.users.filter((u: ParentAccount) => u.role === 'parent'));
+      } catch { /* non-fatal */ }
     } catch {
       toast.error('Error loading parents');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Parent accounts that don't yet have a link, so we only offer un-linked ones.
+  const linkedParentIds = new Set(links.map(l => l.parent_user_id).filter(Boolean));
+  const unlinkedAccounts = accounts.filter(a => !linkedParentIds.has(a.id));
+
+  const handleLinkExisting = async () => {
+    if (!linkParentId || !linkChildId) { toast.error('Pick a parent and a child'); return; }
+    const acct = accounts.find(a => a.id === linkParentId);
+    if (!acct) return;
+    setLinking(true);
+    try {
+      const { error } = await createParentChildLink({
+        parent_user_id: acct.id,
+        parent_name: acct.full_name,
+        parent_email: acct.email,
+        parent_phone: acct.phone,
+        player_id: parseInt(linkChildId),
+        status: 'approved',
+      });
+      if (error) throw new Error(error.message.includes('duplicate') ? 'That parent is already linked to this child.' : error.message);
+      logActivity('create', 'parent_link', linkChildId, userEmail, { action: 'link_existing', parent: acct.full_name });
+      toast.success(`Linked ${acct.full_name} to their child`);
+      setLinkParentId(''); setLinkChildId(''); setShowLink(false);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Could not link');
+    } finally {
+      setLinking(false);
     }
   };
 
@@ -160,10 +205,49 @@ export default function ParentsPage() {
               {pendingCount > 0 && <span className="ml-2 text-yellow-600 font-medium">· {pendingCount} pending</span>}
             </p>
           </div>
-          <button onClick={exportCSV} className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700">
-            Export directory CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowLink(!showLink)} className="bg-team-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+              {showLink ? 'Cancel' : 'Link existing parent'}
+            </button>
+            <button onClick={exportCSV} className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700">
+              Export directory CSV
+            </button>
+          </div>
         </div>
+
+        {showLink && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 md:p-5 mb-6">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Link an already-approved parent to their child</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              For parents who signed up before child-linking existed. {unlinkedAccounts.length} un-linked parent account{unlinkedAccounts.length !== 1 ? 's' : ''}.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select value={linkParentId} onChange={e => setLinkParentId(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                <option value="">Select a parent…</option>
+                {unlinkedAccounts.map(a => <option key={a.id} value={a.id}>{a.full_name || a.email} ({a.email})</option>)}
+              </select>
+              <select value={linkChildId} onChange={e => setLinkChildId(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                <option value="">Select their child…</option>
+                {['U11', 'U12'].map(tn => roster.some(p => p.teams?.name === tn) && (
+                  <optgroup key={tn} label={tn}>
+                    {roster.filter(p => p.teams?.name === tn).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </optgroup>
+                ))}
+                {roster.filter(p => !p.teams).length > 0 && (
+                  <optgroup label="Other">
+                    {roster.filter(p => !p.teams).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </optgroup>
+                )}
+              </select>
+              <button onClick={handleLinkExisting} disabled={linking}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 shrink-0">
+                {linking ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-4">
           {(['pending', 'approved', 'all'] as const).map(s => (

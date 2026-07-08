@@ -30,6 +30,7 @@ export async function GET() {
       id: u.id,
       email: u.email,
       full_name: u.user_metadata?.full_name || '',
+      phone: u.user_metadata?.phone || '',
       role: u.user_metadata?.role || 'pending',
       email_notifications: u.user_metadata?.email_notifications !== false,
       created_at: u.created_at,
