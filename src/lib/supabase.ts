@@ -161,6 +161,21 @@ export interface Player {
   areas_to_improve?: string[];
   coach_notes?: string;
   status?: string;
+  team_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
+  // Joined from teams when selected with the relation
+  teams?: { id: number; name: string; slug?: string } | null;
+}
+
+export interface Team {
+  id: number;
+  name: string;
+  slug?: string;
+  description?: string;
+  season?: string;
+  sort_order?: number;
+  active?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -194,6 +209,35 @@ export interface Highlight {
   updated_at?: string;
 }
 
+// Team CRUD Functions
+export async function getTeams() {
+  if (!isSupabaseConfigured) return { data: null, error: { message: 'Supabase is not configured.' } };
+  const { data, error } = await supabase
+    .from('teams')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  return { data: data as Team[] | null, error };
+}
+
+export async function createTeam(team: Omit<Team, 'id' | 'created_at' | 'updated_at'>) {
+  const { data, error } = await supabase.from('teams').insert([team]).select().single();
+  return { data: data as Team | null, error };
+}
+
+export async function updateTeam(id: number, updates: Partial<Team>) {
+  const { data, error } = await supabase
+    .from('teams')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+  return { data, error };
+}
+
+export async function deleteTeam(id: number) {
+  const { error } = await supabase.from('teams').delete().eq('id', id);
+  return { error };
+}
+
 // Player CRUD Functions
 export async function getPlayers() {
   if (!isSupabaseConfigured) {
@@ -207,6 +251,7 @@ export async function getPlayers() {
     .from('players')
     .select(`
       *,
+      teams (id, name, slug),
       player_stats (*),
       highlights (id, title, highlight_date, type, video_url)
     `)
@@ -227,6 +272,7 @@ export async function getPlayer(id: number) {
     .from('players')
     .select(`
       *,
+      teams (id, name, slug),
       player_stats (*),
       highlights (id, title, highlight_date, type, video_url)
     `)

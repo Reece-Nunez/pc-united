@@ -12,7 +12,9 @@ import {
   deletePlayer,
   createOrUpdatePlayerStats,
   updatePlayerStatus,
+  getTeams,
   Player,
+  Team,
   createAdminNotification,
 } from "@/lib/supabase";
 import { logActivity } from '@/lib/audit';
@@ -57,6 +59,7 @@ interface NewPlayerForm {
   jersey_number: string;
   position: string;
   birth_year: number;
+  team_id: string;
   photo_url: string;
   description: string;
   strengths: string;
@@ -77,6 +80,7 @@ interface NewPlayerForm {
 function PlayersAdminContent() {
   const searchParams = useSearchParams();
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<number | null>(null);
@@ -85,6 +89,7 @@ function PlayersAdminContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('Active');
+  const [teamFilter, setTeamFilter] = useState<string>('All');
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [newPlayerForm, setNewPlayerForm] = useState<NewPlayerForm>({
@@ -92,6 +97,7 @@ function PlayersAdminContent() {
     jersey_number: '',
     position: 'Forward',
     birth_year: 2016,
+    team_id: '',
     photo_url: '/logo.png',
     description: '',
     strengths: '',
@@ -124,6 +130,7 @@ function PlayersAdminContent() {
 
   useEffect(() => {
     fetchPlayers();
+    getTeams().then(res => { if (!res.error) setTeams(res.data || []); });
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }: any) => {
       setUserRole(user?.user_metadata?.role || null);
@@ -154,7 +161,10 @@ function PlayersAdminContent() {
     const matchesPosition = positionFilter === 'All' || player.position === positionFilter;
     const playerStatus = player.status || 'active';
     const matchesStatus = statusFilter === 'All' || playerStatus === statusFilter.toLowerCase();
-    return matchesSearch && matchesPosition && matchesStatus;
+    const matchesTeam =
+      teamFilter === 'All' ||
+      (teamFilter === 'Unassigned' ? !player.team_id : String(player.team_id) === teamFilter);
+    return matchesSearch && matchesPosition && matchesStatus && matchesTeam;
   });
 
   const handleToggleStatus = async (player: AdminPlayer) => {
@@ -175,7 +185,7 @@ function PlayersAdminContent() {
 
   const handleEdit = (player: AdminPlayer) => {
     setEditingPlayer(player.id);
-    const { highlights, player_stats, ...playerData } = player;
+    const { highlights, player_stats, teams: _teams, ...playerData } = player;
     setEditForm({
       ...playerData,
       strengths: player.strengths?.join(', ') || '',
@@ -268,6 +278,7 @@ function PlayersAdminContent() {
         jersey_number: parseInt(newPlayerForm.jersey_number as string),
         position: newPlayerForm.position,
         birth_year: newPlayerForm.birth_year,
+        team_id: newPlayerForm.team_id ? parseInt(newPlayerForm.team_id) : null,
         photo_url: newPlayerForm.photo_url,
         description: newPlayerForm.description,
         strengths: newPlayerForm.strengths ? newPlayerForm.strengths.split(',').map(s => s.trim()).filter(s => s) : undefined,
@@ -293,6 +304,7 @@ function PlayersAdminContent() {
         jersey_number: '',
         position: 'Forward',
         birth_year: 2016,
+        team_id: '',
         photo_url: '/logo.png',
         description: '',
         strengths: '',
@@ -458,6 +470,17 @@ function PlayersAdminContent() {
               <option value="Inactive">Inactive</option>
               <option value="All">All Players</option>
             </select>
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue focus:border-transparent text-sm font-medium"
+            >
+              <option value="All">All Teams</option>
+              {teams.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+              <option value="Unassigned">Unassigned</option>
+            </select>
             <div className="flex gap-2 flex-wrap">
               {positions.map((position) => (
                 <button
@@ -518,6 +541,19 @@ function PlayersAdminContent() {
                       className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Team</label>
+                  <select
+                    value={newPlayerForm.team_id}
+                    onChange={(e) => handleNewPlayerChange('team_id', e.target.value)}
+                    className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-team-blue"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {teams.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Position</label>
@@ -778,6 +814,16 @@ function PlayersAdminContent() {
                             <option value="Right Back">Right Back</option>
                             <option value="Sweeper">Sweeper</option>
                           </optgroup>
+                        </select>
+                        <select
+                          value={editForm.team_id ?? ''}
+                          onChange={(e) => handleFormChange('team_id', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full p-2 border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg text-sm"
+                        >
+                          <option value="">— Unassigned team —</option>
+                          {teams.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
                         </select>
                       </div>
                       <div className="grid grid-cols-4 gap-2">

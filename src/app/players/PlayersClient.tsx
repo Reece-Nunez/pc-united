@@ -32,6 +32,7 @@ export default function PlayersClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<string>('All');
+  const [selectedTeam, setSelectedTeam] = useState<string>('All');
 
   useEffect(() => {
     async function fetchData() {
@@ -83,11 +84,23 @@ export default function PlayersClient() {
 
   // Get unique positions for filter
   const positions = ['All', ...Array.from(new Set(players.map(player => player.position)))];
-  
-  // Filter players by position
-  const filteredPlayers = selectedPosition === 'All' 
-    ? players 
-    : players.filter(player => player.position === selectedPosition);
+
+  // Unique teams present on the roster (for the team tabs)
+  const teamTabs = Array.from(
+    new Map(
+      players
+        .filter(p => p.team_id && p.teams)
+        .map(p => [p.team_id as number, { id: p.team_id as number, name: p.teams!.name }])
+    ).values()
+  );
+
+  // Filter players by team, then position
+  const teamFiltered = selectedTeam === 'All'
+    ? players
+    : players.filter(player => String(player.team_id) === selectedTeam);
+  const filteredPlayers = selectedPosition === 'All'
+    ? teamFiltered
+    : teamFiltered.filter(player => player.position === selectedPosition);
 
   // Calculate actual completed games from schedule
   const completedGames = schedule.filter(game => game.status === 'completed').length;
@@ -123,6 +136,35 @@ export default function PlayersClient() {
           </div>
         </div>
       </section>
+
+      {/* Team Tabs */}
+      {teamTabs.length > 0 && (
+        <section className="pt-6 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap justify-center gap-2 md:gap-3">
+              <button
+                onClick={() => setSelectedTeam('All')}
+                className={`px-5 py-2 rounded-full text-sm md:text-base font-bold transition-colors ${
+                  selectedTeam === 'All' ? 'bg-team-red text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                All Teams
+              </button>
+              {teamTabs.map((team) => (
+                <button
+                  key={team.id}
+                  onClick={() => setSelectedTeam(String(team.id))}
+                  className={`px-5 py-2 rounded-full text-sm md:text-base font-bold transition-colors ${
+                    selectedTeam === String(team.id) ? 'bg-team-red text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {team.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Position Filter */}
       <section className="py-6 bg-white">
