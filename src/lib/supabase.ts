@@ -1165,6 +1165,127 @@ export async function deleteIncome(id: number) {
   return { error };
 }
 
+// ─── Medical Release Forms ──────────────────────────────────────────
+
+export interface MedicalForm {
+  id: number;
+  player_id?: number | null;
+  token: string;
+  status: 'sent' | 'completed';
+
+  player_name?: string;
+  date_of_birth?: string;
+  gender?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+
+  father_name?: string;
+  father_home_phone?: string;
+  father_work_phone?: string;
+  mother_name?: string;
+  mother_home_phone?: string;
+  mother_work_phone?: string;
+
+  emergency1_name?: string;
+  emergency1_home_phone?: string;
+  emergency1_work_phone?: string;
+  emergency2_name?: string;
+  emergency2_home_phone?: string;
+  emergency2_work_phone?: string;
+
+  allergies?: string;
+  other_conditions?: string;
+  physician_name?: string;
+  physician_home_phone?: string;
+  physician_work_phone?: string;
+
+  insurance_company?: string;
+  insurance_phone?: string;
+  policy_holder?: string;
+  policy_number?: string;
+  group_number?: string;
+  insurance_card_front_url?: string;
+  insurance_card_back_url?: string;
+
+  consent_agreed?: boolean;
+  signature?: string;
+  signed_date?: string;
+
+  sent_to_phone?: string;
+  season?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string;
+
+  // Joined from players when selected with the relation
+  players?: { id: number; name: string; jersey_number: number } | null;
+}
+
+export async function getMedicalForms() {
+  const { data, error } = await supabase
+    .from('medical_forms')
+    .select('*, players(id, name, jersey_number)')
+    .order('created_at', { ascending: false });
+  return { data: data as MedicalForm[] | null, error };
+}
+
+export async function getMedicalFormByToken(token: string) {
+  const { data, error } = await supabase
+    .from('medical_forms')
+    .select('*, players(id, name, jersey_number)')
+    .eq('token', token)
+    .single();
+  return { data: data as MedicalForm | null, error };
+}
+
+// Admin creates a blank form request for a player; the DB default generates the token.
+export async function createMedicalFormRequest(
+  input: { player_id?: number | null; player_name?: string; season?: string; created_by?: string; sent_to_phone?: string }
+) {
+  const { data, error } = await supabase
+    .from('medical_forms')
+    .insert([{ ...input, status: 'sent' }])
+    .select()
+    .single();
+  return { data: data as MedicalForm | null, error };
+}
+
+// Parent submits the completed form (looked up by token).
+export async function submitMedicalForm(token: string, fields: Partial<MedicalForm>) {
+  const { data, error } = await supabase
+    .from('medical_forms')
+    .update({
+      ...fields,
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('token', token)
+    .select()
+    .single();
+  return { data: data as MedicalForm | null, error };
+}
+
+export async function updateMedicalForm(id: number, updates: Partial<MedicalForm>) {
+  const { data, error } = await supabase
+    .from('medical_forms')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+  return { data, error };
+}
+
+export async function deleteMedicalForm(id: number) {
+  const { error } = await supabase
+    .from('medical_forms')
+    .delete()
+    .eq('id', id);
+  return { error };
+}
+
 // ─── Site Settings ──────────────────────────────────────────────────
 
 export async function getSetting(key: string) {

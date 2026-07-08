@@ -20,6 +20,31 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment variables
+
+Set these in `.env.local` (local) and in the Vercel project settings (production).
+`.env*` files are gitignored — never commit secrets.
+
+| Variable | Used for |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase client |
+| `S3_REGION` / `S3_BUCKET_NAME` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | S3 uploads (photos, receipts, medical forms) |
+| `NEXT_PUBLIC_SITE_URL` | Base URL used to build shareable links (e.g. medical form links). Defaults to `https://poncacityunited.com` |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID (NunezDev account) |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token |
+| `TWILIO_FROM_NUMBER` | Twilio phone number to send from, E.164 (e.g. `+1918...`). Alternatively set `TWILIO_MESSAGING_SERVICE_SID` |
+
+> **Twilio / SMS:** sending medical-form links by text uses Twilio. US app-to-person
+> SMS requires A2P 10DLC brand + campaign registration for the sending number, or
+> carriers will filter the messages. Configure this in the Twilio console.
+
+## Medical release forms
+
+Admins generate a per-player medical release request at `/admin/medical-forms`,
+then text the parent a link (via Twilio) or copy it manually. Parents fill and
+sign at `/forms/medical/<token>`. Completed forms can be exported as JPEG or PDF
+(single or multi-select zip) for tournament uploads.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
