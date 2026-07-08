@@ -131,21 +131,22 @@ export async function submitRegistration(registration: Registration) {
   return { data, error };
 }
 
-// Function to get all registrations (for admin use)
-export async function getRegistrations() {
-  if (!isSupabaseConfigured) {
-    return { 
-      data: null, 
-      error: { message: 'Supabase is not configured. Please add your Supabase URL and API key to the .env.local file.' } 
-    };
+// Function to get all registrations (for admin use).
+// Registrations hold PII, so the anon key can no longer SELECT the table (RLS is
+// INSERT-only — see 20260708_harden_registrations_rls.sql). Reads go through the
+// admin service-role route, which is gated by an authenticated admin check.
+export async function getRegistrations(): Promise<{ data: Registration[] | null; error: { message: string } | null }> {
+  try {
+    const res = await fetch('/api/admin/registrations');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { data: null, error: { message: body.error || `Failed to load registrations (${res.status})` } };
+    }
+    const body = await res.json();
+    return { data: (body.registrations ?? []) as Registration[], error: null };
+  } catch (err) {
+    return { data: null, error: { message: err instanceof Error ? err.message : 'Failed to load registrations' } };
   }
-  
-  const { data, error } = await supabase
-    .from('registrations')
-    .select('*')
-    .order('created_at', { ascending: false });
-    
-  return { data, error };
 }
 
 // Player Management Types and Functions
