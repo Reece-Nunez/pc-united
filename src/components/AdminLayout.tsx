@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
 import { getAdminNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead, AdminNotification } from '@/lib/supabase';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -56,6 +57,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [roleLoaded, setRoleLoaded] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -72,6 +74,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     setUnreadCount(count);
   }, []);
 
+  // Load UI prefs + resolve the user's role once on mount. The role is cached
+  // in localStorage so subsequent page navigations (each remounts this layout)
+  // start with the correct nav immediately, instead of flashing the full admin
+  // menu before the async getUser() resolves the role to 'parent'.
   useEffect(() => {
     const saved = localStorage.getItem('admin-dark-mode');
     if (saved === 'true') setDarkMode(true);
@@ -79,17 +85,37 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const savedCollapsed = localStorage.getItem('admin-sidebar-collapsed');
     if (savedCollapsed === 'true') setCollapsed(true);
 
+    const cachedRole = localStorage.getItem('admin-user-role');
+    if (cachedRole) {
+      setUserRole(cachedRole);
+      setRoleLoaded(true);
+    }
+
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }: any) => {
-      setUserRole(user?.user_metadata?.role || null);
+      const role = user?.user_metadata?.role || null;
+      setUserRole(role);
+      setRoleLoaded(true);
+      if (role) localStorage.setItem('admin-user-role', role);
+      else localStorage.removeItem('admin-user-role');
     });
+  }, []);
 
+  // Poll notifications for non-parent roles. Realtime (below) makes new
+  // notifications appear instantly; this poll stays as a backstop in case the
+  // websocket drops, and does the initial load.
+  useEffect(() => {
     if (userRole && userRole !== 'parent') {
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
   }, [fetchNotifications, userRole]);
+
+  // Live-update the bell the moment a notification row is inserted/updated.
+  useRealtimeTable('admin_notifications', fetchNotifications, {
+    enabled: !!userRole && userRole !== 'parent',
+  });
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -116,6 +142,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    localStorage.removeItem('admin-user-role');
     router.push('/admin/login');
     router.refresh();
   };
@@ -439,7 +466,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className="lg:hidden bg-team-blue text-white p-4 flex items-center justify-between sticky top-0 z-50">
         <Link href="/admin" className="text-xl font-bold focus:ring-2 focus:ring-team-blue focus:outline-none focus:rounded">PC United Admin</Link>
         <div className="flex items-center gap-1">
-          {!isParent && <NotifBell />}
+          {roleLoaded && !isParent && <NotifBell />}
           <button
             onClick={toggleDarkMode}
             aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -490,7 +517,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Image src="/logo.png" alt="PC United" width={collapsed ? 28 : 40} height={collapsed ? 28 : 40} className="transition-all duration-300" />
               {!collapsed && <Link href="/admin" className="text-base font-bold">PC United Admin</Link>}
             </div>
-            {NAV_SECTIONS.map((section) => {
+            {!roleLoaded ? (
+              // Role not resolved yet — show neutral placeholders instead of the
+              // full admin nav so a parent never sees the admin menu flash by.
+              <div className="space-y-2 animate-pulse" aria-hidden="true">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-8 rounded-lg bg-blue-700/40" />
+                ))}
+              </div>
+            ) : NAV_SECTIONS.map((section) => {
               const items = filteredNavItems.filter((item) => sectionFor(item.href) === section);
               if (items.length === 0) return null;
               return (
@@ -532,7 +567,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               );
             })}
 
-            <div className={`${collapsed ? 'lg:hidden' : ''}`}>
+            <div className={`${collapsed ? 'lg:hidden' : ''} ${roleLoaded ? '' : 'invisible'}`}>
               <div className="text-[10px] uppercase text-blue-300 font-semibold mt-4 mb-2 px-2">Quick Actions</div>
               <div className="space-y-1.5">
               {quickActions.map((action) => (

@@ -9,6 +9,7 @@ import {
   Event, Schedule, Player, Team, Attendance, AttendanceStatus,
 } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 // A session to take attendance for: a game (schedule) or an event/practice (events).
 type Session = { key: string; kind: 'game' | 'event'; id: number; label: string; date: string; team_id: number | null };
@@ -76,17 +77,27 @@ export default function AttendancePage() {
   const selectedSession = sessions.find(s => s.key === sessionKey) || null;
   const isClosed = selectedSession ? new Date(selectedSession.date).getTime() < startOfToday : false;
 
-  useEffect(() => {
+  // Load the saved attendance/RSVP rows for the currently selected session.
+  const loadRows = () => {
     if (!selectedSession) { setRows({}); return; }
-    if (selectedSession.team_id) setTeamFilter(String(selectedSession.team_id));
     const keyArg = selectedSession.kind === 'game' ? { schedule_id: selectedSession.id } : { event_id: selectedSession.id };
     getSessionAttendance(keyArg).then(({ data }) => {
       const map: Record<number, Attendance> = {};
       (data || []).forEach(r => { if (r.player_id) map[r.player_id] = r; });
       setRows(map);
     });
+  };
+
+  useEffect(() => {
+    if (!selectedSession) { setRows({}); return; }
+    if (selectedSession.team_id) setTeamFilter(String(selectedSession.team_id));
+    loadRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionKey, sessions]);
+
+  // A parent's RSVP writes to event_attendance — reflect it live so the coach
+  // sees updated RSVPs for the open session without reloading.
+  useRealtimeTable('event_attendance', loadRows);
 
   const activeRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),

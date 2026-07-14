@@ -6,6 +6,7 @@ import AdminLayout from '@/components/AdminLayout';
 import { createAdminNotification } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { SkeletonTable } from '@/components/admin/Skeleton';
 
@@ -49,6 +50,11 @@ export default function UsersAdminPage() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
+
+  // auth.users can't be subscribed to directly, but every signup/role change
+  // writes an admin_notifications row — use that as the trigger to refetch the
+  // user list so new pending approvals appear without a manual refresh.
+  useRealtimeTable('admin_notifications', fetchUsers, { event: 'INSERT' });
 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {

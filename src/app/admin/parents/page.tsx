@@ -13,6 +13,7 @@ import {
 interface ParentAccount { id: string; email: string; full_name: string; phone: string; role: string; }
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 export default function ParentsPage() {
   const [links, setLinks] = useState<ParentChild[]>([]);
@@ -54,6 +55,9 @@ export default function ParentsPage() {
       setLoading(false);
     }
   };
+
+  // New parent signups and link requests land in parent_children — refresh live.
+  useRealtimeTable('parent_children', fetchData);
 
   // Which players each parent is already linked to — a parent can have several
   // kids, so we don't hide already-linked parents; we just hide the specific
