@@ -53,13 +53,25 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
+    if (role !== undefined && !['pending', 'pending_parent', 'approved', 'admin', 'parent'].includes(role)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    }
+
+    const admin = getAdminClient();
+
+    // Look up the user before updating so we can guard the role change and email them.
+    const { data: userData } = await admin.auth.admin.getUserById(userId);
+    const previousRole = userData?.user?.user_metadata?.role;
+
     const metadata: Record<string, unknown> = {};
 
     if (role !== undefined) {
-      if (!['pending', 'pending_parent', 'approved', 'admin', 'parent'].includes(role)) {
-        return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
-      }
-      metadata.role = role;
+      // Approving a parent-child link promotes the linked account to 'parent'.
+      // Never let that demote an admin or approved coach — e.g. an admin who
+      // links their own child would otherwise lose their privileges, since the
+      // approve flow PATCHes role:'parent' unconditionally.
+      const wouldDemote = role === 'parent' && (previousRole === 'admin' || previousRole === 'approved');
+      if (!wouldDemote) metadata.role = role;
     }
 
     if (email_notifications !== undefined) {
@@ -67,14 +79,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (Object.keys(metadata).length === 0) {
-      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+      // Nothing left to apply (e.g. a blocked demotion with no other changes).
+      return NextResponse.json({ success: true });
     }
-
-    const admin = getAdminClient();
-
-    // Look up the user before updating so we can send them an email
-    const { data: userData } = await admin.auth.admin.getUserById(userId);
-    const previousRole = userData?.user?.user_metadata?.role;
 
     const { error } = await admin.auth.admin.updateUserById(userId, {
       user_metadata: metadata,
