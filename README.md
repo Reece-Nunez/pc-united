@@ -45,6 +45,20 @@ then text the parent a link (via Twilio) or copy it manually. Parents fill and
 sign at `/forms/medical/<token>`. Completed forms can be exported as JPEG or PDF
 (single or multi-select zip) for tournament uploads.
 
+## Testing
+
+Unit tests run on [Vitest](https://vitest.dev) (jsdom environment, React Testing
+Library available for component tests).
+
+```bash
+npm test          # run once (CI)
+npm run test:watch # watch mode
+```
+
+Tests live next to the code they cover as `*.test.ts` / `*.test.tsx`
+(e.g. `src/app/api/admin/users/route.test.ts`). The `@/*` path alias works in
+tests via `vitest.config.ts`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
