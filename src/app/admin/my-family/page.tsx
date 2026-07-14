@@ -11,6 +11,7 @@ import {
 } from '@/lib/supabase';
 import { getCurrentSeason } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
+import { isClubTodayOrLater } from '@/lib/time';
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -138,10 +139,27 @@ export default function MyFamilyPage() {
 
   const approvedChildren = links.filter(l => l.status === 'approved' && l.players);
 
+  // Set one RSVP answer for every linked child at once (parents with siblings).
+  const setAllRsvp = async (session: FamilySession, status: RsvpStatus) => {
+    if (approvedChildren.length === 0) return;
+    setRsvps(prev => {
+      const map = { ...prev };
+      approvedChildren.forEach(l => { map[`${session.key}:${l.players!.id}`] = status; });
+      return map;
+    });
+    const keyArg = session.kind === 'game' ? { schedule_id: session.id } : { event_id: session.id };
+    const results = await Promise.all(
+      approvedChildren.map(l => upsertRsvp({ ...keyArg, player_id: l.players!.id, rsvp: status, rsvp_by: user?.email })),
+    );
+    if (results.some(r => r.error)) toast.error('Could not save every RSVP — please retry');
+    else toast.success(`RSVP saved for all ${approvedChildren.length} players`);
+  };
+
   // Upcoming games (from Schedule) + non-game events, newest-soonest first.
-  const now = Date.now();
+  // Games are filtered by club-day (see isClubTodayOrLater) so evening games
+  // stay visible all day rather than dropping off once the UTC clock passes.
   const sessions: FamilySession[] = [
-    ...games.filter(g => new Date(g.game_date).getTime() >= now).map(g => ({ key: `g:${g.id}`, kind: 'game' as const, id: g.id, label: `${g.home_game ? 'vs' : '@'} ${g.opponent}`, date: g.game_date, sub: 'Game', location: g.location, team_id: g.team_id ?? null })),
+    ...games.filter(g => isClubTodayOrLater(g.game_date)).map(g => ({ key: `g:${g.id}`, kind: 'game' as const, id: g.id, label: `${g.home_game ? 'vs' : '@'} ${g.opponent}`, date: g.game_date, sub: 'Game', location: g.location, team_id: g.team_id ?? null })),
     ...events.filter(e => e.event_type !== 'game').map(e => ({ key: `e:${e.id}`, kind: 'event' as const, id: e.id, label: e.title, date: e.event_date, sub: e.event_type, location: e.location, team_id: e.team_id ?? null })),
   ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -263,6 +281,22 @@ export default function MyFamilyPage() {
                       </p>
                     </div>
                   </div>
+                  {approvedChildren.length > 1 && (
+                    <div className="flex items-center justify-between gap-3 mb-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+                      <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Everyone</span>
+                      <div className="flex gap-1 shrink-0">
+                        {RSVP_OPTIONS.map(o => {
+                          const allSame = approvedChildren.every(l => rsvps[`${s.key}:${l.players!.id}`] === o.key);
+                          return (
+                            <button key={o.key} onClick={() => setAllRsvp(s, o.key)}
+                              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${allSame ? o.on : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
+                              {o.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {approvedChildren.map(link => {
                       const pid = link.players!.id;
