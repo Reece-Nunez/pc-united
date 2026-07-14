@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { clubStartOfTodayISO } from './time';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW1wbGUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MTc2OTIwMCwiZXhwIjoxOTU3MzQ1MjAwfQ.example-key';
@@ -876,12 +877,16 @@ export async function getEvents() {
     };
   }
   
+  // Compare against start-of-today in the club's timezone, NOT a real UTC
+  // instant: event_date holds naive Central wall-clock time (see src/lib/time.ts),
+  // so `new Date().toISOString()` runs hours ahead and wrongly hides events that
+  // are still later today (e.g. an evening practice viewed in the afternoon).
   const { data, error } = await supabase
     .from('events')
     .select('*')
-    .gte('event_date', new Date().toISOString())
+    .gte('event_date', clubStartOfTodayISO())
     .order('event_date', { ascending: true });
-    
+
   return { data, error };
 }
 
