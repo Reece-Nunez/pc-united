@@ -10,9 +10,12 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
 // Chip color by team; games get a ring so they read as games at a glance.
+// Match on the age-group prefix, not an exact name — real team names carry a
+// suffix (e.g. "U11 Competitive"), so an equality check falls through to gray.
 const chipClass = (item: CalendarItem) => {
-  const base = item.teamName === 'U11' ? 'bg-team-blue text-white'
-    : item.teamName === 'U12' ? 'bg-team-red text-white'
+  const name = item.teamName ?? '';
+  const base = name.startsWith('U11') ? 'bg-team-blue text-white'
+    : name.startsWith('U12') ? 'bg-team-red text-white'
     : 'bg-gray-500 text-white';
   return `${base} ${item.kind === 'game' ? 'ring-1 ring-white/60' : ''}`;
 };
