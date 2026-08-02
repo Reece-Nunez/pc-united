@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { upsertRsvp, getAttendanceForPlayers, Player, Event, Schedule, Attendance, RsvpStatus } from '@/lib/supabase';
-import { isClubTodayOrLater } from '@/lib/time';
+import { isClubTodayOrLater, parseClubDateTime } from '@/lib/time';
 
 const OPTIONS: { key: RsvpStatus; label: string; on: string; text: string }[] = [
   { key: 'going', label: 'Going', on: 'bg-green-600 text-white', text: 'text-green-600' },
@@ -24,8 +24,25 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
   const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>({});
 
   const selectedPlayers = roster.filter(p => selectedIds.includes(p.id));
-  const available = roster.filter(p => !selectedIds.includes(p.id));
+  // Only active players are RSVP-able; drop archived/inactive roster entries.
+  const available = roster.filter(p => !selectedIds.includes(p.id) && (!p.status || p.status === 'active'));
   const selectedTeamIds = new Set(selectedPlayers.map(p => p.team_id).filter(Boolean));
+
+  // Group the dropdown by whatever teams the roster actually uses — team names
+  // are club-defined (e.g. "U11 Competitive"), so never hardcode them. Teamless
+  // players fall under "Other". Roster arrives ordered by team then name.
+  const teamOrder: string[] = [];
+  const byTeam: Record<string, Player[]> = {};
+  const noTeam: Player[] = [];
+  available.forEach(p => {
+    const t = p.teams?.name;
+    if (t) {
+      if (!byTeam[t]) { byTeam[t] = []; teamOrder.push(t); }
+      byTeam[t].push(p);
+    } else {
+      noTeam.push(p);
+    }
+  });
 
   // Sessions relevant to at least one selected player (their team, or club-wide).
   const sessions: Session[] = selectedPlayers.length ? [
@@ -113,14 +130,14 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue text-sm"
         >
           <option value="">{selectedPlayers.length ? 'Add another player…' : 'Select your player…'}</option>
-          {['U11', 'U12'].map(tn => available.some(p => p.teams?.name === tn) && (
+          {teamOrder.map(tn => (
             <optgroup key={tn} label={tn}>
-              {available.filter(p => p.teams?.name === tn).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {byTeam[tn].map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </optgroup>
           ))}
-          {available.filter(p => !p.teams).length > 0 && (
+          {noTeam.length > 0 && (
             <optgroup label="Other">
-              {available.filter(p => !p.teams).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {noTeam.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </optgroup>
           )}
         </select>
@@ -144,7 +161,7 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
                     <div>
                       <p className="font-semibold text-gray-900">{s.label}</p>
                       <p className="text-xs text-gray-500 capitalize">
-                        {s.sub} · {new Date(s.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {s.sub} · {parseClubDateTime(s.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
                     </div>
                     <div className="flex gap-1.5 shrink-0">

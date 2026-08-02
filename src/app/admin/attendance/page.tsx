@@ -10,6 +10,7 @@ import {
 } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
+import { isClubTodayOrLater, parseClubDateTime } from '@/lib/time';
 
 // A session to take attendance for: a game (schedule) or an event/practice (events).
 type Session = { key: string; kind: 'game' | 'event'; id: number; label: string; date: string; team_id: number | null };
@@ -42,9 +43,6 @@ export default function AttendancePage() {
   const [userEmail, setUserEmail] = useState('');
   const [showClosed, setShowClosed] = useState(false);
 
-  // Start of today: a session stays open all its day and closes once the day passes.
-  const startOfToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
-
   useEffect(() => {
     (async () => {
       const [evRes, gamesRes, rosterRes, teamsRes] = await Promise.all([getAllEvents(), getSchedule(), getRoster(), getTeams()]);
@@ -62,20 +60,23 @@ export default function AttendancePage() {
   const sessions = useMemo<Session[]>(() => {
     const g: Session[] = games.map(x => ({ key: `g:${x.id}`, kind: 'game', id: x.id, label: `${x.home_game ? 'vs' : '@'} ${x.opponent}`, date: x.game_date, team_id: x.team_id ?? null }));
     const e: Session[] = events.filter(x => x.event_type !== 'game').map(x => ({ key: `e:${x.id}`, kind: 'event', id: x.id, label: x.title, date: x.event_date, team_id: x.team_id ?? null }));
-    return [...g, ...e].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...g, ...e].sort((a, b) => parseClubDateTime(b.date).getTime() - parseClubDateTime(a.date).getTime());
   }, [games, events]);
 
-  // Open = today or future (attendance can still be taken). Past sessions close
-  // and become view-only, preserving the saved present/absent list.
+  // Open = today or future in the club's timezone (attendance can still be
+  // taken), matching the RSVP page's cutoff. Past sessions close and become
+  // view-only, preserving the saved present/absent list. Using the club-tz
+  // helper (not a raw local/UTC compare) keeps an evening session open for its
+  // whole day regardless of the admin's own timezone.
   const openSessions = useMemo(() =>
-    sessions.filter(s => new Date(s.date).getTime() >= startOfToday).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
-    [sessions, startOfToday]);
+    sessions.filter(s => isClubTodayOrLater(s.date)).sort((a, b) => parseClubDateTime(a.date).getTime() - parseClubDateTime(b.date).getTime()),
+    [sessions]);
   const pastSessions = useMemo(() =>
-    sessions.filter(s => new Date(s.date).getTime() < startOfToday),
-    [sessions, startOfToday]);
+    sessions.filter(s => !isClubTodayOrLater(s.date)),
+    [sessions]);
 
   const selectedSession = sessions.find(s => s.key === sessionKey) || null;
-  const isClosed = selectedSession ? new Date(selectedSession.date).getTime() < startOfToday : false;
+  const isClosed = selectedSession ? !isClubTodayOrLater(selectedSession.date) : false;
 
   // Load the saved attendance/RSVP rows for the currently selected session.
   const loadRows = () => {
@@ -151,14 +152,14 @@ export default function AttendancePage() {
             <option value="">Select a game or practice…</option>
             {openSessions.map(s => (
               <option key={s.key} value={s.key}>
-                {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {s.kind === 'game' ? 'Game' : 'Event'} · {s.label}
+                {parseClubDateTime(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {s.kind === 'game' ? 'Game' : 'Event'} · {s.label}
               </option>
             ))}
             {showClosed && pastSessions.length > 0 && (
               <optgroup label="Closed — view only">
                 {pastSessions.map(s => (
                   <option key={s.key} value={s.key}>
-                    {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {s.kind === 'game' ? 'Game' : 'Event'} · {s.label}
+                    {parseClubDateTime(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {s.kind === 'game' ? 'Game' : 'Event'} · {s.label}
                   </option>
                 ))}
               </optgroup>

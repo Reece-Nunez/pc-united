@@ -12,10 +12,12 @@ vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() 
 
 import RsvpClient from './RsvpClient';
 
+// Realistic team names — the club uses "U11 Competitive"/"U12 Competitive",
+// not bare "U11"/"U12". The dropdown must group by whatever names exist.
 const roster = [
-  { id: 1, name: 'Alex Kim', team_id: 1, teams: { name: 'U11' } },
-  { id: 2, name: 'Sam Kim', team_id: 1, teams: { name: 'U11' } },
-  { id: 3, name: 'Jo Lee', team_id: 2, teams: { name: 'U12' } },
+  { id: 1, name: 'Alex Kim', team_id: 1, teams: { name: 'U11 Competitive' } },
+  { id: 2, name: 'Sam Kim', team_id: 1, teams: { name: 'U11 Competitive' } },
+  { id: 3, name: 'Jo Lee', team_id: 2, teams: { name: 'U12 Competitive' } },
 ] as never;
 
 const games = [
@@ -26,6 +28,32 @@ beforeEach(() => {
   vi.clearAllMocks();
   getAttendanceForPlayers.mockResolvedValue({ data: [] });
   upsertRsvp.mockResolvedValue({ error: null });
+});
+
+describe('RsvpClient player dropdown', () => {
+  it('lists every active player grouped by their real team name', () => {
+    // Regression: the dropdown hardcoded ['U11','U12'] optgroups, so players on
+    // "U11 Competitive"/"U12 Competitive" (and any other team name) rendered
+    // nothing and could not be selected.
+    render(<RsvpClient roster={roster} events={[] as never} games={games} />);
+    expect(screen.getByRole('option', { name: 'Alex Kim' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Sam Kim' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Jo Lee' })).toBeTruthy();
+    // Grouped under the actual team names.
+    const groups = Array.from(document.querySelectorAll('optgroup')).map(g => g.label);
+    expect(groups).toContain('U11 Competitive');
+    expect(groups).toContain('U12 Competitive');
+  });
+
+  it('hides inactive players from the dropdown', () => {
+    const withInactive = [
+      ...(roster as unknown as Record<string, unknown>[]),
+      { id: 4, name: 'Old Grad', team_id: 1, status: 'inactive', teams: { name: 'U11 Competitive' } },
+    ] as never;
+    render(<RsvpClient roster={withInactive} events={[] as never} games={games} />);
+    expect(screen.queryByRole('option', { name: 'Old Grad' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Alex Kim' })).toBeTruthy();
+  });
 });
 
 describe('RsvpClient multi-select', () => {
