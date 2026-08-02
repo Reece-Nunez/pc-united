@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clubStartOfTodayISO, isClubTodayOrLater } from './time';
+import { clubStartOfTodayISO, isClubTodayOrLater, parseClubDateTime } from './time';
 
 describe('clubStartOfTodayISO', () => {
   it('returns start-of-day for the club (Central) date, not UTC', () => {
@@ -45,5 +45,28 @@ describe('isClubTodayOrLater', () => {
 
   it('handles empty input', () => {
     expect(isClubTodayOrLater('', viewedAt)).toBe(false);
+  });
+});
+
+describe('parseClubDateTime', () => {
+  it('renders the stored wall-clock time, not a UTC-shifted one', () => {
+    // Regression: a 6:30 PM practice is stored as 18:30 and returned as
+    // "…+00:00". The old `new Date(s)` treated it as a UTC instant and the
+    // formatter subtracted the viewer's offset (showing 12:30 PM). Parsed as
+    // wall-clock, the hour/minute must survive verbatim regardless of runner TZ.
+    const d = parseClubDateTime('2026-08-04T18:30:00+00:00');
+    expect(d.getHours()).toBe(18);
+    expect(d.getMinutes()).toBe(30);
+    expect(d.getDate()).toBe(4);
+  });
+
+  it('handles a bare naive string with no offset', () => {
+    const d = parseClubDateTime('2026-08-04T06:30');
+    expect(d.getHours()).toBe(6);
+    expect(d.getMinutes()).toBe(30);
+  });
+
+  it('strips a Z suffix as well as numeric offsets', () => {
+    expect(parseClubDateTime('2026-08-04T23:00:00Z').getHours()).toBe(23);
   });
 });

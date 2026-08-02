@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CalendarDaysIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { CalendarItem } from '@/lib/calendar';
+import { parseClubDateTime } from '@/lib/time';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -16,7 +17,9 @@ const chipClass = (item: CalendarItem) => {
   return `${base} ${item.kind === 'game' ? 'ring-1 ring-white/60' : ''}`;
 };
 
-const fmtDateTime = (s?: string) => s ? new Date(s).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+// Stored dates are naive club wall-clock (see src/lib/time.ts); parse them as
+// such so a 6:30 PM practice doesn't get shifted by the viewer's UTC offset.
+const fmtDateTime = (s?: string) => s ? parseClubDateTime(s).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
 
 export default function EventCalendar({ items, canEdit = false, editHref }: {
   items: CalendarItem[];
@@ -30,11 +33,11 @@ export default function EventCalendar({ items, canEdit = false, editHref }: {
   const byDay = useMemo(() => {
     const map: Record<string, CalendarItem[]> = {};
     items.forEach(it => {
-      const d = new Date(it.date);
+      const d = parseClubDateTime(it.date);
       const k = dayKey(d);
       (map[k] = map[k] || []).push(it);
     });
-    Object.values(map).forEach(list => list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    Object.values(map).forEach(list => list.sort((a, b) => parseClubDateTime(a.date).getTime() - parseClubDateTime(b.date).getTime()));
     return map;
   }, [items]);
 

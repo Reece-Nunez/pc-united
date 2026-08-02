@@ -8,6 +8,7 @@ import { getRecentActivity } from '@/lib/audit';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { SkeletonCard } from '@/components/admin/Skeleton';
+import { parseClubDateTime } from '@/lib/time';
 
 interface DashboardStats {
   players: number;
@@ -465,7 +466,7 @@ export default function AdminDashboard() {
               .sort((a: any, b: any) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
             const next = upcoming[0];
             if (!next) return null;
-            const gameDate = new Date(next.game_date);
+            const gameDate = parseClubDateTime(next.game_date);
             const daysUntil = Math.ceil((gameDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             return (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
@@ -573,7 +574,7 @@ export default function AdminDashboard() {
             ) : upcomingGamesList.length > 0 ? (
               <div className="space-y-3">
                 {upcomingGamesList.map((game: any) => {
-                  const gameDate = new Date(game.game_date);
+                  const gameDate = parseClubDateTime(game.game_date);
                   return (
                     <div key={game.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
                       <div>
@@ -829,7 +830,7 @@ export default function AdminDashboard() {
                   {!next ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No upcoming games {selectedTeam ? `for ${selectedTeam.name} ` : ''}scheduled.</p>
                   ) : (() => {
-                    const gameDate = new Date(next.game_date);
+                    const gameDate = parseClubDateTime(next.game_date);
                     const daysUntil = Math.ceil((gameDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
                     return (
                       <div className="flex items-start justify-between gap-4">

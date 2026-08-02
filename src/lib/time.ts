@@ -42,3 +42,19 @@ export function isClubTodayOrLater(dateStr: string, now: Date = new Date()): boo
   if (!dateStr) return false;
   return dateStr >= clubStartOfTodayISO(now);
 }
+
+/**
+ * Parse a stored event/game timestamp for *display* as club wall-clock time.
+ *
+ * Stored values are the naive wall-clock string the admin typed (e.g.
+ * "2026-08-04T18:30") which Supabase returns tagged `+00:00`. Passing that
+ * straight to `new Date(…).toLocaleString()` re-interprets it as a real UTC
+ * instant and shifts it by the viewer's offset — the bug where a 6:30 PM
+ * practice rendered as 12:30 PM. Stripping the offset and parsing the remainder
+ * as local time (which the formatter then reads back in that same local zone)
+ * recovers the exact wall-clock value, independent of where the viewer is.
+ */
+export function parseClubDateTime(dateStr: string): Date {
+  const naive = dateStr.replace(/[+-]\d{2}:?\d{0,2}$|Z$/g, '');
+  return new Date(naive);
+}
