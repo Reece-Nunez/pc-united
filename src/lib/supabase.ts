@@ -442,46 +442,92 @@ export async function getGameStatsForPlayer(playerId: number) {
 }
 
 // ─── Player Dues / Payments ─────────────────────────────────────────
+// A player's dues are a set of named fees (line items) per season; each fee
+// accrues individual payment records. See src/lib/dues.ts for the sum logic
+// and supabase/migrations/20260802_create_dues_fees_payments.sql for schema.
 
-export interface Dues {
+export interface DuesFee {
   id: number;
   player_id: number;
   season: string;
-  amount_owed: number;
-  amount_paid: number;
-  payment_method?: string;
+  name: string;
+  amount: number;
   note?: string;
   due_date?: string;
+  created_by?: string;
+  created_at?: string;
   updated_at?: string;
   players?: { id: number; name: string; jersey_number: number; team_id?: number | null; teams?: { id: number; name: string } | null } | null;
 }
 
-export async function getDuesBySeason(season: string) {
+export interface DuesPayment {
+  id: number;
+  fee_id: number;
+  amount: number;
+  method?: string;
+  paid_on?: string;
+  note?: string;
+  created_by?: string;
+  created_at?: string;
+}
+
+export async function getDuesFeesBySeason(season: string) {
   const { data, error } = await supabase
-    .from('player_dues')
+    .from('dues_fees')
     .select('*, players (id, name, jersey_number, team_id, teams (id, name))')
-    .eq('season', season);
-  return { data: data as Dues[] | null, error };
+    .eq('season', season)
+    .order('created_at', { ascending: true });
+  return { data: data as DuesFee[] | null, error };
 }
 
-export async function upsertDues(row: { player_id: number; season: string; amount_owed?: number; amount_paid?: number; payment_method?: string; note?: string; due_date?: string; created_by?: string }) {
+export async function getDuesFeesForPlayers(playerIds: number[]) {
+  if (playerIds.length === 0) return { data: [] as DuesFee[], error: null };
   const { data, error } = await supabase
-    .from('player_dues')
-    .upsert([{ ...row, updated_at: new Date().toISOString() }], { onConflict: 'player_id,season' })
-    .select();
-  return { data, error };
+    .from('dues_fees')
+    .select('*')
+    .in('player_id', playerIds);
+  return { data: data as DuesFee[] | null, error };
 }
 
-export async function deleteDues(id: number) {
-  const { error } = await supabase.from('player_dues').delete().eq('id', id);
+export async function getPaymentsForFees(feeIds: number[]) {
+  if (feeIds.length === 0) return { data: [] as DuesPayment[], error: null };
+  const { data, error } = await supabase
+    .from('dues_payments')
+    .select('*')
+    .in('fee_id', feeIds)
+    .order('paid_on', { ascending: true });
+  return { data: data as DuesPayment[] | null, error };
+}
+
+export async function createFee(row: { player_id: number; season: string; name: string; amount: number; note?: string; due_date?: string; created_by?: string }) {
+  const { data, error } = await supabase.from('dues_fees').insert([row]).select().single();
+  return { data: data as DuesFee | null, error };
+}
+
+export async function updateFee(id: number, patch: { name?: string; amount?: number; note?: string; due_date?: string }) {
+  const { data, error } = await supabase
+    .from('dues_fees')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  return { data: data as DuesFee | null, error };
+}
+
+export async function deleteFee(id: number) {
+  // Payments cascade-delete with the fee (FK on delete cascade).
+  const { error } = await supabase.from('dues_fees').delete().eq('id', id);
   return { error };
 }
 
-// Dues rows for a set of players (for the parent's My Family view).
-export async function getDuesForPlayers(playerIds: number[]) {
-  if (playerIds.length === 0) return { data: [] as Dues[], error: null };
-  const { data, error } = await supabase.from('player_dues').select('*').in('player_id', playerIds);
-  return { data: data as Dues[] | null, error };
+export async function addPayment(row: { fee_id: number; amount: number; method?: string; paid_on?: string; note?: string; created_by?: string }) {
+  const { data, error } = await supabase.from('dues_payments').insert([row]).select().single();
+  return { data: data as DuesPayment | null, error };
+}
+
+export async function deletePayment(id: number) {
+  const { error } = await supabase.from('dues_payments').delete().eq('id', id);
+  return { error };
 }
 
 // Player CRUD Functions

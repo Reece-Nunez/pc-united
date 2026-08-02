@@ -7,11 +7,14 @@ import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import toast from 'react-hot-toast';
 import {
   getRoster, getParentChildrenForUser, createParentChildLink, getEvents, getSchedule, getAttendanceForPlayers, upsertRsvp,
-  getDuesForPlayers, ParentChild, Player, Event, Schedule, Attendance, RsvpStatus, Dues,
+  getDuesFeesForPlayers, getPaymentsForFees, ParentChild, Player, Event, Schedule, Attendance, RsvpStatus,
 } from '@/lib/supabase';
 import { getCurrentSeason } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { isClubTodayOrLater } from '@/lib/time';
+import { computePlayerDues } from '@/lib/dues';
+
+type DuesSummary = { owed: number; paid: number; balance: number };
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -30,7 +33,7 @@ export default function MyFamilyPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [games, setGames] = useState<Schedule[]>([]);
   const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>({}); // `${sessionKey}:${playerId}` -> status
-  const [dues, setDues] = useState<Record<number, Dues>>({}); // player_id -> current-season dues
+  const [dues, setDues] = useState<Record<number, DuesSummary>>({}); // player_id -> current-season dues totals
   const photoRef = useRef<HTMLInputElement>(null);
   const currentSeason = getCurrentSeason().label;
 
@@ -64,10 +67,17 @@ export default function MyFamilyPage() {
       });
       setRsvps(map);
 
-      // Current-season dues per child (read-only for parents).
-      const duesRes = await getDuesForPlayers(playerIds);
-      const dMap: Record<number, Dues> = {};
-      (duesRes.data || []).forEach((d: Dues) => { if (d.season === currentSeason && d.player_id) dMap[d.player_id] = d; });
+      // Current-season dues per child (read-only for parents): sum this
+      // season's fee line items against the payments recorded on them.
+      const feesRes = await getDuesFeesForPlayers(playerIds);
+      const seasonFees = (feesRes.data || []).filter(f => f.season === currentSeason);
+      const payRes = await getPaymentsForFees(seasonFees.map(f => f.id));
+      const payList = payRes.data || [];
+      const dMap: Record<number, DuesSummary> = {};
+      playerIds.forEach(pid => {
+        const pFees = seasonFees.filter(f => f.player_id === pid);
+        if (pFees.length) dMap[pid] = computePlayerDues(pFees, payList);
+      });
       setDues(dMap);
       setLoading(false);
     });
@@ -248,11 +258,10 @@ export default function MyFamilyPage() {
                   <div className="mt-1">{statusBadge(link.status)}</div>
                   {link.players?.id && dues[link.players.id] && (() => {
                     const d = dues[link.players!.id];
-                    const bal = Number(d.amount_owed) - Number(d.amount_paid);
-                    if (Number(d.amount_owed) <= 0) return null;
+                    if (d.owed <= 0) return null;
                     return (
-                      <p className={`text-xs mt-1 ${bal > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {currentSeason} dues: {bal > 0 ? `${money(bal)} due` : 'Paid'}
+                      <p className={`text-xs mt-1 ${d.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {currentSeason} dues: {d.balance > 0 ? `${money(d.balance)} due` : 'Paid'}
                       </p>
                     );
                   })()}

@@ -24,7 +24,8 @@ vi.mock('@/lib/supabase', () => ({
   getEvents: async () => ({ data: [], error: null }),
   getSchedule: async () => ({ data: [{ id: 10, game_date: '2030-01-01T18:00:00+00:00', home_game: true, opponent: 'Rivals', location: 'Field 1', team_id: 1 }], error: null }),
   getAttendanceForPlayers: async () => ({ data: [], error: null }),
-  getDuesForPlayers: async () => ({ data: [], error: null }),
+  getDuesFeesForPlayers: async () => ({ data: [], error: null }),
+  getPaymentsForFees: async () => ({ data: [], error: null }),
   upsertRsvp: (...args: unknown[]) => upsertRsvp(...args),
 }));
 

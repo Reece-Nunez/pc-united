@@ -39,6 +39,7 @@ import {
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { getSeasonLabel, getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
+import { parseClubDateTime } from '@/lib/time';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
@@ -96,6 +97,9 @@ function TeamAdminContent() {
   // Form states
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  // Practices are events (event_type='practice') but get their own simplified
+  // form, so they need their own editing handle rather than reusing editingEvent.
+  const [editingPractice, setEditingPractice] = useState<Event | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   const [scheduleSeason, setScheduleSeason] = useState<Season>(getCurrentSeason());
   const scheduleSeasons = getAvailableSeasons(8);
@@ -300,7 +304,7 @@ function TeamAdminContent() {
     try {
       const teamName = teams.find(t => t.id === practiceForm.team_id)?.name;
       const title = teamName ? `${teamName} Practice` : 'Practice';
-      const result = await createEvent({
+      const payload = {
         title,
         description: practiceForm.note || undefined,
         event_date: practiceForm.event_date,
@@ -308,10 +312,19 @@ function TeamAdminContent() {
         event_type: 'practice',
         team_id: practiceForm.team_id,
         registration_required: false,
-      } as Omit<Event, 'id' | 'created_at' | 'updated_at'>);
-      if (result.error) throw new Error(result.error.message);
-      toast.success('Practice scheduled');
-      logActivity('create', 'event', result.data?.[0]?.id || title, userEmail, { title, type: 'practice' });
+      } as Omit<Event, 'id' | 'created_at' | 'updated_at'>;
+      if (editingPractice) {
+        const result = await updateEvent(editingPractice.id, payload);
+        if (result.error) throw new Error(result.error.message);
+        toast.success('Practice updated');
+        logActivity('update', 'event', editingPractice.id, userEmail, { title, type: 'practice' });
+      } else {
+        const result = await createEvent(payload);
+        if (result.error) throw new Error(result.error.message);
+        toast.success('Practice scheduled');
+        logActivity('create', 'event', result.data?.[0]?.id || title, userEmail, { title, type: 'practice' });
+      }
+      setEditingPractice(null);
       setPracticeForm({ team_id: null, event_date: '', location: '', note: '' });
       fetchAllData();
     } catch (error: any) {
@@ -710,8 +723,10 @@ function TeamAdminContent() {
   const cancelEdit = () => {
     setEditingNews(null);
     setEditingEvent(null);
+    setEditingPractice(null);
     setEditingSchedule(null);
     setEditingAnnouncement(null);
+    setPracticeForm({ team_id: null, event_date: '', location: '', note: '' });
     setNewsForm({
       title: '',
       slug: '',
@@ -801,7 +816,7 @@ function TeamAdminContent() {
               {activeTab === 'news' && (editingNews ? 'Edit News Article' : 'Add New News Article')}
               {activeTab === 'events' && (editingEvent ? 'Edit Event' : 'Add New Event')}
               {activeTab === 'schedule' && (editingSchedule ? 'Edit Schedule Item' : 'Add New Schedule Item')}
-              {activeTab === 'practices' && 'Schedule a Practice'}
+              {activeTab === 'practices' && (editingPractice ? 'Edit Practice' : 'Schedule a Practice')}
               {activeTab === 'announcements' && (editingAnnouncement ? 'Edit Announcement' : 'Add New Announcement')}
             </h2>
 
@@ -1377,9 +1392,20 @@ function TeamAdminContent() {
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Practices show up on the Attendance page and the RSVP link so parents can mark who&apos;s coming.
                 </p>
-                <button type="submit" disabled={loading} className="w-full bg-team-blue text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium">
-                  {loading ? 'Saving…' : 'Schedule Practice'}
-                </button>
+                <div className="flex gap-2">
+                  <button type="submit" disabled={loading} className="flex-1 bg-team-blue text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium">
+                    {loading ? 'Saving…' : editingPractice ? 'Update Practice' : 'Schedule Practice'}
+                  </button>
+                  {editingPractice && (
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm md:text-base"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             )}
 
@@ -1595,11 +1621,25 @@ function TeamAdminContent() {
                       </h3>
                       {practice.description && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{practice.description}</p>}
                       <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>{new Date(practice.event_date).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                        <span>{parseClubDateTime(practice.event_date).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
                         {practice.location && <span>{practice.location}</span>}
                       </div>
                     </div>
                     <div className="flex gap-2 sm:ml-4 flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingPractice(practice);
+                          setPracticeForm({
+                            team_id: practice.team_id ?? null,
+                            event_date: toLocalDateTimeString(practice.event_date || ''),
+                            location: practice.location || '',
+                            note: practice.description || '',
+                          });
+                        }}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
+                      >
+                        Edit
+                      </button>
                       <button
                         onClick={() => handleDelete('events', practice.id)}
                         className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
