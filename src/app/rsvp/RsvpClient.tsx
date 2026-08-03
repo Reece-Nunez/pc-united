@@ -112,6 +112,28 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
     });
   };
 
+  // Undo an answer back to "no response". Staged like any change; on submit it
+  // writes rsvp: null so an accidental (or since-changed) RSVP is cleared.
+  const clearRsvp = (session: Session) => {
+    const eligible = eligibleFor(session);
+    if (!eligible.length) return;
+    setRsvps(prev => {
+      const map = { ...prev };
+      eligible.forEach(p => { delete map[rk(session.key, p.id)]; });
+      return map;
+    });
+    setReasons(prev => {
+      const map = { ...prev };
+      delete map[session.key];
+      return map;
+    });
+    setDirty(prev => {
+      const next = new Set(prev);
+      eligible.forEach(p => next.add(rk(session.key, p.id)));
+      return next;
+    });
+  };
+
   const setReason = (session: Session, text: string) => {
     setReasons(prev => ({ ...prev, [session.key]: text }));
     // Editing the reason re-dirties the session's not-going children so Submit
@@ -125,11 +147,12 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
     });
   };
 
-  // Every changed (session, player) answer waiting to be written.
+  // Every changed (session, player) answer waiting to be written. A dirty key
+  // with no value means the parent cleared it — submit writes null to undo.
   const pending = sessions.flatMap(s =>
     eligibleFor(s)
-      .filter(p => dirty.has(rk(s.key, p.id)) && rsvps[rk(s.key, p.id)])
-      .map(p => ({ s, p, status: rsvps[rk(s.key, p.id)] })),
+      .filter(p => dirty.has(rk(s.key, p.id)))
+      .map(p => ({ s, p, status: rsvps[rk(s.key, p.id)] ?? null })),
   );
 
   const submit = async () => {
@@ -139,7 +162,7 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
       const keyArg = s.kind === 'game' ? { schedule_id: s.id } : { event_id: s.id };
       // Only a not-going answer carries a reason; clear it otherwise.
       const rsvp_note = status === 'not_going' ? (reasons[s.key]?.trim() || null) : null;
-      return upsertRsvp({ ...keyArg, player_id: p.id, rsvp: status, rsvp_by: p.name, rsvp_note });
+      return upsertRsvp({ ...keyArg, player_id: p.id, rsvp: status, rsvp_by: status ? p.name : null, rsvp_note });
     }));
     setSaving(false);
     if (results.some(r => r.error)) {
@@ -219,7 +242,7 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
                         {s.sub} · {parseClubDateTime(s.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {OPTIONS.map(o => {
                         // Highlight only when *all* eligible kids share this answer.
                         const allSame = eligible.length > 0 && eligible.every(p => rsvps[rk(s.key, p.id)] === o.key);
@@ -230,6 +253,17 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
                           </button>
                         );
                       })}
+                      {/* Undo an answer back to "no response" (e.g. an accidental tap). */}
+                      {eligible.some(p => rsvps[rk(s.key, p.id)]) && (
+                        <button
+                          onClick={() => clearRsvp(s)}
+                          aria-label={`Clear RSVP for ${s.label}`}
+                          title="Clear response"
+                          className="ml-0.5 px-2 py-1.5 rounded text-sm text-gray-400 hover:text-red-600 hover:bg-gray-100 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                   </div>
 

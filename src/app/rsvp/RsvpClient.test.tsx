@@ -119,6 +119,29 @@ describe('RsvpClient multi-select', () => {
     });
   });
 
+  it('clears a previously-saved answer by writing rsvp: null on submit', async () => {
+    // Jackson-Eastman case: an answer was saved before; the parent needs to undo it.
+    getAttendanceForPlayers.mockResolvedValue({
+      data: [{ schedule_id: 10, player_id: 1, rsvp: 'going', rsvp_by: 'Alex Kim' }],
+    });
+    render(<RsvpClient roster={roster} events={[] as never} games={games} />);
+
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: '1' } });
+    await screen.findByText('Alex Kim');
+
+    // Clear only appears once there is an answer to undo.
+    const clear = await screen.findByRole('button', { name: /Clear RSVP/ });
+    fireEvent.click(clear);
+    await waitFor(() => expect(submitBtn()).not.toBeDisabled());
+    fireEvent.click(submitBtn());
+
+    await waitFor(() => expect(upsertRsvp).toHaveBeenCalledTimes(1));
+    expect(upsertRsvp.mock.calls[0][0]).toMatchObject({
+      player_id: 1, schedule_id: 10, rsvp: null, rsvp_by: null, rsvp_note: null,
+    });
+  });
+
   it('does not re-save pre-loaded answers that were not changed', async () => {
     getAttendanceForPlayers.mockResolvedValue({
       data: [{ schedule_id: 10, player_id: 1, rsvp: 'going' }],
