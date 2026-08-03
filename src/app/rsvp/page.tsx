@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { getRoster, getEvents, getSchedule, Event, Schedule } from '@/lib/supabase';
+import RealtimeRefresh from '@/components/RealtimeRefresh';
 import RsvpClient from './RsvpClient';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,9 @@ export default async function RsvpPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+      {/* New games/practices appear live; players table intentionally not
+          subscribed here so minors' rows aren't streamed to public visitors. */}
+      <RealtimeRefresh tables={['events', 'schedule']} />
       <main id="main-content" className="max-w-2xl mx-auto px-4 sm:px-6 py-8 md:py-12">
         <RsvpClient
           roster={rosterRes.data || []}

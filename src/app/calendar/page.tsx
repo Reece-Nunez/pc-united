@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import EventCalendar from '@/components/EventCalendar';
+import RealtimeRefresh from '@/components/RealtimeRefresh';
 import { buildCalendarItems } from '@/lib/calendar';
 import { getAllEvents, getSchedule, getTeams, Event, Schedule } from '@/lib/supabase';
 import { generateMetadata as genMeta } from '@/components/SEO';
@@ -21,6 +22,7 @@ export default async function PublicCalendarPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+      <RealtimeRefresh tables={['events', 'schedule', 'teams']} />
       <section className="bg-team-blue text-white py-10 md:py-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
           <h1 className="text-3xl md:text-5xl font-bold">Team <span className="text-team-red">Calendar</span></h1>

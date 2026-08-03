@@ -20,6 +20,7 @@ import {
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface AdminPlayer extends Player {
   player_stats?: Array<{
@@ -137,6 +138,8 @@ function PlayersAdminContent() {
       setUserEmail(user?.email || '');
     });
   }, []);
+
+  useRealtimeTable(['players','teams'], fetchPlayers);
 
   async function fetchPlayers() {
     try {

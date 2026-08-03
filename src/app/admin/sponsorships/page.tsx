@@ -18,6 +18,7 @@ import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { SkeletonTable } from '@/components/admin/Skeleton';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 type SponsorshipWithStatus = Sponsorship & { status?: string };
 
@@ -112,6 +113,8 @@ function Content() {
   useEffect(() => {
     fetchSponsorships();
   }, [fetchSponsorships]);
+
+  useRealtimeTable(['sponsorships'], fetchSponsorships);
 
   const handleStatusChange = async (item: SponsorshipWithStatus, newStatus: string) => {
     if (!item.id) return;

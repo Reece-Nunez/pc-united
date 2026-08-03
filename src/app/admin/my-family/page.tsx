@@ -13,6 +13,7 @@ import { getCurrentSeason } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { isClubTodayOrLater } from '@/lib/time';
 import { computePlayerDues } from '@/lib/dues';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 type DuesSummary = { owed: number; paid: number; balance: number };
 
@@ -88,6 +89,8 @@ export default function MyFamilyPage() {
     const { data } = await getParentChildrenForUser(user.id);
     setLinks(data || []);
   };
+
+  useRealtimeTable(['event_attendance','dues_fees','dues_payments','schedule','events'], refresh);
 
   const uploadPhoto = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) { toast.error('Photo must be under 10MB'); return; }

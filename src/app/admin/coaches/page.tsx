@@ -15,6 +15,7 @@ import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import ImageUpload from '@/components/ImageUpload';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 const TITLE_OPTIONS = ['Head Coach', 'Assistant Coach', 'Goalkeeper Coach', 'Fitness Coach', 'Volunteer'];
 const ROLE_OPTIONS = ['head_coach', 'assistant_coach', 'goalkeeper_coach', 'fitness_coach', 'volunteer'];
@@ -149,6 +150,8 @@ export default function CoachesAdminPage() {
       setUserEmail(user?.email || '');
     });
   }, []);
+
+  useRealtimeTable(['coaches'], fetchCoaches);
 
   async function fetchCoaches() {
     try {

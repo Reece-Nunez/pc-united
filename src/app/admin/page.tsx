@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses, getParentPlayers, linkParentToPlayer, unlinkParentFromPlayer, getTeams, type Team } from '@/lib/supabase';
@@ -9,6 +9,7 @@ import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } fr
 import { createClient } from '@/lib/supabase-browser';
 import { SkeletonCard } from '@/components/admin/Skeleton';
 import { parseClubDateTime } from '@/lib/time';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface DashboardStats {
   players: number;
@@ -122,9 +123,8 @@ export default function AdminDashboard() {
     });
   }, [userId, userRole]);
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
+  const fetchDashboardData = useCallback(async () => {
+    try {
         const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes, expensesRes, teamsRes] = await Promise.all([
           getPlayers(),
           getHighlights(),
@@ -178,9 +178,13 @@ export default function AdminDashboard() {
       } finally {
         setLoading(false);
       }
-    }
-    fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useRealtimeTable(['players','schedule','news','highlights','newsletter_subscribers','sponsorships','gallery_images','expenses','teams'], fetchDashboardData);
 
   // KPI row. `scoped` cards react to the team switcher; the rest are club-wide
   // (highlights, news, subscribers, etc. aren't tied to a team_id).

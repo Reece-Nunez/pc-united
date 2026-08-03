@@ -12,6 +12,7 @@ import {
   AdminNotification,
 } from '@/lib/supabase';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface AdminUser {
   id: string;
@@ -66,6 +67,8 @@ export default function NotificationsPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useRealtimeTable(['admin_notifications'], fetchData);
 
   async function fetchData() {
     setLoading(true);

@@ -43,6 +43,7 @@ import { parseClubDateTime } from '@/lib/time';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 type ActiveTab = 'news' | 'events' | 'schedule' | 'practices' | 'announcements';
 
@@ -217,6 +218,8 @@ function TeamAdminContent() {
       setLoading(false);
     }
   };
+
+  useRealtimeTable(['news','events','schedule','announcements','opponents','teams'], fetchAllData);
 
   const handleFormChange = (_form: any, setForm: Function, field: string, value: any) => {
     setForm((prev: any) => ({ ...prev, [field]: value }));

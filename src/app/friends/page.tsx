@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Sponsors from "@/components/Sponsors";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 import SponsorshipForm from "./SponsorshipForm";
 import { generateMetadata } from "@/components/SEO";
 import { Metadata } from "next";
@@ -25,6 +26,7 @@ export default function FriendsPage() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
+      <RealtimeRefresh tables={['sponsorships']} />
 
       {/* Hero Section */}
       <section className="relative bg-team-blue text-white py-20">

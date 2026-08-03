@@ -19,6 +19,7 @@ import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { uploadToS3, uploadToS3Direct, deleteFromS3, isS3Configured } from "@/lib/s3";
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface HighlightWithPlayer extends Highlight {
   players?: {
@@ -74,6 +75,8 @@ function HighlightsAdminContent() {
       setUserEmail(user?.email || '');
     });
   }, []);
+
+  useRealtimeTable(['highlights','events'], fetchData);
 
   // Cleanup object URLs to prevent memory leaks
   useEffect(() => {

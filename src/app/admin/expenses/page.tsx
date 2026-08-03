@@ -10,6 +10,7 @@ import { getCurrentSeason, getAvailableSeasons, getSeasonLabel, isDateInSeason, 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { SkeletonTable } from '@/components/admin/Skeleton';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 const CATEGORIES = [
   'Equipment',
@@ -146,6 +147,8 @@ export default function ExpensesPage() {
       setLoading(false);
     }
   };
+
+  useRealtimeTable(['expenses','income','sponsorships'], fetchData);
 
   // Filter expenses by selected season
   const filteredExpenses = useMemo(() => {

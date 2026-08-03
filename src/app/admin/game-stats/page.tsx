@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import {
   getSchedule, getRoster, getTeams, getGameStats, upsertGameStat,
   Schedule, Player, Team, GameStat,
 } from '@/lib/supabase';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 type Row = { goals: number; assists: number; yellow_cards: number; red_cards: number; saves: number; clean_sheet: boolean };
 const emptyRow: Row = { goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, saves: 0, clean_sheet: false };
@@ -24,17 +25,21 @@ export default function GameStatsPage() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const [gRes, rRes, tRes] = await Promise.all([getSchedule(), getRoster(), getTeams()]);
-      if (!gRes.error && gRes.data) setGames([...(gRes.data as Schedule[])].reverse()); // recent first
-      if (!rRes.error && rRes.data) setRoster(rRes.data);
-      if (!tRes.error) setTeams(tRes.data || []);
-      setLoading(false);
-    })();
+  const loadBase = useCallback(async () => {
+    const [gRes, rRes, tRes] = await Promise.all([getSchedule(), getRoster(), getTeams()]);
+    if (!gRes.error && gRes.data) setGames([...(gRes.data as Schedule[])].reverse()); // recent first
+    if (!rRes.error && rRes.data) setRoster(rRes.data);
+    if (!tRes.error) setTeams(tRes.data || []);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
+    loadBase();
+  }, [loadBase]);
+
+  useRealtimeTable(['schedule','players','teams'], loadBase);
+
+  const loadStats = useCallback(() => {
     if (!scheduleId) { setRows({}); return; }
     // Auto-select the team this game is for, so the roster filters to it.
     const g = games.find(x => String(x.id) === scheduleId);
@@ -50,6 +55,12 @@ export default function GameStatsPage() {
       setRows(map);
     });
   }, [scheduleId, games]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  useRealtimeTable('game_stats', loadStats);
 
   const activeRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),

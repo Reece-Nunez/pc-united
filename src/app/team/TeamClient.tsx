@@ -6,6 +6,7 @@ import Link from "next/link";
 import Script from "next/script";
 import { MegaphoneIcon, HomeIcon, PaperAirplaneIcon, CalendarIcon, ListBulletIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { TeamLoadingSkeleton } from '@/components/Skeleton';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import {
   getNews,
   getEvents,
@@ -202,34 +203,33 @@ export default function TeamClient() {
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    async function fetchTeamData() {
-      try {
-        const [newsResult, eventsResult, scheduleResult, announcementsResult] = await Promise.all([
-          getNews(),
-          getEvents(),
-          getSchedule(),
-          getActiveAnnouncements()
-        ]);
+  const fetchTeamData = useCallback(async () => {
+    try {
+      const [newsResult, eventsResult, scheduleResult, announcementsResult] = await Promise.all([
+        getNews(),
+        getEvents(),
+        getSchedule(),
+        getActiveAnnouncements()
+      ]);
 
-        if (newsResult.error) throw newsResult.error;
-        if (eventsResult.error) throw eventsResult.error;
-        if (scheduleResult.error) throw scheduleResult.error;
-        if (announcementsResult.error) throw announcementsResult.error;
+      if (newsResult.error) throw newsResult.error;
+      if (eventsResult.error) throw eventsResult.error;
+      if (scheduleResult.error) throw scheduleResult.error;
+      if (announcementsResult.error) throw announcementsResult.error;
 
-        setNews(newsResult.data || []);
-        setEvents(eventsResult.data || []);
-        setSchedule(scheduleResult.data || []);
-        setAnnouncements(announcementsResult.data || []);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+      setNews(newsResult.data || []);
+      setEvents(eventsResult.data || []);
+      setSchedule(scheduleResult.data || []);
+      setAnnouncements(announcementsResult.data || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-
-    fetchTeamData();
   }, []);
+
+  useEffect(() => { fetchTeamData(); }, [fetchTeamData]);
+  useRealtimeTable(['news', 'events', 'schedule', 'announcements'], fetchTeamData);
 
   // Filter schedule by selected season
   const filteredSchedule = schedule.filter(game => isDateInSeason(game.game_date, selectedSeason));

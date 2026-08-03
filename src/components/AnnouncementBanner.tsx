@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getActiveAnnouncements, Announcement } from '@/lib/supabase';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 const priorityStyles: Record<number, string> = {
@@ -14,16 +15,22 @@ export default function AnnouncementBanner() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
+  const loadAnnouncements = useCallback(() => {
+    getActiveAnnouncements().then(({ data }) => {
+      if (data) setAnnouncements(data);
+    });
+  }, []);
+
   useEffect(() => {
     const stored = sessionStorage.getItem('dismissed-announcements');
     if (stored) {
       setDismissed(new Set(JSON.parse(stored)));
     }
+    loadAnnouncements();
+  }, [loadAnnouncements]);
 
-    getActiveAnnouncements().then(({ data }) => {
-      if (data) setAnnouncements(data);
-    });
-  }, []);
+  // Live-update the banner when an admin posts/edits an announcement.
+  useRealtimeTable('announcements', loadAnnouncements);
 
   const dismiss = (id: number) => {
     const updated = new Set(dismissed);

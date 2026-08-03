@@ -12,6 +12,7 @@ import {
 import { getCurrentSeason, getAvailableSeasons } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { computePlayerDues, feePaid, duesStatus } from '@/lib/dues';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Local YYYY-MM-DD (en-CA formats that way) so the date input defaults to the
@@ -72,6 +73,8 @@ export default function DuesPage() {
   };
 
   useEffect(() => { reload(season); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [season]);
+
+  useRealtimeTable(['dues_fees','dues_payments','players','teams'], () => reload());
 
   const activeRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),
