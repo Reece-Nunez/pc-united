@@ -24,6 +24,8 @@ const games = [
   { id: 10, game_date: '2030-01-01T18:00:00+00:00', home_game: true, opponent: 'Rivals', location: 'Field 1', team_id: 1 },
 ] as never;
 
+const submitBtn = () => screen.getByRole('button', { name: 'Submit RSVPs' });
+
 beforeEach(() => {
   vi.clearAllMocks();
   getAttendanceForPlayers.mockResolvedValue({ data: [] });
@@ -57,7 +59,7 @@ describe('RsvpClient player dropdown', () => {
 });
 
 describe('RsvpClient multi-select', () => {
-  it('applies one RSVP tap to every selected eligible player', async () => {
+  it('stages taps and only writes on Submit — one answer to every eligible player', async () => {
     render(<RsvpClient roster={roster} events={[] as never} games={games} />);
 
     const select = screen.getByRole('combobox');
@@ -67,12 +69,16 @@ describe('RsvpClient multi-select', () => {
     await screen.findByText('Sam Kim');
 
     fireEvent.click(screen.getByRole('button', { name: 'Going' }));
+    // Nothing persisted until Submit.
+    expect(upsertRsvp).not.toHaveBeenCalled();
+
+    fireEvent.click(submitBtn());
 
     await waitFor(() => expect(upsertRsvp).toHaveBeenCalledTimes(2));
     const playerIds = upsertRsvp.mock.calls.map(c => c[0].player_id).sort();
     expect(playerIds).toEqual([1, 2]);
     for (const call of upsertRsvp.mock.calls) {
-      expect(call[0]).toMatchObject({ schedule_id: 10, rsvp: 'going' });
+      expect(call[0]).toMatchObject({ schedule_id: 10, rsvp: 'going', rsvp_note: null });
     }
   });
 
@@ -87,8 +93,44 @@ describe('RsvpClient multi-select', () => {
     await screen.findByText('Jo Lee');
 
     fireEvent.click(screen.getByRole('button', { name: 'Going' }));
+    fireEvent.click(submitBtn());
 
     await waitFor(() => expect(upsertRsvp).toHaveBeenCalledTimes(1));
     expect(upsertRsvp.mock.calls[0][0]).toMatchObject({ player_id: 1, schedule_id: 10 });
+  });
+
+  it('captures an absence reason with a not-going RSVP', async () => {
+    render(<RsvpClient roster={roster} events={[] as never} games={games} />);
+
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: '1' } });
+    await screen.findByText('Alex Kim');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not going' }));
+    // Reason input only appears once a not-going answer is staged.
+    const reason = await screen.findByPlaceholderText(/out of town/i);
+    fireEvent.change(reason, { target: { value: 'Family trip' } });
+
+    fireEvent.click(submitBtn());
+
+    await waitFor(() => expect(upsertRsvp).toHaveBeenCalledTimes(1));
+    expect(upsertRsvp.mock.calls[0][0]).toMatchObject({
+      player_id: 1, schedule_id: 10, rsvp: 'not_going', rsvp_note: 'Family trip',
+    });
+  });
+
+  it('does not re-save pre-loaded answers that were not changed', async () => {
+    getAttendanceForPlayers.mockResolvedValue({
+      data: [{ schedule_id: 10, player_id: 1, rsvp: 'going' }],
+    });
+    render(<RsvpClient roster={roster} events={[] as never} games={games} />);
+
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: '1' } });
+    await screen.findByText('Alex Kim');
+
+    // Nothing changed, so Submit is disabled and no write happens.
+    await waitFor(() => expect(submitBtn()).toBeDisabled());
+    expect(upsertRsvp).not.toHaveBeenCalled();
   });
 });

@@ -22,6 +22,13 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
   // eligible for it (team match, or club-wide sessions with no team).
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [rsvps, setRsvps] = useState<Record<string, RsvpStatus>>({});
+  // Keys the parent has changed but not yet submitted. Pre-loaded answers are
+  // never dirty, so Submit only writes what actually changed this session.
+  const [dirty, setDirty] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  // Optional "why absent" reason, one per session (applies to every eligible
+  // not-going child). Keyed by session key.
+  const [reasons, setReasons] = useState<Record<string, string>>({});
 
   const selectedPlayers = roster.filter(p => selectedIds.includes(p.id));
   // Only active players are RSVP-able; drop archived/inactive roster entries.
@@ -64,12 +71,23 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
     setSelectedIds(prev => [...prev, pid]);
     // Pre-load this player's existing RSVPs so their saved answers show.
     const { data } = await getAttendanceForPlayers([pid]);
+    const rows = data || [];
     setRsvps(prev => {
       const map = { ...prev };
-      (data || []).forEach((a: Attendance) => {
+      rows.forEach((a: Attendance) => {
         if (!a.rsvp) return;
         const sk = a.schedule_id != null ? `g:${a.schedule_id}` : `e:${a.event_id}`;
         map[rk(sk, a.player_id!)] = a.rsvp;
+      });
+      return map;
+    });
+    // Surface any saved absence reason so the parent sees/edits it, not a blank.
+    setReasons(prev => {
+      const map = { ...prev };
+      rows.forEach((a: Attendance) => {
+        if (a.rsvp !== 'not_going' || !a.rsvp_note) return;
+        const sk = a.schedule_id != null ? `g:${a.schedule_id}` : `e:${a.event_id}`;
+        if (!map[sk]) map[sk] = a.rsvp_note;
       });
       return map;
     });
@@ -77,23 +95,60 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
 
   const removeChild = (pid: number) => setSelectedIds(prev => prev.filter(x => x !== pid));
 
-  const setRsvp = async (session: Session, status: RsvpStatus) => {
+  // Tapping a response only stages it locally now — nothing is written until the
+  // parent hits Submit, so they can set every session first and review.
+  const stageRsvp = (session: Session, status: RsvpStatus) => {
     const eligible = eligibleFor(session);
     if (!eligible.length) return;
-
-    // Optimistic update for every eligible child.
     setRsvps(prev => {
       const map = { ...prev };
       eligible.forEach(p => { map[rk(session.key, p.id)] = status; });
       return map;
     });
+    setDirty(prev => {
+      const next = new Set(prev);
+      eligible.forEach(p => next.add(rk(session.key, p.id)));
+      return next;
+    });
+  };
 
-    const keyArg = session.kind === 'game' ? { schedule_id: session.id } : { event_id: session.id };
-    const results = await Promise.all(
-      eligible.map(p => upsertRsvp({ ...keyArg, player_id: p.id, rsvp: status, rsvp_by: p.name })),
-    );
-    if (results.some(r => r.error)) toast.error('Could not save every RSVP — please retry');
-    else toast.success(eligible.length > 1 ? `RSVP saved for ${eligible.length} players` : 'RSVP saved');
+  const setReason = (session: Session, text: string) => {
+    setReasons(prev => ({ ...prev, [session.key]: text }));
+    // Editing the reason re-dirties the session's not-going children so Submit
+    // picks up the changed note.
+    setDirty(prev => {
+      const next = new Set(prev);
+      eligibleFor(session).forEach(p => {
+        if (rsvps[rk(session.key, p.id)] === 'not_going') next.add(rk(session.key, p.id));
+      });
+      return next;
+    });
+  };
+
+  // Every changed (session, player) answer waiting to be written.
+  const pending = sessions.flatMap(s =>
+    eligibleFor(s)
+      .filter(p => dirty.has(rk(s.key, p.id)) && rsvps[rk(s.key, p.id)])
+      .map(p => ({ s, p, status: rsvps[rk(s.key, p.id)] })),
+  );
+
+  const submit = async () => {
+    if (!pending.length) return;
+    setSaving(true);
+    const results = await Promise.all(pending.map(({ s, p, status }) => {
+      const keyArg = s.kind === 'game' ? { schedule_id: s.id } : { event_id: s.id };
+      // Only a not-going answer carries a reason; clear it otherwise.
+      const rsvp_note = status === 'not_going' ? (reasons[s.key]?.trim() || null) : null;
+      return upsertRsvp({ ...keyArg, player_id: p.id, rsvp: status, rsvp_by: p.name, rsvp_note });
+    }));
+    setSaving(false);
+    if (results.some(r => r.error)) {
+      toast.error('Could not save every RSVP — please retry');
+      return;
+    }
+    setDirty(new Set());
+    const players = new Set(pending.map(x => x.p.id)).size;
+    toast.success(players > 1 ? `RSVP saved for ${players} players` : 'RSVP saved');
   };
 
   return (
@@ -142,7 +197,7 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
           )}
         </select>
         {selectedPlayers.length > 1 && (
-          <p className="text-xs text-gray-500 mt-2">Tapping a response sets it for every selected player that session applies to.</p>
+          <p className="text-xs text-gray-500 mt-2">Tapping a response sets it for every selected player that session applies to. Tap <span className="font-medium">Submit</span> when you&apos;re done.</p>
         )}
       </div>
 
@@ -169,7 +224,7 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
                         // Highlight only when *all* eligible kids share this answer.
                         const allSame = eligible.length > 0 && eligible.every(p => rsvps[rk(s.key, p.id)] === o.key);
                         return (
-                          <button key={o.key} onClick={() => setRsvp(s, o.key)}
+                          <button key={o.key} onClick={() => stageRsvp(s, o.key)}
                             className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${allSame ? o.on : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                             {o.label}
                           </button>
@@ -177,6 +232,23 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
                       })}
                     </div>
                   </div>
+
+                  {/* Optional reason, shown once any eligible child is marked not going. */}
+                  {eligible.some(p => rsvps[rk(s.key, p.id)] === 'not_going') && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Reason for absence <span className="font-normal text-gray-400">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={reasons[s.key] ?? ''}
+                        onChange={e => setReason(s, e.target.value)}
+                        placeholder="e.g. out of town, injured, family conflict"
+                        maxLength={200}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-team-blue"
+                      />
+                    </div>
+                  )}
 
                   {/* Per-child summary so mixed answers are visible at a glance. */}
                   {eligible.length > 1 && (
@@ -195,6 +267,18 @@ export default function RsvpClient({ roster, events, games }: { roster: Player[]
                 </div>
               );
             })}
+
+            {/* Sticky submit so all staged answers save in one tap. */}
+            <div className="sticky bottom-0 -mx-1 px-1 py-3 bg-gradient-to-t from-white via-white to-transparent">
+              <button
+                onClick={submit}
+                disabled={saving || pending.length === 0}
+                aria-label="Submit RSVPs"
+                className="w-full bg-team-blue text-white font-semibold py-3 rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? 'Saving…' : pending.length === 0 ? 'All caught up' : `Submit ${pending.length} RSVP${pending.length > 1 ? 's' : ''}`}
+              </button>
+            </div>
           </div>
         )
       )}
