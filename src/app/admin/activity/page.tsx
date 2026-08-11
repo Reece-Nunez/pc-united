@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { getRecentActivity } from '@/lib/audit';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface ActivityEntry {
   id: number;
@@ -197,6 +198,8 @@ function Content() {
   useEffect(() => {
     fetchActivity();
   }, []);
+
+  useRealtimeTable(['audit_log'], fetchActivity);
 
   async function fetchActivity() {
     try {

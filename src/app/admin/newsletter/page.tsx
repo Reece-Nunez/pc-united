@@ -15,6 +15,7 @@ import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 function Content() {
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
@@ -42,6 +43,8 @@ function Content() {
   useEffect(() => {
     fetchSubscribers();
   }, [fetchSubscribers]);
+
+  useRealtimeTable(['newsletter_subscribers'], fetchSubscribers);
 
   const handleToggleActive = async (subscriber: NewsletterSubscriber) => {
     const newActive = !subscriber.active;

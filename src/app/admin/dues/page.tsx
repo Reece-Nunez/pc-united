@@ -11,7 +11,8 @@ import {
 } from '@/lib/supabase';
 import { getCurrentSeason, getAvailableSeasons } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
-import { computePlayerDues, feePaid, duesStatus, distinctFeeNames, matchesDuesFilter, DuesFilter } from '@/lib/dues';
+import { computePlayerDues, feePaid, duesStatus } from '@/lib/dues';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Local YYYY-MM-DD (en-CA formats that way) so the date input defaults to the
@@ -77,9 +78,9 @@ export default function DuesPage() {
 
   useEffect(() => { reload(season); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [season]);
 
-  // Players on the selected team (before the fee/status narrowing). Quick-add
-  // and the summary counts work off this whole-team set, not the narrowed list.
-  const teamRoster = useMemo(() =>
+  useRealtimeTable(['dues_fees','dues_payments','players','teams'], () => reload());
+
+  const activeRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),
     [roster, teamFilter]
   );

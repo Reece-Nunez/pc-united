@@ -334,6 +334,7 @@ export interface Attendance {
   player_id: number;
   rsvp?: RsvpStatus | null;
   rsvp_by?: string;
+  rsvp_note?: string | null;
   attendance?: AttendanceStatus | null;
   marked_by?: string;
   note?: string;
@@ -371,8 +372,11 @@ export async function upsertAttendance(row: SessionKey & { player_id: number; at
   return { data, error };
 }
 
-// Parent RSVPs for their child for a game or event. Upsert only touches rsvp cols.
-export async function upsertRsvp(row: SessionKey & { player_id: number; rsvp: RsvpStatus; rsvp_by?: string }) {
+// Parent RSVPs for their child for a game or event. Upsert only touches rsvp cols
+// (rsvp_note is the parent's reason, kept separate from the coach's `note`).
+// rsvp: null clears a previously-saved answer back to "no response" without
+// deleting the row (so a coach's attendance mark on the same row is preserved).
+export async function upsertRsvp(row: SessionKey & { player_id: number; rsvp: RsvpStatus | null; rsvp_by?: string | null; rsvp_note?: string | null }) {
   const { data, error } = await supabase
     .from('event_attendance')
     .upsert([{
@@ -381,6 +385,7 @@ export async function upsertRsvp(row: SessionKey & { player_id: number; rsvp: Rs
       player_id: row.player_id,
       rsvp: row.rsvp,
       rsvp_by: row.rsvp_by,
+      rsvp_note: row.rsvp_note ?? null,
       updated_at: new Date().toISOString(),
     }], { onConflict: 'event_id,schedule_id,player_id' })
     .select();

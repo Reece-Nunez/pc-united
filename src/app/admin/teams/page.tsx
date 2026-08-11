@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { getTeams, createTeam, updateTeam, deleteTeam, getPlayers, Team, Player } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
@@ -49,6 +50,8 @@ export default function TeamsPage() {
       setLoading(false);
     }
   };
+
+  useRealtimeTable(['teams','players'], fetchData);
 
   const countByTeam = useMemo(() => {
     const map: Record<number, number> = {};

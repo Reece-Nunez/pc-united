@@ -4,6 +4,7 @@ import About from "@/components/About";
 import Testimonials from "@/components/Testimonials";
 import Registration from "@/components/Registration";
 import Sponsors from "@/components/Sponsors";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 import Contact from "@/components/Contact";
 import NewsletterSignup from "@/components/NewsletterSignup";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
@@ -44,6 +45,7 @@ export default function Home() {
         }}
       />
       <Header />
+      <RealtimeRefresh tables={['sponsorships']} />
       <AnnouncementBanner />
       <Hero />
       <About />

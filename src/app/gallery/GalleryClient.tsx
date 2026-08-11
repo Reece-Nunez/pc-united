@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { getNews, getEvents, getHighlights, getGalleryImagesWithTags, getPlayers, News, Event } from '@/lib/supabase';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { SkeletonNewsCard } from '@/components/Skeleton';
 
@@ -28,8 +29,7 @@ export default function GalleryClient() {
   const [players, setPlayers] = useState<PlayerOption[]>([]);
   const [playerFilter, setPlayerFilter] = useState<number | 'all'>('all');
 
-  useEffect(() => {
-    async function fetchMedia() {
+  const fetchMedia = useCallback(async () => {
       try {
         const [newsRes, eventsRes, highlightsRes, galleryRes, playersRes] = await Promise.all([
           getNews(),
@@ -123,10 +123,12 @@ export default function GalleryClient() {
       } finally {
         setLoading(false);
       }
-    }
-
-    fetchMedia();
   }, []);
+
+  useEffect(() => { fetchMedia(); }, [fetchMedia]);
+  // Content tables only; `players` (used for tag labels) is not subscribed on
+  // this public page to avoid streaming minors' rows to anonymous visitors.
+  useRealtimeTable(['news', 'events', 'highlights', 'gallery_images'], fetchMedia);
 
   const categoryFiltered = filter === 'all' ? items : items.filter((i) => i.category === filter);
   const filtered = playerFilter === 'all'

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import EventCalendar from '@/components/EventCalendar';
 import { buildCalendarItems, CalendarItem } from '@/lib/calendar';
 import { getAllEvents, getSchedule, getTeams, Event, Schedule, Team } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 export default function AdminCalendarPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -15,17 +16,21 @@ export default function AdminCalendarPage() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const loadData = useCallback(async () => {
+    const [evRes, gRes, tRes] = await Promise.all([getAllEvents(), getSchedule(), getTeams()]);
+    if (!evRes.error) setEvents((evRes.data as Event[]) || []);
+    if (!gRes.error) setGames((gRes.data as Schedule[]) || []);
+    if (!tRes.error) setTeams(tRes.data || []);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
-    (async () => {
-      const [evRes, gRes, tRes] = await Promise.all([getAllEvents(), getSchedule(), getTeams()]);
-      if (!evRes.error) setEvents((evRes.data as Event[]) || []);
-      if (!gRes.error) setGames((gRes.data as Schedule[]) || []);
-      if (!tRes.error) setTeams(tRes.data || []);
-      setLoading(false);
-    })();
+    loadData();
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }: any) => setRole(data?.user?.user_metadata?.role || null));
-  }, []);
+  }, [loadData]);
+
+  useRealtimeTable(['events','schedule','teams'], loadData);
 
   const items = useMemo(() => buildCalendarItems(events, games, teams), [events, games, teams]);
   const canEdit = role === 'admin' || role === 'approved';

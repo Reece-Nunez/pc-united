@@ -1,8 +1,9 @@
 'use client';
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getActiveCoaches, Coach } from "@/lib/supabase";
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 const COACHING_ROLES = ['head_coach', 'assistant_coach', 'goalkeeper_coach', 'fitness_coach'];
 
@@ -33,14 +34,14 @@ export default function CoachesClient() {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      const { data } = await getActiveCoaches();
-      if (data) setCoaches(data);
-      setLoading(false);
-    }
-    load();
+  const load = useCallback(async () => {
+    const { data } = await getActiveCoaches();
+    if (data) setCoaches(data);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeTable('coaches', load);
 
   const coachingStaff = coaches.filter(c => COACHING_ROLES.includes(c.role));
   const volunteers = coaches.filter(c => c.role === 'volunteer');

@@ -11,6 +11,9 @@ vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() 
 vi.mock('@/lib/supabase-browser', () => ({
   createClient: () => ({
     auth: { getUser: async () => ({ data: { user: { id: 'u1', email: 'parent@x.com', user_metadata: { full_name: 'Parent One' } } } }) },
+    // useRealtimeTable subscribes on mount; give it a no-op channel.
+    channel: () => ({ on: () => ({ on: () => ({}), subscribe: () => {} }), subscribe: () => {} }),
+    removeChannel: () => {},
   }),
 }));
 

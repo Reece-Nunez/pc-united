@@ -10,6 +10,7 @@ import { uploadToS3Direct } from '@/lib/s3';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/lib/audit';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface TaggedImage extends GalleryImage {
   gallery_image_tags?: {
@@ -70,6 +71,8 @@ function Content() {
     fetchPlayers();
     fetchEvents();
   }, []);
+
+  useRealtimeTable(['gallery_images','gallery_image_tags'], fetchImages);
 
   // Close tag dropdown when clicking outside
   useEffect(() => {

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from "next/image";
 import Link from "next/link";
 import { getPlayers, getSchedule, getHighlights, Player, Schedule } from "@/lib/supabase";
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { ViewfinderCircleIcon } from '@heroicons/react/24/outline';
 import { PlayersLoadingSkeleton } from '@/components/Skeleton';
 
@@ -34,39 +35,41 @@ export default function PlayersClient() {
   const [selectedPosition, setSelectedPosition] = useState<string>('All');
   const [selectedTeam, setSelectedTeam] = useState<string>('All');
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [playersResult, scheduleResult, highlightsResult] = await Promise.all([
-          getPlayers(),
-          getSchedule(),
-          getHighlights()
-        ]);
+  const fetchData = useCallback(async () => {
+    try {
+      const [playersResult, scheduleResult, highlightsResult] = await Promise.all([
+        getPlayers(),
+        getSchedule(),
+        getHighlights()
+      ]);
 
-        if (playersResult.error) {
-          setError(playersResult.error.message);
-        } else if (playersResult.data) {
-          setPlayers(playersResult.data.filter((p: PlayerWithStats) => !p.status || p.status === 'active'));
-        }
-
-        if (scheduleResult.error) {
-          console.error('Error fetching schedule:', scheduleResult.error);
-        } else if (scheduleResult.data) {
-          setSchedule(scheduleResult.data);
-        }
-
-        if (highlightsResult.data) {
-          setAllHighlights(highlightsResult.data);
-        }
-      } catch (err) {
-        setError('Failed to fetch data');
-      } finally {
-        setLoading(false);
+      if (playersResult.error) {
+        setError(playersResult.error.message);
+      } else if (playersResult.data) {
+        setPlayers(playersResult.data.filter((p: PlayerWithStats) => !p.status || p.status === 'active'));
       }
-    }
 
-    fetchData();
+      if (scheduleResult.error) {
+        console.error('Error fetching schedule:', scheduleResult.error);
+      } else if (scheduleResult.data) {
+        setSchedule(scheduleResult.data);
+      }
+
+      if (highlightsResult.data) {
+        setAllHighlights(highlightsResult.data);
+      }
+    } catch (err) {
+      setError('Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+  // Live-update on schedule/highlights changes. `players` is intentionally not
+  // subscribed on this public page so minors' full rows aren't streamed to
+  // anonymous visitors; roster changes still need a refresh.
+  useRealtimeTable(['schedule', 'highlights'], fetchData);
 
   if (loading) {
     return <PlayersLoadingSkeleton />;
