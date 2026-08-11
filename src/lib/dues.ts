@@ -58,3 +58,26 @@ export function duesStatus(owed: number, paid: number): DuesStatus | null {
   if (paid > 0) return 'partial';
   return 'unpaid';
 }
+
+/**
+ * Distinct fee names across a season's fees, alphabetically. Feeds the "which
+ * line item" dropdown so a coach can isolate e.g. "Preseason Tournament".
+ */
+export function distinctFeeNames(fees: { name: string }[]): string[] {
+  return [...new Set(fees.map((f) => f.name))].sort((a, b) => a.localeCompare(b));
+}
+
+/** How the dues list is narrowed by payment progress. */
+export type DuesFilter = 'all' | 'owes' | 'paid';
+
+/**
+ * Whether a player's owed/paid totals pass the list's status filter. "owes"
+ * covers both partial and unpaid (anything with a remaining balance); a player
+ * with nothing owed (status null) only shows under "all".
+ */
+export function matchesDuesFilter(owed: number, paid: number, filter: DuesFilter): boolean {
+  if (filter === 'all') return true;
+  const status = duesStatus(owed, paid);
+  if (filter === 'owes') return status === 'unpaid' || status === 'partial';
+  return status === 'paid';
+}

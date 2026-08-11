@@ -11,7 +11,7 @@ import {
 } from '@/lib/supabase';
 import { getCurrentSeason, getAvailableSeasons } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
-import { computePlayerDues, feePaid, duesStatus } from '@/lib/dues';
+import { computePlayerDues, feePaid, duesStatus, distinctFeeNames, matchesDuesFilter, DuesFilter } from '@/lib/dues';
 
 const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Local YYYY-MM-DD (en-CA formats that way) so the date input defaults to the
@@ -32,6 +32,10 @@ export default function DuesPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [season, setSeason] = useState(getCurrentSeason().label);
   const [teamFilter, setTeamFilter] = useState('All');
+  // Narrow the list to a single line item (e.g. "Preseason Tournament") and/or
+  // to a payment state, so a coach can pull up exactly who still owes for it.
+  const [feeFilter, setFeeFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<DuesFilter>('all');
   const [fees, setFees] = useState<DuesFee[]>([]);
   const [payments, setPayments] = useState<DuesPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +77,9 @@ export default function DuesPage() {
 
   useEffect(() => { reload(season); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [season]);
 
-  const activeRoster = useMemo(() =>
+  // Players on the selected team (before the fee/status narrowing). Quick-add
+  // and the summary counts work off this whole-team set, not the narrowed list.
+  const teamRoster = useMemo(() =>
     roster.filter(p => (!p.status || p.status === 'active') && (teamFilter === 'All' || String(p.team_id) === teamFilter)),
     [roster, teamFilter]
   );
@@ -86,11 +92,32 @@ export default function DuesPage() {
 
   const paymentsOf = (feeId: number) => payments.filter(p => p.fee_id === feeId);
   const feesOf = (pid: number) => feesByPlayer[pid] || [];
+  // A player's fees scoped to the active line-item filter. When a fee name is
+  // selected, only that line item counts toward balances and visibility.
+  const visibleFeesOf = (pid: number) =>
+    feeFilter === 'All' ? feesOf(pid) : feesOf(pid).filter(f => f.name === feeFilter);
 
+  // Distinct line-item names in this season, for the fee dropdown.
+  const feeNameOptions = useMemo(() => distinctFeeNames(fees), [fees]);
+
+  // The list actually rendered: team players narrowed by line item + status.
+  const visibleRoster = useMemo(() =>
+    teamRoster.filter(p => {
+      const vf = visibleFeesOf(p.id);
+      if (feeFilter !== 'All' && vf.length === 0) return false; // no such fee
+      const t = computePlayerDues(vf, payments);
+      return matchesDuesFilter(t.owed, t.paid, statusFilter);
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [teamRoster, fees, payments, feeFilter, statusFilter]
+  );
+
+  // Totals reflect the line-item filter across the whole team (so "Outstanding"
+  // is the real amount still owed for it), independent of the status narrowing.
   const totals = useMemo(() => {
     let owed = 0, paid = 0, paidCount = 0, partial = 0, unpaid = 0;
-    activeRoster.forEach(p => {
-      const t = computePlayerDues(feesOf(p.id), payments);
+    teamRoster.forEach(p => {
+      const t = computePlayerDues(visibleFeesOf(p.id), payments);
       owed += t.owed; paid += t.paid;
       const st = duesStatus(t.owed, t.paid);
       if (st === 'paid') paidCount++;
@@ -99,7 +126,7 @@ export default function DuesPage() {
     });
     return { owed, paid, outstanding: owed - paid, paidCount, partial, unpaid };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRoster, fees, payments]);
+  }, [teamRoster, fees, payments, feeFilter]);
 
   const toggle = (pid: number) =>
     setExpanded(prev => {
@@ -114,16 +141,16 @@ export default function DuesPage() {
     const amount = parseFloat(quickAmount);
     if (!name) { toast.error('Name the fee (e.g. Club Fee)'); return; }
     if (isNaN(amount) || amount <= 0) { toast.error('Enter an amount'); return; }
-    if (activeRoster.length === 0) { toast.error('No players shown'); return; }
+    if (teamRoster.length === 0) { toast.error('No players shown'); return; }
     setBusy(true);
-    const res = await Promise.all(activeRoster.map(p =>
+    const res = await Promise.all(teamRoster.map(p =>
       createFee({ player_id: p.id, season, name, amount, created_by: userEmail })));
     const failed = res.filter(r => r.error).length;
     await reload();
     setBusy(false);
     setQuickName(''); setQuickAmount('');
-    if (failed) toast.error(`${failed} of ${activeRoster.length} failed`);
-    else toast.success(`Added ${money(amount)} "${name}" to ${activeRoster.length} player${activeRoster.length !== 1 ? 's' : ''}`);
+    if (failed) toast.error(`${failed} of ${teamRoster.length} failed`);
+    else toast.success(`Added ${money(amount)} "${name}" to ${teamRoster.length} player${teamRoster.length !== 1 ? 's' : ''}`);
   };
 
   const addFeeForPlayer = async (pid: number) => {
@@ -184,19 +211,24 @@ export default function DuesPage() {
       if (error) toast.error(error.message); else toast.success('Payment deleted');
     });
 
+  // Export mirrors what's on screen: same rows (fee/status narrowing applied)
+  // and same line-item scoping for each player's owed/paid/balance.
   const exportCSV = () => {
-    const headers = ['Player', 'Team', 'Season', 'Owed', 'Paid', 'Balance', 'Status'];
+    const feeLabel = feeFilter === 'All' ? 'All fees' : feeFilter;
+    const headers = ['Player', 'Team', 'Season', 'Fee', 'Owed', 'Paid', 'Balance', 'Status'];
     const esc = (v: string) => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-    const lines = activeRoster.map(p => {
-      const t = computePlayerDues(feesOf(p.id), payments);
+    const lines = visibleRoster.map(p => {
+      const t = computePlayerDues(visibleFeesOf(p.id), payments);
       const st = duesStatus(t.owed, t.paid);
-      return [esc(p.name), esc(p.teams?.name || ''), esc(season), t.owed.toFixed(2), t.paid.toFixed(2), t.balance.toFixed(2), st || '—'].join(',');
+      return [esc(p.name), esc(p.teams?.name || ''), esc(season), esc(feeLabel), t.owed.toFixed(2), t.paid.toFixed(2), t.balance.toFixed(2), st || '—'].join(',');
     });
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `dues-${season.toLowerCase().replace(/\s+/g, '-')}.csv`; a.click();
+    const slug = (s: string) => s.toLowerCase().replace(/\s+/g, '-');
+    const feeSlug = feeFilter === 'All' ? '' : `-${slug(feeFilter)}`;
+    a.href = url; a.download = `dues-${slug(season)}${feeSlug}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -209,8 +241,8 @@ export default function DuesPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dues</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Track fees owed and payments collected, itemized per fee</p>
           </div>
-          <div className="flex items-center gap-2">
-            <select value={season} onChange={e => setSeason(e.target.value)}
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={season} onChange={e => { setSeason(e.target.value); setFeeFilter('All'); }}
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
               {seasons.map(s => <option key={s.key} value={s.label}>{s.label}</option>)}
             </select>
@@ -219,9 +251,32 @@ export default function DuesPage() {
               <option value="All">All Teams</option>
               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
+            <select value={feeFilter} onChange={e => setFeeFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+              <option value="All">All Fees</option>
+              {feeNameOptions.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as DuesFilter)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+              <option value="all">Any Status</option>
+              <option value="owes">Still Owes</option>
+              <option value="paid">Paid Up</option>
+            </select>
             <button onClick={exportCSV} className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700">CSV</button>
           </div>
         </div>
+
+        {(feeFilter !== 'All' || statusFilter !== 'all') && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 -mt-2 mb-4">
+            Showing {visibleRoster.length} player{visibleRoster.length !== 1 ? 's' : ''}
+            {feeFilter !== 'All' && <> for <span className="font-medium text-gray-700 dark:text-gray-300">{feeFilter}</span></>}
+            {statusFilter === 'owes' && ' who still owe'}
+            {statusFilter === 'paid' && ' paid up'}
+            {(feeFilter !== 'All' || statusFilter !== 'all') &&
+              <button onClick={() => { setFeeFilter('All'); setStatusFilter('all'); }}
+                className="ml-2 text-team-blue hover:underline">Clear</button>}
+          </p>
+        )}
 
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -265,12 +320,14 @@ export default function DuesPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
           {loading ? (
             <div className="p-8 text-center text-gray-400 text-sm">Loading…</div>
-          ) : activeRoster.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">No players for this team.</div>
+          ) : visibleRoster.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">
+              {teamRoster.length === 0 ? 'No players for this team.' : 'No players match these filters.'}
+            </div>
           ) : (
             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-              {activeRoster.map(p => {
-                const pFees = feesOf(p.id);
+              {visibleRoster.map(p => {
+                const pFees = visibleFeesOf(p.id);
                 const t = computePlayerDues(pFees, payments);
                 const st = duesStatus(t.owed, t.paid);
                 const isOpen = expanded.has(p.id);

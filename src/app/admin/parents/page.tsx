@@ -20,7 +20,7 @@ export default function ParentsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'all'>('pending');
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'all'>('approved');
   const [teamFilter, setTeamFilter] = useState<string>('All');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [accounts, setAccounts] = useState<ParentAccount[]>([]);
@@ -264,10 +264,15 @@ export default function ParentsPage() {
         )}
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {(['pending', 'approved', 'all'] as const).map(s => (
+          {(['approved', 'pending', 'all'] as const).map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize ${statusFilter === s ? 'bg-team-blue text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'}`}>
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize inline-flex items-center gap-1.5 ${statusFilter === s ? 'bg-team-blue text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'}`}>
               {s}
+              {s === 'pending' && pendingCount > 0 && (
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center ${statusFilter === s ? 'bg-white/25 text-white' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'}`}>
+                  {pendingCount}
+                </span>
+              )}
             </button>
           ))}
           <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)}

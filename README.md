@@ -28,15 +28,38 @@ Set these in `.env.local` (local) and in the Vercel project settings (production
 | Variable | Used for |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase client |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only admin APIs (user management, SMS reminder cron) |
 | `S3_REGION` / `S3_BUCKET_NAME` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | S3 uploads (photos, receipts, medical forms) |
 | `NEXT_PUBLIC_SITE_URL` | Base URL used to build shareable links (e.g. medical form links). Defaults to `https://poncacityunited.com` |
 | `TWILIO_ACCOUNT_SID` | Twilio account SID (NunezDev account) |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | Twilio phone number to send from, E.164 (e.g. `+1918...`). Alternatively set `TWILIO_MESSAGING_SERVICE_SID` |
+| `CRON_SECRET` | Auth for the daily SMS reminder cron (`/api/cron/reminders`). Vercel sends it automatically as a Bearer token when set |
 
 > **Twilio / SMS:** sending medical-form links by text uses Twilio. US app-to-person
 > SMS requires A2P 10DLC brand + campaign registration for the sending number, or
 > carriers will filter the messages. Configure this in the Twilio console.
+
+## SMS practice/game reminders + reply-to-RSVP
+
+A Vercel Cron (`vercel.json`) hits `/api/cron/reminders` daily at 13:00 UTC
+(7 AM CST / 8 AM CDT). It texts every approved parent (from `parent_children`)
+whose child's team has a practice (`events`, `event_type='practice'`) or a
+scheduled game (`schedule`, `status='scheduled'`) that club-day. Team-less items
+go to all approved parents. Sends are logged in `sms_reminder_log`
+(migration `20260716_create_sms_reminder_log.sql`) so reruns never double-text.
+
+Parents can reply **YES / NO / MAYBE** to the reminder. `/api/sms/webhook`
+(set as the incoming-message webhook on the Twilio number, signature-verified)
+matches the sender's phone to their approved parent links and upserts
+`event_attendance.rsvp` for each kid on the reminded item's team — the same
+rows the `/rsvp` page and admin attendance page use.
+
+A second hourly cron hits `/api/cron/coach-digest`: for any practice/game
+starting within the next 2 hours (club time) it texts every **active coach**
+(`coaches` table, needs a phone) the RSVP breakdown — going / maybe /
+not going / no reply. Deduped per item via the same log table. Note: hourly
+crons require Vercel Pro (Hobby limits crons to daily).
 
 ## Medical release forms
 

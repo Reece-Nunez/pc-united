@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePlayerDues, feePaid, feeBalance, duesStatus } from './dues';
+import { computePlayerDues, feePaid, feeBalance, duesStatus, distinctFeeNames, matchesDuesFilter } from './dues';
 
 describe('computePlayerDues', () => {
   it('adds multiple fees instead of overwriting (the reported bug)', () => {
@@ -74,5 +74,40 @@ describe('duesStatus', () => {
   it('is paid when covered (incl. overpayment)', () => {
     expect(duesStatus(400, 400)).toBe('paid');
     expect(duesStatus(400, 450)).toBe('paid');
+  });
+});
+
+describe('distinctFeeNames', () => {
+  it('dedupes and sorts fee names for the filter dropdown', () => {
+    const fees = [
+      { name: 'Club Fee' },
+      { name: 'Preseason Tournament' },
+      { name: 'Club Fee' }, // same line item on another player
+    ];
+    expect(distinctFeeNames(fees)).toEqual(['Club Fee', 'Preseason Tournament']);
+  });
+  it('is empty when there are no fees', () => {
+    expect(distinctFeeNames([])).toEqual([]);
+  });
+});
+
+describe('matchesDuesFilter', () => {
+  it('passes everything under "all"', () => {
+    expect(matchesDuesFilter(400, 0, 'all')).toBe(true);
+    expect(matchesDuesFilter(0, 0, 'all')).toBe(true);
+  });
+  it('"owes" catches unpaid and partial, not settled', () => {
+    expect(matchesDuesFilter(400, 0, 'owes')).toBe(true); // unpaid
+    expect(matchesDuesFilter(400, 25, 'owes')).toBe(true); // partial
+    expect(matchesDuesFilter(400, 400, 'owes')).toBe(false); // paid
+  });
+  it('"owes" excludes players who owe nothing for this line item', () => {
+    // No matching fee → owed 0 → should not appear in an "owes" list.
+    expect(matchesDuesFilter(0, 0, 'owes')).toBe(false);
+  });
+  it('"paid" catches only fully settled', () => {
+    expect(matchesDuesFilter(400, 400, 'paid')).toBe(true);
+    expect(matchesDuesFilter(400, 25, 'paid')).toBe(false);
+    expect(matchesDuesFilter(0, 0, 'paid')).toBe(false);
   });
 });
