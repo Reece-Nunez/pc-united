@@ -9,6 +9,7 @@ import { getGalleryImagesWithTags, createGalleryImage, deleteGalleryImage, Galle
 import { uploadToS3Direct } from '@/lib/s3';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/lib/audit';
+import { confirmToast } from '@/lib/confirmToast';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
@@ -132,16 +133,16 @@ function Content() {
   };
 
   const handleDelete = async (image: GalleryImage) => {
-    if (!confirm(`Delete "${image.title}"?`)) return;
-
-    const { error } = await deleteGalleryImage(image.id);
-    if (error) {
-      toast.error('Failed to delete');
-    } else {
-      toast.success('Image deleted');
-      logActivity('delete', 'gallery', image.title || image.id, userEmail, { title: image.title });
-      setImages((prev) => prev.filter((i) => i.id !== image.id));
-    }
+    confirmToast(`Delete "${image.title}"?`, async () => {
+      const { error } = await deleteGalleryImage(image.id);
+      if (error) {
+        toast.error('Failed to delete');
+      } else {
+        toast.success('Image deleted');
+        logActivity('delete', 'gallery', image.title || image.id, userEmail, { title: image.title });
+        setImages((prev) => prev.filter((i) => i.id !== image.id));
+      }
+    });
   };
 
   const handleTagToggle = async (imageId: number, playerId: number, isCurrentlyTagged: boolean) => {

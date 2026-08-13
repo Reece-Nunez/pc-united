@@ -13,6 +13,7 @@ import {
 } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
+import { confirmToast } from '@/lib/confirmToast';
 import ImageUpload from '@/components/ImageUpload';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -247,20 +248,21 @@ export default function CoachesAdminPage() {
   };
 
   const handleDeleteCoach = async (coach: Coach) => {
-    if (!confirm(`Are you sure you want to delete ${coach.name}? This cannot be undone.`)) return;
-    try {
-      const { error } = await deleteCoach(coach.id);
-      if (error) throw error;
-      await fetchCoaches();
-      if (editingCoachId === coach.id) {
-        setEditingCoachId(null);
-        setForm({ ...emptyForm });
+    confirmToast(`Are you sure you want to delete ${coach.name}? This cannot be undone.`, async () => {
+      try {
+        const { error } = await deleteCoach(coach.id);
+        if (error) throw error;
+        await fetchCoaches();
+        if (editingCoachId === coach.id) {
+          setEditingCoachId(null);
+          setForm({ ...emptyForm });
+        }
+        toast.success('Coach deleted successfully!');
+        logActivity('delete', 'coach', coach.id, userEmail, { name: coach.name });
+      } catch (err: any) {
+        toast.error('Error deleting coach: ' + err.message);
       }
-      toast.success('Coach deleted successfully!');
-      logActivity('delete', 'coach', coach.id, userEmail, { name: coach.name });
-    } catch (err: any) {
-      toast.error('Error deleting coach: ' + err.message);
-    }
+    });
   };
 
   if (error) {

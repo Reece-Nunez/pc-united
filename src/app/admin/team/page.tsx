@@ -40,6 +40,7 @@ import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { getSeasonLabel, getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 import { parseClubDateTime, formatClubTime } from '@/lib/time';
+import { confirmToast } from '@/lib/confirmToast';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
 import DateTimeField from '@/components/admin/DateTimeField';
 import DataTable from '@/components/admin/DataTable';
@@ -662,39 +663,39 @@ function TeamAdminContent() {
     else if (type === 'schedule') itemName = schedule.find(s => s.id === id)?.opponent || '';
     else if (type === 'announcements') itemName = announcements.find(a => a.id === id)?.title || '';
 
-    if (!confirm(`Are you sure you want to delete this ${type.slice(0, -1)}?`)) return;
+    confirmToast(`Are you sure you want to delete this ${type.slice(0, -1)}?`, async () => {
+      setLoading(true);
+      try {
+        let result;
+        switch (type) {
+          case 'news':
+            result = await deleteNews(id);
+            break;
+          case 'events':
+            result = await deleteEvent(id);
+            break;
+          case 'schedule':
+            result = await deleteScheduleItem(id);
+            break;
+          case 'announcements':
+            result = await deleteAnnouncement(id);
+            break;
+        }
 
-    setLoading(true);
-    try {
-      let result;
-      switch (type) {
-        case 'news':
-          result = await deleteNews(id);
-          break;
-        case 'events':
-          result = await deleteEvent(id);
-          break;
-        case 'schedule':
-          result = await deleteScheduleItem(id);
-          break;
-        case 'announcements':
-          result = await deleteAnnouncement(id);
-          break;
+        if (!result) { setLoading(false); return; }
+        if (result.error) throw new Error(result.error.message);
+        toast.success(`${type.slice(0, -1)} deleted successfully!`);
+        const entityType = type === 'events' ? 'event' : type === 'announcements' ? 'announcement' : type === 'news' ? 'news' : 'schedule';
+        const displayName = type === 'schedule' ? `Game vs ${itemName}` : itemName;
+        logActivity('delete', entityType, displayName || id, userEmail, { name: itemName });
+        createAdminNotification({ type: entityType, title: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} Deleted: ${displayName || 'Unknown'}`, message: `"${displayName}" was deleted.`, link: `/admin/team?tab=${type}` });
+        fetchAllData();
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setLoading(false);
       }
-
-      if (!result) { setLoading(false); return; }
-      if (result.error) throw new Error(result.error.message);
-      toast.success(`${type.slice(0, -1)} deleted successfully!`);
-      const entityType = type === 'events' ? 'event' : type === 'announcements' ? 'announcement' : type === 'news' ? 'news' : 'schedule';
-      const displayName = type === 'schedule' ? `Game vs ${itemName}` : itemName;
-      logActivity('delete', entityType, displayName || id, userEmail, { name: itemName });
-      createAdminNotification({ type: entityType, title: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} Deleted: ${displayName || 'Unknown'}`, message: `"${displayName}" was deleted.`, link: `/admin/team?tab=${type}` });
-      fetchAllData();
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const handleEdit = (type: ActiveTab, item: any) => {
@@ -1112,15 +1113,16 @@ function TeamAdminContent() {
                               <span className="text-gray-800 dark:text-gray-200">{name}</span>
                               <button
                                 type="button"
-                                onClick={async () => {
-                                  if (!confirm(`Delete opponent "${name}"? This only removes it from the suggestion list, not from existing games.`)) return;
-                                  const { error } = await deleteOpponent(name);
-                                  if (error) {
-                                    toast.error('Failed to delete opponent');
-                                  } else {
-                                    setOpponents(prev => prev.filter(o => o !== name));
-                                    toast.success(`Removed "${name}"`);
-                                  }
+                                onClick={() => {
+                                  confirmToast(`Delete opponent "${name}"? This only removes it from the suggestion list, not from existing games.`, async () => {
+                                    const { error } = await deleteOpponent(name);
+                                    if (error) {
+                                      toast.error('Failed to delete opponent');
+                                    } else {
+                                      setOpponents(prev => prev.filter(o => o !== name));
+                                      toast.success(`Removed "${name}"`);
+                                    }
+                                  });
                                 }}
                                 className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs ml-2"
                               >

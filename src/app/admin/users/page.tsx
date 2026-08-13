@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import AdminLayout from '@/components/AdminLayout';
 import { createAdminNotification } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
+import { confirmToast } from '@/lib/confirmToast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
@@ -89,24 +90,25 @@ export default function UsersAdminPage() {
   const deleteUser = async (userId: string, email: string) => {
     const user = users.find((u) => u.id === userId);
     const userName = user?.full_name || email;
-    if (!confirm(`Remove ${userName} (${email})? This cannot be undone.`)) return;
-    setUpdating(userId);
-    try {
-      const res = await fetch(`/api/admin/users?userId=${userId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.error) {
-        toast.error(data.error);
-      } else {
-        toast.success('User removed');
-        logActivity('delete', 'user', userName, userEmail, { name: userName, email });
-        createAdminNotification({ type: 'user_signup', title: `User Removed: ${userName}`, message: `${userName} (${email}) was removed from the system.`, link: '/admin/users' });
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
+    confirmToast(`Remove ${userName} (${email})? This cannot be undone.`, async () => {
+      setUpdating(userId);
+      try {
+        const res = await fetch(`/api/admin/users?userId=${userId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.error) {
+          toast.error(data.error);
+        } else {
+          toast.success('User removed');
+          logActivity('delete', 'user', userName, userEmail, { name: userName, email });
+          createAdminNotification({ type: 'user_signup', title: `User Removed: ${userName}`, message: `${userName} (${email}) was removed from the system.`, link: '/admin/users' });
+          setUsers((prev) => prev.filter((u) => u.id !== userId));
+        }
+      } catch {
+        toast.error('Failed to remove user');
+      } finally {
+        setUpdating(null);
       }
-    } catch {
-      toast.error('Failed to remove user');
-    } finally {
-      setUpdating(null);
-    }
+    });
   };
 
   const pending = users.filter((u) => u.role === 'pending' || u.role === 'pending_parent');

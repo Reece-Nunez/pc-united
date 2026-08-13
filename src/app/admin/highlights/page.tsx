@@ -17,6 +17,7 @@ import {
 } from "@/lib/supabase";
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
+import { confirmToast } from '@/lib/confirmToast';
 import { uploadToS3, uploadToS3Direct, deleteFromS3, isS3Configured } from "@/lib/s3";
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
@@ -272,15 +273,15 @@ function HighlightsAdminContent() {
   };
 
   const handleDeleteHighlight = async (highlightId: number) => {
-    if (confirm('Are you sure you want to delete this highlight?')) {
+    confirmToast('Are you sure you want to delete this highlight?', async () => {
       try {
         // Find the highlight to delete
         const highlightToDelete = highlights.find(h => h.id === highlightId);
-        
+
         // Delete from database first
         const { error } = await deleteHighlight(highlightId);
         if (error) throw error;
-        
+
         // If there's a video URL, try to delete from S3
         if (highlightToDelete?.video_url && highlightToDelete.video_url.includes('s3.')) {
           const deleteResult = await deleteFromS3(highlightToDelete.video_url);
@@ -288,7 +289,7 @@ function HighlightsAdminContent() {
             console.warn('Failed to delete video from S3:', deleteResult.error);
           }
         }
-        
+
         await fetchData();
         toast.success('Highlight deleted successfully!');
         createAdminNotification({ type: 'highlight', title: `Highlight Deleted: ${highlightToDelete?.title || 'Unknown'}`, message: `The highlight "${highlightToDelete?.title}" for ${highlightToDelete?.players?.name || 'unknown player'} was removed.`, link: '/admin/highlights' });
@@ -296,7 +297,7 @@ function HighlightsAdminContent() {
       } catch (err: any) {
         toast.error('Error deleting highlight: ' + err.message);
       }
-    }
+    });
   };
 
   const toggleSelect = (id: number) => {

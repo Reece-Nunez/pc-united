@@ -7,6 +7,7 @@ import { getExpenses, createExpense, updateExpense, deleteExpense, getSponsorshi
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { getCurrentSeason, getAvailableSeasons, getSeasonLabel, isDateInSeason, type Season } from '@/lib/seasons';
+import { confirmToast } from '@/lib/confirmToast';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { SkeletonTable } from '@/components/admin/Skeleton';
@@ -268,19 +269,20 @@ export default function ExpensesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
-    setLoading(true);
-    try {
-      const result = await deleteExpense(id);
-      if (result.error) throw new Error(result.error.message);
-      toast.success('Expense deleted');
-      logActivity('delete', 'expense', id, userEmail);
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
+    confirmToast('Are you sure you want to delete this expense?', async () => {
+      setLoading(true);
+      try {
+        const result = await deleteExpense(id);
+        if (result.error) throw new Error(result.error.message);
+        toast.success('Expense deleted');
+        logActivity('delete', 'expense', id, userEmail);
+        fetchData();
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setLoading(false);
+      }
+    });
   };
 
   const cancelEdit = () => {

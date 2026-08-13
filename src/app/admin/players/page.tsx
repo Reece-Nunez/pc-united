@@ -19,6 +19,7 @@ import {
 } from "@/lib/supabase";
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
+import { confirmToast } from '@/lib/confirmToast';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
@@ -333,7 +334,7 @@ function PlayersAdminContent() {
   };
 
   const handleDeletePlayer = async (playerId: number) => {
-    if (confirm('Are you sure you want to delete this player? This cannot be undone.')) {
+    confirmToast('Are you sure you want to delete this player? This cannot be undone.', async () => {
       try {
         const player = players.find((p) => p.id === playerId);
         const { error } = await deletePlayer(playerId);
@@ -348,7 +349,7 @@ function PlayersAdminContent() {
       } catch (err: any) {
         toast.error('Error deleting player: ' + err.message);
       }
-    }
+    });
   };
 
   const handlePhotoUpload = async (file: File, isNewPlayer = false) => {
