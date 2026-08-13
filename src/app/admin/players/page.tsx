@@ -502,7 +502,7 @@ function PlayersAdminContent() {
             </div>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
-            Showing {filteredPlayers.length} of {players.length} players
+            Showing <span className="tabular-nums">{filteredPlayers.length}</span> of <span className="tabular-nums">{players.length}</span> players
           </p>
         </div>
 
@@ -761,7 +761,7 @@ function PlayersAdminContent() {
           /* Players Grid */
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredPlayers.map((player) => (
-              <div key={player.id} className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden${(player.status === 'inactive') ? ' opacity-50' : ''}`}>
+              <div key={player.id} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden${(player.status === 'inactive') ? ' opacity-50' : ''}`}>
                 {editingPlayer === player.id ? (
                   /* Edit Form */
                   <div className="p-4">
@@ -943,32 +943,32 @@ function PlayersAdminContent() {
                         {player.position === 'Goalkeeper' ? (
                           <>
                             <div>
-                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.saves || 0}</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{player.player_stats?.[0]?.saves || 0}</div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">Saves</div>
                             </div>
                             <div>
-                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.clean_sheets || 0}</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{player.player_stats?.[0]?.clean_sheets || 0}</div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">Clean Sheets</div>
                             </div>
                           </>
                         ) : (
                           <>
                             <div>
-                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.goals || 0}</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{player.player_stats?.[0]?.goals || 0}</div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">Goals</div>
                             </div>
                             <div>
-                              <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.assists || 0}</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{player.player_stats?.[0]?.assists || 0}</div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">Assists</div>
                             </div>
                           </>
                         )}
                         <div>
-                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.games_played || 0}</div>
+                          <div className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{player.player_stats?.[0]?.games_played || 0}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Games</div>
                         </div>
                         <div>
-                          <div className="text-lg font-bold text-gray-900 dark:text-white">{player.player_stats?.[0]?.yellow_cards || 0}</div>
+                          <div className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{player.player_stats?.[0]?.yellow_cards || 0}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Yellow</div>
                         </div>
                       </div>

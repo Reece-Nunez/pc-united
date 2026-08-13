@@ -555,7 +555,7 @@ function HighlightsAdminContent() {
           </div>
           <div className="flex items-center justify-between mt-3">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {filteredHighlights.length} of {highlights.length} highlights
+              Showing <span className="tabular-nums">{filteredHighlights.length}</span> of <span className="tabular-nums">{highlights.length}</span> highlights
             </p>
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-3">
@@ -584,7 +584,7 @@ function HighlightsAdminContent() {
       {showAddForm && (
         <section className="py-8 bg-gray-50 dark:bg-gray-700 relative z-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 shadow-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 border border-gray-200 dark:border-gray-700">
               <h2 className="text-2xl font-bold text-team-blue mb-6">Add New Highlight</h2>
               
               <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -715,12 +715,6 @@ function HighlightsAdminContent() {
                       >
                         Your browser does not support the video tag.
                       </video>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Source: {previewUrl ? 'Local preview' : newHighlightForm.video_url ? 'S3 URL' : 'No source'}
-                      </div>
-                      <div className="text-xs text-blue-500 mt-1">
-                        URL: {previewUrl || newHighlightForm.video_url || 'None'}
-                      </div>
                       {previewUrl && (
                         <p className="text-xs text-orange-600 mt-1">
                           ⏳ Preview (video will be uploaded to S3 when you save)
@@ -743,7 +737,7 @@ function HighlightsAdminContent() {
                     <span>
                       {uploadProgress < 100 ? 'Uploading to S3...' : 'Upload Complete! Creating highlight...'}
                     </span>
-                    <span>{uploadProgress}%</span>
+                    <span className="tabular-nums">{uploadProgress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
@@ -767,7 +761,7 @@ function HighlightsAdminContent() {
                   className={`px-6 py-2 text-white rounded transition-colors ${
                     isUploading 
                       ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-team-red hover:bg-red-700 cursor-pointer'
+                      : 'bg-team-blue hover:bg-slate-800 cursor-pointer'
                   }`}
                   disabled={!newHighlightForm.player_id || !newHighlightForm.title || isUploading}
                 >
@@ -813,7 +807,7 @@ function HighlightsAdminContent() {
             </label>
           </div>
           {filteredHighlights.map((highlight) => (
-              <div key={highlight.id} className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-6 shadow-lg ${selectedIds.has(highlight.id) ? 'ring-2 ring-team-blue' : ''}`}>
+              <div key={highlight.id} className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-700 ${selectedIds.has(highlight.id) ? 'ring-2 ring-team-blue' : ''}`}>
                 {editingHighlight === highlight.id ? (
                   // Edit Form
                   <div className="space-y-6">
@@ -843,7 +837,7 @@ function HighlightsAdminContent() {
                           <span>
                             {uploadProgress < 100 ? 'Uploading to S3...' : 'Upload Complete!'}
                           </span>
-                          <span>{uploadProgress}%</span>
+                          <span className="tabular-nums">{uploadProgress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                           <div 
@@ -959,9 +953,6 @@ function HighlightsAdminContent() {
                             >
                               Your browser does not support the video tag.
                             </video>
-                            <div className="text-xs text-blue-500 mt-1">
-                              URL: {editPreviewUrl || editForm.video_url || 'None'}
-                            </div>
                             {editPreviewUrl && (
                               <p className="text-xs text-orange-600 mt-1">
                                 ⏳ Preview (video will be uploaded to S3 when you save)
