@@ -24,7 +24,8 @@ export interface ParentLinkRow {
  * String math on purpose: these values are club wall-clock (see lib/time.ts),
  * so running them through Date would shift them by the server's timezone.
  */
-export function formatWallClockTime(dateStr: string): string {
+export function formatWallClockTime(dateStr: string, timeTbd?: boolean): string {
+  if (timeTbd) return 'TBD';
   const m = /T(\d{2}):(\d{2})/.exec(dateStr || '');
   if (!m) return '';
   let h = parseInt(m[1], 10);
@@ -61,7 +62,7 @@ export function buildReminderItems(
   for (const e of events) {
     if (e.event_type !== 'practice' || !isOnClubDay(e.event_date, clubYmd)) continue;
     const team = teamName(teams, e.team_id);
-    const time = formatWallClockTime(e.event_date);
+    const time = formatWallClockTime(e.event_date, e.time_tbd);
     const parts = [`${team ? team + ' p' : 'P'}ractice today`];
     if (time) parts.push(`at ${time}`);
     if (e.location) parts.push(`— ${e.location}.`); else parts[parts.length - 1] += '.';
@@ -71,7 +72,7 @@ export function buildReminderItems(
   for (const g of games) {
     if (g.status !== 'scheduled' || !isOnClubDay(g.game_date, clubYmd)) continue;
     const team = teamName(teams, g.team_id);
-    const time = formatWallClockTime(g.game_date);
+    const time = formatWallClockTime(g.game_date, g.time_tbd);
     const parts = [`${team ? team + ' g' : 'G'}ame today ${g.home_game ? 'vs' : '@'} ${g.opponent}`];
     if (time) parts.push(`at ${time}`);
     if (g.location) parts.push(`— ${g.location}.`); else parts[parts.length - 1] += '.';
@@ -168,12 +169,12 @@ export function buildCoachDigests(
   const digests: CoachDigest[] = [];
   for (const e of events) {
     if (e.event_type !== 'practice' || !inWindow(e.event_date)) continue;
-    const header = `${reminderItemLabel('event', e, teams)} at ${formatWallClockTime(e.event_date)}${e.location ? `, ${e.location}` : ''}`;
+    const header = `${reminderItemLabel('event', e, teams)} at ${formatWallClockTime(e.event_date, e.time_tbd)}${e.location ? `, ${e.location}` : ''}`;
     digests.push(digestFor('event', e.id, e.team_id ?? null, header));
   }
   for (const g of games) {
     if (g.status !== 'scheduled' || !inWindow(g.game_date)) continue;
-    const header = `${reminderItemLabel('game', g, teams)} at ${formatWallClockTime(g.game_date)}${g.location ? `, ${g.location}` : ''}`;
+    const header = `${reminderItemLabel('game', g, teams)} at ${formatWallClockTime(g.game_date, g.time_tbd)}${g.location ? `, ${g.location}` : ''}`;
     digests.push(digestFor('game', g.id, g.team_id ?? null, header));
   }
   return digests;

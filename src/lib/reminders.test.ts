@@ -34,6 +34,9 @@ describe('formatWallClockTime', () => {
     expect(formatWallClockTime('')).toBe('');
     expect(formatWallClockTime('2026-07-16')).toBe('');
   });
+  it('returns "TBD" when the time is flagged unknown, ignoring the placeholder time', () => {
+    expect(formatWallClockTime('2026-07-16T00:00:00', true)).toBe('TBD');
+  });
 });
 
 describe('isOnClubDay', () => {
@@ -73,6 +76,16 @@ describe('buildReminderItems', () => {
       TEAMS, '2026-07-16',
     );
     expect(items).toHaveLength(0);
+  });
+
+  it('renders "at TBD" when a practice or game has an unknown time', () => {
+    const items = buildReminderItems(
+      [practice({ event_date: '2026-07-16T00:00:00', time_tbd: true })],
+      [game({ game_date: '2026-07-16T00:00:00', time_tbd: true })],
+      TEAMS, '2026-07-16',
+    );
+    expect(items[0].message).toContain('U12 practice today at TBD — Wentz Field.');
+    expect(items[1].message).toContain('U11 game today vs Tulsa FC at TBD — Sooner Complex.');
   });
 
   it('handles missing team and location gracefully', () => {

@@ -13,6 +13,7 @@ import {
   GalleryImage,
 } from '@/lib/supabase';
 import { Metadata } from 'next';
+import { formatClubTime } from '@/lib/time';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -248,10 +249,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                 day: 'numeric',
               })}
               {' at '}
-              {eventDate.toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
+              {formatClubTime(event.event_date, event.time_tbd, { hour: 'numeric', minute: '2-digit' })}
             </span>
 
             {endDate && (
@@ -445,10 +443,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                             day: 'numeric',
                           })}
                           {' at '}
-                          {gameDate.toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                          {formatClubTime(game.game_date, game.time_tbd, { hour: 'numeric', minute: '2-digit' })}
                           {game.location && ` | ${game.location}`}
                         </div>
                       </div>
@@ -498,7 +493,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                           <span>{game.home_game ? game.opponent : 'PC United'}</span>
                           <span>{game.status === 'completed' ? (game.home_game ? game.opponent_score : game.our_score) : ''}</span>
                         </div>
-                        <p className="text-xs text-gray-400 mt-2">{parseAsLocalTime(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-xs text-gray-400 mt-2">{formatClubTime(game.game_date, game.time_tbd, { hour: '2-digit', minute: '2-digit' })}</p>
                       </>
                     ) : (
                       <p className="text-gray-400 text-sm">TBD</p>
@@ -528,7 +523,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                       <span>{finalGame.home_game ? finalGame.opponent : 'PC United'}</span>
                       <span>{finalGame.status === 'completed' ? (finalGame.home_game ? finalGame.opponent_score : finalGame.our_score) : ''}</span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">{parseAsLocalTime(finalGame.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-xs text-gray-400 mt-2">{formatClubTime(finalGame.game_date, finalGame.time_tbd, { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 ) : (
                   <div className="bg-gray-50 rounded-lg shadow-md p-4 w-64 border-l-4 border-gray-300">
@@ -553,7 +548,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                     <span>{thirdPlaceGame.home_game ? thirdPlaceGame.opponent : 'PC United'}</span>
                     <span>{thirdPlaceGame.status === 'completed' ? (thirdPlaceGame.home_game ? thirdPlaceGame.opponent_score : thirdPlaceGame.our_score) : ''}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">{parseAsLocalTime(thirdPlaceGame.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs text-gray-400 mt-2">{formatClubTime(thirdPlaceGame.game_date, thirdPlaceGame.time_tbd, { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             )}
@@ -613,10 +608,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                             day: 'numeric',
                           })}
                           {' at '}
-                          {gameDate.toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                          {formatClubTime(game.game_date, game.time_tbd, { hour: 'numeric', minute: '2-digit' })}
                           {' | '}
                           {game.location}
                           {game.home_game ? ' (Home)' : ' (Away)'}

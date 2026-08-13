@@ -8,7 +8,7 @@ import { getRecentActivity } from '@/lib/audit';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { SkeletonCard } from '@/components/admin/Skeleton';
-import { parseClubDateTime } from '@/lib/time';
+import { parseClubDateTime, formatClubTime } from '@/lib/time';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface DashboardStats {
@@ -482,7 +482,7 @@ export default function AdminDashboard() {
                     </h2>
                     <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-600 dark:text-gray-400">
                       <span>{gameDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
-                      <span>{gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                      <span>{formatClubTime(next.game_date, next.time_tbd, { hour: 'numeric', minute: '2-digit' })}</span>
                       <span>{next.home_game ? 'Home' : 'Away'}</span>
                     </div>
                     {next.location && (
@@ -588,7 +588,7 @@ export default function AdminDashboard() {
                             {gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </span>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            {formatClubTime(game.game_date, game.time_tbd, { hour: 'numeric', minute: '2-digit' })}
                           </span>
                         </div>
                       </div>
@@ -842,7 +842,7 @@ export default function AdminDashboard() {
                           <p className="font-display text-xl font-bold text-gray-900 dark:text-white truncate">vs {next.opponent}</p>
                           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-sm text-gray-600 dark:text-gray-400">
                             <span>{gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                            <span>{gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                            <span>{formatClubTime(next.game_date, next.time_tbd, { hour: 'numeric', minute: '2-digit' })}</span>
                             <span>{next.home_game ? 'Home' : 'Away'}</span>
                           </div>
                           {next.location && <p className="text-xs text-gray-400 mt-1 truncate">{next.location}</p>}

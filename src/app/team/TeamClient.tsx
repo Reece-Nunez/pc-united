@@ -18,6 +18,7 @@ import {
   Announcement
 } from "@/lib/supabase";
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
+import { formatClubTime } from '@/lib/time';
 
 export default function TeamClient() {
   const [news, setNews] = useState<News[]>([]);
@@ -539,7 +540,7 @@ export default function TeamClient() {
                             <div>
                               <h4 className="font-bold text-team-blue">Ponca City United vs {game.opponent}</h4>
                               <p className="text-sm text-gray-600">
-                                {parseAsLocalTime(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {game.location} {game.home_game ? '(Home)' : '(Away)'}
+                                {formatClubTime(game.game_date, game.time_tbd, { hour: '2-digit', minute: '2-digit' })} — {game.location} {game.home_game ? '(Home)' : '(Away)'}
                               </p>
                             </div>
                             {game.status === 'completed' && game.our_score != null && game.opponent_score != null && (
@@ -617,7 +618,7 @@ export default function TeamClient() {
                             </span>
                           </div>
                           <div className="text-gray-600 space-y-1 text-sm md:text-base">
-                            <p><strong>Date:</strong> {parseAsLocalTime(game.game_date).toLocaleDateString()} at {parseAsLocalTime(game.game_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p><strong>Date:</strong> {parseAsLocalTime(game.game_date).toLocaleDateString()} at {formatClubTime(game.game_date, game.time_tbd, { hour: '2-digit', minute: '2-digit' })}</p>
                             <p className="flex items-center gap-1"><strong>Location:</strong> {game.location} {game.home_game ? <HomeIcon className="w-4 h-4" /> : <PaperAirplaneIcon className="w-4 h-4" />}</p>
                             <p><strong>Type:</strong> {game.game_type.toUpperCase()}</p>
                           </div>
@@ -703,7 +704,7 @@ export default function TeamClient() {
                         )}
                         <div className="space-y-2 text-xs md:text-sm text-gray-600">
                           <p><strong>Date:</strong> {parseAsLocalTime(event.event_date).toLocaleDateString()}</p>
-                          <p><strong>Time:</strong> {parseAsLocalTime(event.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                          <p><strong>Time:</strong> {formatClubTime(event.event_date, event.time_tbd, { hour: '2-digit', minute: '2-digit' })}</p>
                           {event.location && <p><strong>Location:</strong> {event.location}</p>}
                           {event.registration_required && (
                             <div className="pt-2">

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CalendarDaysIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { CalendarItem } from '@/lib/calendar';
-import { parseClubDateTime } from '@/lib/time';
+import { parseClubDateTime, formatClubTime } from '@/lib/time';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -22,7 +22,11 @@ const chipClass = (item: CalendarItem) => {
 
 // Stored dates are naive club wall-clock (see src/lib/time.ts); parse them as
 // such so a 6:30 PM practice doesn't get shifted by the viewer's UTC offset.
-const fmtDateTime = (s?: string) => s ? parseClubDateTime(s).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+const fmtDateTime = (s?: string, timeTbd?: boolean) => {
+  if (!s) return '';
+  const date = parseClubDateTime(s).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  return `${date} · ${formatClubTime(s, timeTbd)}`;
+};
 
 export default function EventCalendar({ items, canEdit = false, editHref }: {
   items: CalendarItem[];
@@ -132,7 +136,7 @@ export default function EventCalendar({ items, canEdit = false, editHref }: {
                 <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700">{selected.kind === 'game' ? 'Game' : selected.typeLabel}</span>
                 {selected.teamName && <span className="ml-2 inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700">{selected.teamName}</span>}
               </p>
-              <p className="flex items-center gap-1.5"><CalendarDaysIcon className="w-4 h-4 text-gray-400 shrink-0" />{fmtDateTime(selected.date)}</p>
+              <p className="flex items-center gap-1.5"><CalendarDaysIcon className="w-4 h-4 text-gray-400 shrink-0" />{fmtDateTime(selected.date, selected.timeTbd)}</p>
               {selected.location && <p className="flex items-center gap-1.5"><MapPinIcon className="w-4 h-4 text-gray-400 shrink-0" />{selected.location}</p>}
               {selected.kind === 'game' && selected.ourScore != null && selected.opponentScore != null && (
                 <p className="font-semibold">Final: PCU {selected.ourScore} – {selected.opponentScore} {selected.opponent}</p>

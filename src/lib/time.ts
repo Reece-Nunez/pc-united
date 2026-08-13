@@ -58,3 +58,22 @@ export function parseClubDateTime(dateStr: string): Date {
   const naive = dateStr.replace(/[+-]\d{2}:?\d{0,2}$|Z$/g, '');
   return new Date(naive);
 }
+
+/**
+ * Format the club wall-clock time of a stored timestamp for display, or the
+ * string "TBD" when the time is not yet known (`timeTbd`).
+ *
+ * Single source of truth so every surface (public schedule, event pages, admin
+ * lists, reminders) renders a to-be-determined time identically instead of
+ * leaking the placeholder midnight the DB stores. `opts` matches the site's
+ * existing formatting so call sites keep their look (e.g. `{ hour: 'numeric' }`
+ * vs `{ hour: '2-digit' }`).
+ */
+export function formatClubTime(
+  dateStr: string,
+  timeTbd?: boolean,
+  opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' },
+): string {
+  if (timeTbd) return 'TBD';
+  return parseClubDateTime(dateStr).toLocaleTimeString([], opts);
+}

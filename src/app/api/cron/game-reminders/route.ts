@@ -67,11 +67,12 @@ export async function GET(request: NextRequest) {
         day: 'numeric',
       });
 
-      // Extract time from game_date if it includes time, otherwise use a default
+      // Show TBD when the admin flagged the time as unknown, or (legacy) when
+      // the stored time is midnight — the placeholder used before time_tbd existed.
       const gameDateFull = new Date(game.game_date);
-      const formattedTime = gameDateFull.getHours() !== 0
-        ? gameDateFull.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        : 'TBD';
+      const formattedTime = game.time_tbd || gameDateFull.getHours() === 0
+        ? 'TBD'
+        : gameDateFull.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
       const homeAway = game.home_game ? 'Home Game' : 'Away Game';
 

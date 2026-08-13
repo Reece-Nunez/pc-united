@@ -757,6 +757,10 @@ export interface Event {
   description?: string;
   event_date: string;
   end_date?: string;
+  // When true, only the date is known — the time portion of event_date is a
+  // placeholder (midnight) and should render as "TBD" everywhere. See
+  // supabase/migrations/20260812_add_time_tbd_to_events_and_schedule.sql.
+  time_tbd?: boolean;
   location?: string;
   event_type: 'game' | 'practice' | 'tournament' | 'meeting' | 'social' | 'other';
   featured_image?: string;
@@ -772,6 +776,8 @@ export interface Schedule {
   id: number;
   opponent: string;
   game_date: string;
+  // See Event.time_tbd — only the date is known; render the time as "TBD".
+  time_tbd?: boolean;
   location: string;
   home_game: boolean;
   game_type: 'league' | 'friendly' | 'tournament' | 'playoff' | 'indoor';

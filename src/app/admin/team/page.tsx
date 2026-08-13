@@ -39,8 +39,9 @@ import {
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { getSeasonLabel, getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
-import { parseClubDateTime } from '@/lib/time';
+import { parseClubDateTime, formatClubTime } from '@/lib/time';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
+import DateTimeField from '@/components/admin/DateTimeField';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
@@ -131,6 +132,7 @@ function TeamAdminContent() {
     description: '',
     event_date: '',
     end_date: '',
+    time_tbd: false,
     location: '',
     event_type: 'other',
     featured_image: '',
@@ -143,6 +145,7 @@ function TeamAdminContent() {
   const [scheduleForm, setScheduleForm] = useState<ScheduleForm>({
     opponent: '',
     game_date: '',
+    time_tbd: false,
     location: '',
     home_game: true,
     game_type: 'league',
@@ -167,9 +170,10 @@ function TeamAdminContent() {
 
   // Practices are stored as events (event_type='practice') so they flow into
   // the attendance page and the /rsvp link automatically.
-  const [practiceForm, setPracticeForm] = useState<{ team_id: number | null; event_date: string; location: string; note: string }>({
+  const [practiceForm, setPracticeForm] = useState<{ team_id: number | null; event_date: string; time_tbd: boolean; location: string; note: string }>({
     team_id: null,
     event_date: '',
+    time_tbd: false,
     location: '',
     note: '',
   });
@@ -311,6 +315,7 @@ function TeamAdminContent() {
         title,
         description: practiceForm.note || undefined,
         event_date: practiceForm.event_date,
+        time_tbd: practiceForm.time_tbd,
         location: practiceForm.location || undefined,
         event_type: 'practice',
         team_id: practiceForm.team_id,
@@ -328,7 +333,7 @@ function TeamAdminContent() {
         logActivity('create', 'event', result.data?.[0]?.id || title, userEmail, { title, type: 'practice' });
       }
       setEditingPractice(null);
-      setPracticeForm({ team_id: null, event_date: '', location: '', note: '' });
+      setPracticeForm({ team_id: null, event_date: '', time_tbd: false, location: '', note: '' });
       fetchAllData();
     } catch (error: any) {
       toast.error(error.message);
@@ -365,6 +370,7 @@ function TeamAdminContent() {
         description: '',
         event_date: '',
         end_date: '',
+        time_tbd: false,
         location: '',
         event_type: 'other',
         featured_image: '',
@@ -372,7 +378,7 @@ function TeamAdminContent() {
         registration_link: '',
         max_participants: undefined
       });
-      
+
       fetchAllData();
     } catch (error: any) {
       toast.error(error.message);
@@ -471,7 +477,7 @@ function TeamAdminContent() {
               type: 'game_scheduled',
               opponent: scheduleForm.opponent,
               gameDate: gd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
-              gameTime: gd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+              gameTime: formatClubTime(scheduleForm.game_date, scheduleForm.time_tbd, { hour: 'numeric', minute: '2-digit' }),
               location: scheduleForm.location,
               homeAway: scheduleForm.home_game ? 'Home Game' : 'Away Game',
               gameType: scheduleForm.game_type,
@@ -729,7 +735,7 @@ function TeamAdminContent() {
     setEditingPractice(null);
     setEditingSchedule(null);
     setEditingAnnouncement(null);
-    setPracticeForm({ team_id: null, event_date: '', location: '', note: '' });
+    setPracticeForm({ team_id: null, event_date: '', time_tbd: false, location: '', note: '' });
     setNewsForm({
       title: '',
       slug: '',
@@ -745,6 +751,7 @@ function TeamAdminContent() {
       description: '',
       event_date: '',
       end_date: '',
+      time_tbd: false,
       location: '',
       event_type: 'other',
       featured_image: '',
@@ -755,6 +762,7 @@ function TeamAdminContent() {
     setScheduleForm({
       opponent: '',
       game_date: '',
+      time_tbd: false,
       location: '',
       home_game: true,
       game_type: 'league',
@@ -890,12 +898,9 @@ function TeamAdminContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Publish Date</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimeField
                     value={toLocalDateTimeString(newsForm.publish_date || '')}
-                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
-                    onChange={(e) => handleFormChange(newsForm, setNewsForm, 'publish_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => handleFormChange(newsForm, setNewsForm, 'publish_date', val)}
                   />
                 </div>
 
@@ -959,24 +964,21 @@ function TeamAdminContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event Date & Time</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimeField
                     value={eventForm.event_date}
-                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
-                    onChange={(e) => handleFormChange(eventForm, setEventForm, 'event_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => handleFormChange(eventForm, setEventForm, 'event_date', val)}
+                    allowTbd
+                    timeTbd={!!eventForm.time_tbd}
+                    onTimeTbdChange={(tbd) => handleFormChange(eventForm, setEventForm, 'time_tbd', tbd)}
                     required
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date & Time (Optional)</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimeField
                     value={eventForm.end_date || ''}
-                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
-                    onChange={(e) => handleFormChange(eventForm, setEventForm, 'end_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => handleFormChange(eventForm, setEventForm, 'end_date', val)}
                   />
                 </div>
 
@@ -1146,15 +1148,12 @@ function TeamAdminContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Game Date & Time</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimeField
                     value={scheduleForm.game_date}
-                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setScheduleForm((prev) => ({ ...prev, game_date: val, season: getSeasonFromDate(val) }));
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => setScheduleForm((prev) => ({ ...prev, game_date: val, season: getSeasonFromDate(val) }))}
+                    allowTbd
+                    timeTbd={!!scheduleForm.time_tbd}
+                    onTimeTbdChange={(tbd) => setScheduleForm((prev) => ({ ...prev, time_tbd: tbd }))}
                     required
                   />
                 </div>
@@ -1364,11 +1363,12 @@ function TeamAdminContent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date &amp; Time</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimeField
                     value={practiceForm.event_date}
-                    onChange={(e) => setPracticeForm(prev => ({ ...prev, event_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                    onChange={(val) => setPracticeForm(prev => ({ ...prev, event_date: val }))}
+                    allowTbd
+                    timeTbd={practiceForm.time_tbd}
+                    onTimeTbdChange={(tbd) => setPracticeForm(prev => ({ ...prev, time_tbd: tbd }))}
                     required
                   />
                 </div>
@@ -1466,12 +1466,9 @@ function TeamAdminContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expires At (Optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={announcementForm.expires_at || ''}
-                    onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
-                    onChange={(e) => handleFormChange(announcementForm, setAnnouncementForm, 'expires_at', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-team-blue"
+                  <DateTimeField
+                    value={toLocalDateTimeString(announcementForm.expires_at || '')}
+                    onChange={(val) => handleFormChange(announcementForm, setAnnouncementForm, 'expires_at', val)}
                   />
                 </div>
 
@@ -1624,7 +1621,7 @@ function TeamAdminContent() {
                       </h3>
                       {practice.description && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{practice.description}</p>}
                       <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>{parseClubDateTime(practice.event_date).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                        <span>{parseClubDateTime(practice.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, {formatClubTime(practice.event_date, practice.time_tbd)}</span>
                         {practice.location && <span>{practice.location}</span>}
                       </div>
                     </div>
@@ -1635,6 +1632,7 @@ function TeamAdminContent() {
                           setPracticeForm({
                             team_id: practice.team_id ?? null,
                             event_date: toLocalDateTimeString(practice.event_date || ''),
+                            time_tbd: practice.time_tbd ?? false,
                             location: practice.location || '',
                             note: practice.description || '',
                           });
