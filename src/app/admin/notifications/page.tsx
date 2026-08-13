@@ -22,20 +22,6 @@ interface AdminUser {
   email_notifications: boolean;
 }
 
-const typeColors: Record<string, string> = {
-  registration: 'bg-green-100 text-green-800',
-  sponsorship: 'bg-yellow-100 text-yellow-800',
-  contact: 'bg-blue-100 text-blue-800',
-  player: 'bg-indigo-100 text-indigo-800',
-  highlight: 'bg-orange-100 text-orange-800',
-  news: 'bg-teal-100 text-teal-800',
-  gallery: 'bg-purple-100 text-purple-800',
-  user_signup: 'bg-pink-100 text-pink-800',
-  event: 'bg-cyan-100 text-cyan-800',
-  schedule: 'bg-emerald-100 text-emerald-800',
-  announcement: 'bg-amber-100 text-amber-800',
-};
-
 const roleColors: Record<string, string> = {
   admin: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
   approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
@@ -285,7 +271,7 @@ export default function NotificationsPage() {
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${typeColors[notif.type] || 'bg-gray-100 text-gray-800'}`}>
+                          <span className="px-2 py-0.5 rounded text-xs font-medium shrink-0 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
                             {notif.type}
                           </span>
                           <span className="text-xs text-gray-400">{relativeTime(notif.created_at)}</span>

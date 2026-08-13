@@ -791,10 +791,6 @@ export default function ExpensesPage() {
                   {filteredExpenses.slice(0, 6).map(exp => (
                     <div key={exp.id} className="flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="w-3 h-3 rounded-full shrink-0"
-                          style={{ backgroundColor: CATEGORY_COLORS[exp.category] || '#9ca3af' }}
-                        />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{exp.description}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{exp.category} &middot; {new Date(exp.expense_date).toLocaleDateString()}</p>
@@ -961,14 +957,14 @@ export default function ExpensesPage() {
                       <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400">{entry.category}</td>
                       <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">{entry.source || '-'}</td>
                       <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400">{new Date(entry.income_date).toLocaleDateString()}</td>
-                      <td className="px-4 md:px-6 py-3 text-sm font-semibold text-green-600 text-right">
+                      <td className="px-4 md:px-6 py-3 text-sm font-semibold text-green-600 text-right tabular-nums">
                         +${Number(entry.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 md:px-6 py-3 text-right">
                         <div className="flex gap-2 justify-end">
                           <button
                             onClick={() => handleIncomeEdit(entry)}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
+                            className="text-gray-600 hover:text-gray-900 dark:text-gray-300 text-sm px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200"
                           >
                             Edit
                           </button>
@@ -988,7 +984,7 @@ export default function ExpensesPage() {
                     <td colSpan={4} className="px-4 md:px-6 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right">
                       {selectedSeason.label} Total:
                     </td>
-                    <td className="px-4 md:px-6 py-3 text-sm font-bold text-green-600 text-right">
+                    <td className="px-4 md:px-6 py-3 text-sm font-bold text-green-600 text-right tabular-nums">
                       +${seasonIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
                     <td />
@@ -1061,7 +1057,6 @@ export default function ExpensesPage() {
                       </td>
                       <td className="px-4 md:px-6 py-3">
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[exp.category] || '#9ca3af' }} />
                           {exp.category}
                         </span>
                       </td>
@@ -1074,14 +1069,14 @@ export default function ExpensesPage() {
                       <td className="px-4 md:px-6 py-3 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
                         {exp.payment_method}
                       </td>
-                      <td className="px-4 md:px-6 py-3 text-sm font-semibold text-red-600 text-right">
+                      <td className="px-4 md:px-6 py-3 text-sm font-semibold text-red-600 text-right tabular-nums">
                         ${Number(exp.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 md:px-6 py-3 text-right">
                         <div className="flex gap-2 justify-end">
                           <button
                             onClick={() => handleEdit(exp)}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
+                            className="text-gray-600 hover:text-gray-900 dark:text-gray-300 text-sm px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200"
                           >
                             Edit
                           </button>
@@ -1104,7 +1099,7 @@ export default function ExpensesPage() {
                     <td colSpan={5} className="px-4 md:px-6 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right hidden md:table-cell">
                       Total:
                     </td>
-                    <td className="px-4 md:px-6 py-3 text-sm font-bold text-red-600 text-right">
+                    <td className="px-4 md:px-6 py-3 text-sm font-bold text-red-600 text-right tabular-nums">
                       ${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
                     <td />

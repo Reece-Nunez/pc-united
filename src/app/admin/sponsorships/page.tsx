@@ -36,8 +36,8 @@ const LEVEL_COLORS: Record<string, string> = {
   gold:     'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
   silver:   'bg-gray-200 text-gray-800 dark:bg-gray-600/40 dark:text-gray-200',
   bronze:   'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
-  platinum: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
-  custom:   'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
+  platinum: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  custom:   'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
 };
 
 const SPONSORSHIP_LEVELS = [
@@ -357,7 +357,7 @@ function Content() {
       label: 'Amount',
       sortable: true,
       render: (item) => (
-        <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(parseFloat(String(item.amount)) || 0)}</span>
+        <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{formatCurrency(parseFloat(String(item.amount)) || 0)}</span>
       ),
     },
     {
@@ -440,17 +440,17 @@ function Content() {
             <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total</div>
             <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{total}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-yellow-200 dark:border-yellow-800">
-            <div className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Pending</div>
-            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 mt-1">{pending}</div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200/70 dark:border-gray-700">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Pending</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1 tabular-nums">{pending}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-green-200 dark:border-green-800">
-            <div className="text-sm font-medium text-green-600 dark:text-green-400">Approved</div>
-            <div className="text-2xl font-bold text-green-700 dark:text-green-300 mt-1">{approved}</div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200/70 dark:border-gray-700">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Approved</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1 tabular-nums">{approved}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-blue-200 dark:border-blue-800">
-            <div className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Revenue</div>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">{formatCurrency(totalRevenue)}</div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200/70 dark:border-gray-700">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1 tabular-nums">{formatCurrency(totalRevenue)}</div>
           </div>
         </div>
 

@@ -19,14 +19,6 @@ interface AdminUser {
   last_sign_in_at: string | null;
 }
 
-const roleColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  pending_parent: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  admin: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  parent: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-};
-
 export default function UsersAdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +147,7 @@ export default function UsersAdminPage() {
                           </span>
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-1 tabular-nums">
                           Signed up {new Date(user.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -212,7 +204,7 @@ export default function UsersAdminPage() {
                               value={user.role}
                               onChange={(e) => updateRole(user.id, e.target.value)}
                               disabled={updating === user.id}
-                              className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer ${roleColors[user.role] || ''}`}
+                              className="text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                             >
                               <option value="approved">Approved</option>
                               <option value="admin">Admin</option>
@@ -220,7 +212,7 @@ export default function UsersAdminPage() {
                               <option value="pending">Pending</option>
                             </select>
                           </td>
-                          <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
+                          <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs tabular-nums">
                             {user.last_sign_in_at
                               ? new Date(user.last_sign_in_at).toLocaleDateString()
                               : 'Never'}

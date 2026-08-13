@@ -285,19 +285,19 @@ export default function DuesPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Owed</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{money(totals.owed)}</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{money(totals.owed)}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Collected</p>
-            <p className="text-xl font-bold text-green-600">{money(totals.paid)}</p>
+            <p className="text-xl font-bold text-green-600 tabular-nums">{money(totals.paid)}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Outstanding</p>
-            <p className="text-xl font-bold text-red-600">{money(totals.outstanding)}</p>
+            <p className="text-xl font-bold text-red-600 tabular-nums">{money(totals.outstanding)}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Paid / Partial / Unpaid</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{totals.paidCount} / {totals.partial} / {totals.unpaid}</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{totals.paidCount} / {totals.partial} / {totals.unpaid}</p>
           </div>
         </div>
 
@@ -344,7 +344,7 @@ export default function DuesPage() {
                         <span className="block text-xs text-gray-400">{p.teams?.name || ''} · {pFees.length} fee{pFees.length !== 1 ? 's' : ''}</span>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
-                        <span className={`text-sm font-semibold ${t.balance > 0 ? 'text-red-600' : 'text-gray-500'}`}>{money(t.balance)}</span>
+                        <span className={`text-sm font-semibold tabular-nums ${t.balance > 0 ? 'text-red-600' : 'text-gray-500'}`}>{money(t.balance)}</span>
                         {st && <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[st]}`}>{st[0].toUpperCase() + st.slice(1)}</span>}
                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                       </div>
@@ -372,11 +372,11 @@ export default function DuesPage() {
                                   <input type="number" min="0" step="0.01" value={Number(fee.amount) || 0}
                                     onChange={e => editFeeLocal(fee.id, { amount: parseFloat(e.target.value) || 0 })}
                                     onBlur={() => persistFee(fee)}
-                                    className="w-24 pl-5 pr-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm text-right" />
+                                    className="w-24 pl-5 pr-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm text-right tabular-nums" />
                                 </div>
                                 <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                  paid <span className="text-green-600 font-medium">{money(paid)}</span> ·
-                                  bal <span className={`font-medium ${bal > 0 ? 'text-red-600' : 'text-gray-500'}`}>{money(bal)}</span>
+                                  paid <span className="text-green-600 font-medium tabular-nums">{money(paid)}</span> ·
+                                  bal <span className={`font-medium tabular-nums ${bal > 0 ? 'text-red-600' : 'text-gray-500'}`}>{money(bal)}</span>
                                 </span>
                                 <button onClick={() => { setPayFor(payFor === fee.id ? null : fee.id); setPayDraft(emptyPay()); }}
                                   className="text-xs px-2 py-1 rounded bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 font-medium">

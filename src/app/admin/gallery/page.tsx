@@ -187,14 +187,6 @@ function Content() {
   const filtered = filter === 'all' ? images : images.filter((i) => i.category === filter);
   const categories = ['all', 'game', 'practice', 'event', 'team', 'other'];
 
-  const categoryColors: Record<string, string> = {
-    game: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    practice: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    event: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    team: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-    other: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-  };
-
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
@@ -275,8 +267,8 @@ function Content() {
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
-              {cat} {cat !== 'all' && `(${images.filter((i) => i.category === cat).length})`}
-              {cat === 'all' && `(${images.length})`}
+              {cat} {cat !== 'all' && <span className="tabular-nums">{`(${images.filter((i) => i.category === cat).length})`}</span>}
+              {cat === 'all' && <span className="tabular-nums">{`(${images.length})`}</span>}
             </button>
           ))}
         </div>
@@ -315,7 +307,7 @@ function Content() {
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{image.title}</p>
                     <div className="flex items-center justify-between mt-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${categoryColors[image.category] || categoryColors.other}`}>
+                      <span className="text-xs px-2 py-0.5 rounded-full capitalize bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
                         {image.category}
                       </span>
                       {image.created_at && (

@@ -26,20 +26,6 @@ const notificationTypeIcons: Record<string, string> = {
   announcement: 'A',
 };
 
-const notificationTypeColors: Record<string, string> = {
-  registration: 'bg-green-500',
-  sponsorship: 'bg-yellow-500',
-  contact: 'bg-blue-500',
-  player: 'bg-indigo-500',
-  highlight: 'bg-orange-500',
-  news: 'bg-teal-500',
-  gallery: 'bg-purple-500',
-  user_signup: 'bg-pink-500',
-  event: 'bg-cyan-500',
-  schedule: 'bg-emerald-500',
-  announcement: 'bg-amber-500',
-};
-
 function relativeTime(dateStr: string) {
   const now = Date.now();
   const diff = now - new Date(dateStr).getTime();
@@ -202,7 +188,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     !notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
                   }`}
                 >
-                  <span className={`${notificationTypeColors[notif.type] || 'bg-gray-500'} text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center shrink-0 mt-0.5`}>
+                  <span className="bg-gray-400 dark:bg-gray-500 text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center shrink-0 mt-0.5">
                     {notificationTypeIcons[notif.type] || '?'}
                   </span>
                   <div className="min-w-0 flex-1">

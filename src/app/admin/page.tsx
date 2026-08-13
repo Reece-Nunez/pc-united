@@ -244,12 +244,6 @@ export default function AdminDashboard() {
     ] },
   ];
 
-  const typeColors: Record<string, string> = {
-    player: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    highlight: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-    news: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  };
-
   const actionColors: Record<string, string> = {
     create: 'text-green-600',
     update: 'text-blue-600',
@@ -269,9 +263,9 @@ export default function AdminDashboard() {
 
   // Parent-specific computed data
   const parentStatCards = [
-    { label: 'Players', value: stats.players, color: 'bg-blue-500', link: '/admin/players' },
-    { label: 'Upcoming Games', value: stats.upcomingGames, color: 'bg-purple-500', link: '/admin/team?tab=schedule' },
-    { label: 'Gallery', value: stats.gallery, color: 'bg-teal-500', link: '/admin/gallery' },
+    { label: 'Players', value: stats.players, link: '/admin/players' },
+    { label: 'Upcoming Games', value: stats.upcomingGames, link: '/admin/team?tab=schedule' },
+    { label: 'Gallery', value: stats.gallery, link: '/admin/gallery' },
   ];
 
   const seasonRecord = useMemo(() => {
@@ -455,8 +449,8 @@ export default function AdminDashboard() {
                   className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow p-4"
                 >
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
-                  <div className={`h-1 w-8 ${stat.color} rounded-full mt-2`} />
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{stat.value}</p>
+                  <div className="h-1 w-8 bg-gray-200 dark:bg-gray-700 rounded-full mt-2" />
                 </Link>
               ))}
             </div>
@@ -525,15 +519,15 @@ export default function AdminDashboard() {
               ) : (
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <p className="text-3xl font-bold text-green-600 dark:text-green-400">{seasonRecord.wins}</p>
+                    <p className="text-3xl font-bold text-green-600 dark:text-green-400 tabular-nums">{seasonRecord.wins}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">Wins</p>
                   </div>
                   <div>
-                    <p className="text-3xl font-bold text-red-600 dark:text-red-400">{seasonRecord.losses}</p>
+                    <p className="text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums">{seasonRecord.losses}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">Losses</p>
                   </div>
                   <div>
-                    <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{seasonRecord.draws}</p>
+                    <p className="text-3xl font-bold text-gray-500 dark:text-gray-400 tabular-nums">{seasonRecord.draws}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-1">Draws</p>
                   </div>
                 </div>
@@ -930,7 +924,7 @@ export default function AdminDashboard() {
                     className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${typeColors[item.type] || 'bg-gray-100 text-gray-600'}`}>
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                         {item.type}
                       </span>
                       <span className="text-sm text-gray-900 dark:text-white truncate">{item.title}</span>
