@@ -18,7 +18,7 @@ import {
   Announcement
 } from "@/lib/supabase";
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
-import { formatClubTime } from '@/lib/time';
+import { formatClubTime, isClubTodayOrLater, parseClubDateTime } from '@/lib/time';
 
 export default function TeamClient() {
   const [news, setNews] = useState<News[]>([]);
@@ -27,7 +27,8 @@ export default function TeamClient() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('news');
+  // Schedule-first: parents open this page to find the next game/practice, not news.
+  const [activeTab, setActiveTab] = useState('schedule');
   const [scheduleView, setScheduleView] = useState<'list' | 'calendar'>('list');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -37,7 +38,7 @@ export default function TeamClient() {
   // Swipe gesture support for tabs
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
-  const tabOrder = ['news', 'schedule', 'events'];
+  const tabOrder = ['schedule', 'events', 'news'];
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
@@ -255,6 +256,31 @@ export default function TeamClient() {
   const totalGoalsFor = completedGames.reduce((sum, game) => sum + (game.our_score ?? 0), 0);
   const totalGoalsAgainst = completedGames.reduce((sum, game) => sum + (game.opponent_score ?? 0), 0);
 
+  // "Next up" — the single most useful thing for a parent: the soonest upcoming
+  // game or event (excluding events that duplicate a schedule game). Drives the
+  // hero band so the page leads with when/where, not vanity stats.
+  const nextUp = [
+    ...schedule
+      .filter(g => (g.status === 'scheduled' || g.status === 'in_progress') && isClubTodayOrLater(g.game_date))
+      .map(g => ({
+        date: g.game_date, timeTbd: g.time_tbd, title: `vs ${g.opponent}`,
+        typeLabel: g.game_type || 'Game', location: g.location, homeGame: g.home_game,
+        href: undefined as string | undefined,
+      })),
+    ...events
+      .filter(e => e.event_type !== 'game' && isClubTodayOrLater(e.event_date))
+      .map(e => ({
+        date: e.event_date, timeTbd: e.time_tbd, title: e.title,
+        typeLabel: e.event_type, location: e.location, homeGame: undefined as boolean | undefined,
+        href: `/team/events/${e.id}`,
+      })),
+  ].sort((a, b) => parseClubDateTime(a.date).getTime() - parseClubDateTime(b.date).getTime())[0] ?? null;
+
+  // Restrained, reusable voice: hairline borders over shadows, one accent, named
+  // ease-out, press feedback, reduced-motion honored.
+  const cardClass = 'rounded-lg border border-gray-200 transition-colors duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-team-blue/40 motion-reduce:transition-none';
+  const ctaClass = 'inline-flex items-center justify-center gap-1.5 rounded-lg bg-team-blue px-4 py-2 text-sm font-semibold text-white transition-transform duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-slate-800 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-team-blue motion-reduce:transition-none';
+
   if (loading) {
     return <TeamLoadingSkeleton />;
   }
@@ -289,26 +315,73 @@ export default function TeamClient() {
 
   return (
     <>
-      {/* Active Announcements */}
+      {/* Next up — the soonest game/practice/event, so the page opens on when + where */}
+      {nextUp && (
+        <section className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 p-5 md:p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-team-blue">
+                  <CalendarIcon className="w-4 h-4" /> Next up
+                  <span className="text-gray-300">·</span>
+                  <span className="capitalize text-gray-500">{nextUp.typeLabel}</span>
+                </div>
+                <h2 className="mt-2 text-xl md:text-2xl font-bold text-team-blue">{nextUp.title}</h2>
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm md:text-base text-gray-600 tabular-nums">
+                  <span>{parseClubDateTime(nextUp.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                  <span aria-hidden className="text-gray-300">·</span>
+                  <span>{formatClubTime(nextUp.date, nextUp.timeTbd)}</span>
+                  {nextUp.location && (
+                    <>
+                      <span aria-hidden className="text-gray-300">·</span>
+                      <span className="inline-flex items-center gap-1">
+                        {nextUp.homeGame !== undefined && (nextUp.homeGame ? <HomeIcon className="w-4 h-4" /> : <PaperAirplaneIcon className="w-4 h-4" />)}
+                        {nextUp.location}{nextUp.homeGame !== undefined ? (nextUp.homeGame ? ' · Home' : ' · Away') : ''}
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="shrink-0">
+                {nextUp.href ? (
+                  <Link href={nextUp.href} className={ctaClass}>Details <ChevronRightIcon className="w-4 h-4" /></Link>
+                ) : (
+                  <button onClick={() => setActiveTab('schedule')} className={ctaClass}>View schedule <ChevronRightIcon className="w-4 h-4" /></button>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Season record — a compact strip, not five shadowed tiles */}
+      <section className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <span className="font-semibold uppercase tracking-wide text-gray-500">{selectedSeason.label}</span>
+            <span className="text-gray-900"><span className="font-bold tabular-nums">{wins}–{losses}–{draws}</span> <span className="text-gray-500">W–L–D</span></span>
+            <span className="text-gray-900"><span className="font-bold tabular-nums">{totalGoalsFor}</span> <span className="text-gray-500">GF</span></span>
+            <span className="text-gray-900"><span className="font-bold tabular-nums">{totalGoalsAgainst}</span> <span className="text-gray-500">GA</span></span>
+          </div>
+        </div>
+      </section>
+
+      {/* Announcements — restrained: hairline cards, one alert dot, no colour wall */}
       {announcements.length > 0 && (
-        <section className="py-6 md:py-8 bg-yellow-50 border-b border-yellow-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-xl md:text-2xl font-bold text-team-blue mb-4 flex items-center gap-2"><MegaphoneIcon className="w-6 h-6" /> Important Announcements</h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <section className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+            <h2 className="mb-4 flex items-center gap-2 text-xl md:text-2xl font-bold text-team-blue"><MegaphoneIcon className="w-5 h-5" /> Announcements</h2>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {announcements.slice(0, 3).map((announcement) => (
-                <div 
-                  key={announcement.id} 
-                  className={`p-4 rounded-lg border-l-4 ${
-                    announcement.priority === 3 ? 'border-red-500 bg-red-50' :
-                    announcement.priority === 2 ? 'border-yellow-500 bg-yellow-50' :
-                    'border-blue-500 bg-blue-50'
-                  }`}
-                >
-                  <h3 className="font-bold text-base md:text-lg mb-2">{announcement.title}</h3>
-                  <p className="text-gray-700 text-sm md:text-base">{announcement.content}</p>
-                  <div className="mt-2 flex items-center justify-between text-xs md:text-sm text-gray-500">
+                <div key={announcement.id} className={`p-4 ${cardClass}`}>
+                  <div className="flex items-center gap-2">
+                    {announcement.priority === 3 && <span className="inline-block w-1.5 h-1.5 shrink-0 rounded-full bg-red-600" aria-hidden />}
+                    <h3 className="font-bold text-base">{announcement.title}</h3>
+                  </div>
+                  <p className="mt-1.5 text-gray-700 text-sm">{announcement.content}</p>
+                  <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
                     <span className="capitalize">{announcement.announcement_type}</span>
-                    <span>{parseAsLocalTime(announcement.created_at!).toLocaleDateString()}</span>
+                    <span className="tabular-nums">{parseAsLocalTime(announcement.created_at!).toLocaleDateString()}</span>
                   </div>
                 </div>
               ))}
@@ -317,50 +390,20 @@ export default function TeamClient() {
         </section>
       )}
 
-      {/* Team Stats */}
-      <section className="py-8 md:py-12 bg-gray-50">
+      {/* Navigation Tabs — underline, left-aligned, schedule-first */}
+      <section className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-6 md:mb-8 text-center">{selectedSeason.label} Statistics</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">
-            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
-              <div className="text-2xl md:text-3xl font-bold text-green-600 mb-2">{wins}</div>
-              <div className="text-sm md:text-base text-gray-600">Wins</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
-              <div className="text-2xl md:text-3xl font-bold text-red-600 mb-2">{losses}</div>
-              <div className="text-sm md:text-base text-gray-600">Losses</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
-              <div className="text-2xl md:text-3xl font-bold text-yellow-600 mb-2">{draws}</div>
-              <div className="text-sm md:text-base text-gray-600">Draws</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg">
-              <div className="text-2xl md:text-3xl font-bold text-team-blue mb-2">{totalGoalsFor}</div>
-              <div className="text-sm md:text-base text-gray-600">Goals For</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 md:p-6 text-center shadow-lg col-span-2 sm:col-span-3 md:col-span-1">
-              <div className="text-2xl md:text-3xl font-bold text-gray-600 mb-2">{totalGoalsAgainst}</div>
-              <div className="text-sm md:text-base text-gray-600">Goals Against</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Navigation Tabs */}
-      <section className="py-6 md:py-8 bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center gap-2 md:gap-4">
-            {['news', 'schedule', 'events'].map((tab) => (
+          <div className="flex gap-1">
+            {tabOrder.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 md:px-6 py-2 md:py-3 font-semibold rounded-lg transition-colors text-sm md:text-base ${
-                  activeTab === tab
-                    ? 'bg-team-blue text-white'
-                    : 'text-team-blue hover:bg-blue-50'
+                className={`relative px-4 py-3 text-sm md:text-base font-semibold transition-colors duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.98] motion-reduce:transition-none ${
+                  activeTab === tab ? 'text-team-blue' : 'text-gray-500 hover:text-gray-800'
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {activeTab === tab && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-team-blue" aria-hidden />}
               </button>
             ))}
           </div>
@@ -379,7 +422,7 @@ export default function TeamClient() {
           {/* News Tab */}
           {activeTab === 'news' && (
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12 text-center">Latest News</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12">Latest News</h2>
               {news.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-gray-500">No news articles available yet.</div>
@@ -390,7 +433,7 @@ export default function TeamClient() {
                     <Link
                       key={article.id}
                       href={`/team/news/${article.slug}`}
-                      className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition duration-300 block cursor-pointer"
+                      className={`block overflow-hidden bg-white ${cardClass}`}
                     >
                       {article.featured_image && (
                         <div className="aspect-video bg-gray-300">
@@ -413,8 +456,8 @@ export default function TeamClient() {
                           <span>{article.author || 'Team Staff'}</span>
                           <span>{parseAsLocalTime(article.publish_date!).toLocaleDateString()}</span>
                         </div>
-                        <div className="mt-4 text-team-blue font-medium text-sm">
-                          Read more →
+                        <div className="mt-4 inline-flex items-center gap-1 text-team-blue font-medium text-sm">
+                          Read more <ChevronRightIcon className="w-4 h-4" />
                         </div>
                       </div>
                     </Link>
@@ -535,16 +578,16 @@ export default function TeamClient() {
                   {selectedDay && selectedGames.length > 0 && (
                     <div className="mt-4 space-y-3">
                       {selectedGames.map((game) => (
-                        <div key={game.id} className="bg-gray-50 rounded-lg p-4 shadow border-l-4 border-team-blue">
+                        <div key={game.id} className="rounded-lg border border-gray-200 p-4">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
                               <h4 className="font-bold text-team-blue">Ponca City United vs {game.opponent}</h4>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-gray-600 tabular-nums">
                                 {formatClubTime(game.game_date, game.time_tbd, { hour: '2-digit', minute: '2-digit' })} — {game.location} {game.home_game ? '(Home)' : '(Away)'}
                               </p>
                             </div>
                             {game.status === 'completed' && game.our_score != null && game.opponent_score != null && (
-                              <div className="text-xl font-bold">
+                              <div className="text-xl font-bold tabular-nums">
                                 <span className={(game.our_score ?? 0) > (game.opponent_score ?? 0) ? 'text-green-600' : 'text-red-600'}>{game.our_score}</span>
                                 {' - '}
                                 <span className={(game.opponent_score ?? 0) > (game.our_score ?? 0) ? 'text-green-600' : 'text-red-600'}>{game.opponent_score}</span>
@@ -569,7 +612,7 @@ export default function TeamClient() {
                     href="https://web.gc.com/teams/8Wt5HEmIzGY6?utm_source=Web&utm_campaign=team_share_link" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="bg-team-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base font-medium"
+                    className="bg-team-blue text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors text-sm md:text-base font-medium"
                   >
                     View on GameChanger →
                   </a>
@@ -601,18 +644,18 @@ export default function TeamClient() {
                 <div className="space-y-4">
                   <h3 className="text-lg md:text-xl font-semibold text-team-blue mb-4">Additional Schedule Information</h3>
                   {filteredSchedule.map((game) => (
-                    <div key={game.id} className="bg-gray-50 rounded-lg p-4 md:p-6 shadow-lg">
+                    <div key={game.id} className="rounded-lg border border-gray-200 p-4 md:p-6">
                       <div className="flex flex-col md:flex-row md:items-center justify-between">
                         <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
                             <h3 className="text-lg md:text-xl font-bold text-team-blue">
                               Ponca City United vs {game.opponent}
                             </h3>
-                            <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-semibold inline-block w-fit ${
-                              game.status === 'completed' ? 'bg-gray-200 text-gray-800' :
-                              game.status === 'in_progress' ? 'bg-green-200 text-green-800' :
-                              game.status === 'cancelled' ? 'bg-red-200 text-red-800' :
-                              'bg-blue-200 text-blue-800'
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold inline-block w-fit ${
+                              game.status === 'completed' ? 'bg-gray-100 text-gray-600' :
+                              game.status === 'in_progress' ? 'bg-green-100 text-green-700' :
+                              game.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                              'bg-slate-100 text-team-blue'
                             }`}>
                               {game.status.replace('_', ' ').toUpperCase()}
                             </span>
@@ -628,7 +671,7 @@ export default function TeamClient() {
                          game.our_score !== null && game.our_score !== undefined && 
                          game.opponent_score !== null && game.opponent_score !== undefined && (
                           <div className="mt-4 md:mt-0 text-center">
-                            <div className="text-xl md:text-2xl font-bold">
+                            <div className="text-xl md:text-2xl font-bold tabular-nums">
                               <span className={game.our_score > game.opponent_score ? 'text-green-600' : 'text-red-600'}>
                                 {game.our_score}
                               </span>
@@ -665,7 +708,7 @@ export default function TeamClient() {
           {/* Events Tab */}
           {activeTab === 'events' && (
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12 text-center">Upcoming Events</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-team-blue mb-8 md:mb-12">Upcoming Events</h2>
               {events.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-gray-500">No upcoming events scheduled.</div>
@@ -673,7 +716,7 @@ export default function TeamClient() {
               ) : (
                 <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3">
                   {events.map((event) => (
-                    <Link key={event.id} href={`/team/events/${event.id}`} className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition duration-300 block">
+                    <Link key={event.id} href={`/team/events/${event.id}`} className={`block overflow-hidden bg-white ${cardClass}`}>
                       {event.featured_image && (
                         <div className="aspect-video bg-gray-300">
                           <Image
@@ -688,14 +731,8 @@ export default function TeamClient() {
                       )}
                       <div className="p-4 md:p-6">
                         <div className="flex items-center justify-between mb-3">
-                          <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-semibold ${
-                            event.event_type === 'game' ? 'bg-green-200 text-green-800' :
-                            event.event_type === 'tournament' ? 'bg-purple-200 text-purple-800' :
-                            event.event_type === 'practice' ? 'bg-blue-200 text-blue-800' :
-                            event.event_type === 'meeting' ? 'bg-yellow-200 text-yellow-800' :
-                            'bg-gray-200 text-gray-800'
-                          }`}>
-                            {event.event_type.toUpperCase()}
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-team-blue capitalize">
+                            {event.event_type}
                           </span>
                         </div>
                         <h3 className="text-lg md:text-xl font-bold text-team-blue mb-3 line-clamp-2">{event.title}</h3>
