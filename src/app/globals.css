@@ -40,3 +40,21 @@ h1, h2, h3, h4, .font-display {
   font-family: var(--font-oswald), 'Inter', system-ui, sans-serif;
   letter-spacing: -0.005em;
 }
+
+/* react-day-picker (admin DateTimeField) — themed to the app's team colors and
+   class-based dark mode. Base layout comes from react-day-picker/style.css; we
+   only override the accent + dark-mode text so the calendar reads as ours. */
+.rdp-root {
+  --rdp-accent-color: var(--team-blue);
+  --rdp-accent-background-color: color-mix(in srgb, var(--team-blue) 12%, transparent);
+  --rdp-today-color: var(--team-red);
+  font-size: 0.875rem;
+}
+.dark .rdp-root {
+  /* team-blue (#0f172a) is too dark to read as an accent on a dark surface;
+     lift to a lighter blue and set day text/foreground for contrast. */
+  --rdp-accent-color: #3b82f6;
+  --rdp-accent-background-color: color-mix(in srgb, #3b82f6 26%, transparent);
+  --rdp-today-color: #f87171;
+  color: #e5e7eb;
+}
