@@ -42,6 +42,7 @@ import { getSeasonLabel, getCurrentSeason, getAvailableSeasons, isDateInSeason, 
 import { parseClubDateTime, formatClubTime } from '@/lib/time';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
 import DateTimeField from '@/components/admin/DateTimeField';
+import DataTable from '@/components/admin/DataTable';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
@@ -1548,152 +1549,77 @@ function TeamAdminContent() {
 
             <div className="space-y-3 md:space-y-4 flex-1 overflow-y-auto">
               {/* News List */}
-              {activeTab === 'news' && news.map((article) => (
-                <div key={article.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{article.title}</h3>
-                      {article.excerpt && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{article.excerpt}</p>}
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>By: {article.author || 'Unknown'}</span>
-                        <span>{article.published ? 'Published' : 'Draft'}</span>
-                        <span>{article.publish_date ? new Date(article.publish_date).toLocaleDateString() : 'No date'}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
-                      <button
-                        onClick={() => handleEdit('news', article)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete('news', article.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {activeTab === 'news' && (
+                <DataTable<News>
+                  data={news}
+                  keyField="id"
+                  searchPlaceholder="Search news…"
+                  columns={[
+                    { key: 'title', label: 'Title', render: (a) => <span className="font-medium text-gray-900 dark:text-white">{a.title}</span> },
+                    { key: 'author', label: 'Author', render: (a) => a.author || '—' },
+                    { key: 'published', label: 'Status', render: (a) => (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${a.published ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>{a.published ? 'Published' : 'Draft'}</span>
+                    ) },
+                    { key: 'publish_date', label: 'Date', render: (a) => a.publish_date ? new Date(a.publish_date).toLocaleDateString() : '—' },
+                  ]}
+                  onEdit={(a) => handleEdit('news', a)}
+                  onDelete={(a) => handleDelete('news', a.id)}
+                />
+              )}
 
               {/* Events List */}
-              {activeTab === 'events' && nonPracticeEvents.map((event) => (
-                <div key={event.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{event.title}</h3>
-                      {event.description && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{event.description}</p>}
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="capitalize">{event.event_type}</span>
-                        <span>{new Date(event.event_date).toLocaleDateString()}</span>
-                        {event.location && <span>{event.location}</span>}
-                        {event.registration_required && <span>Registration Required</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
-                      <button
-                        onClick={() => handleEdit('events', event)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete('events', event.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {activeTab === 'events' && (
+                <DataTable<Event>
+                  data={nonPracticeEvents}
+                  keyField="id"
+                  searchPlaceholder="Search events…"
+                  columns={[
+                    { key: 'title', label: 'Title', render: (e) => <span className="font-medium text-gray-900 dark:text-white">{e.title}</span> },
+                    { key: 'event_type', label: 'Type', render: (e) => <span className="capitalize">{e.event_type}</span> },
+                    { key: 'event_date', label: 'Date', render: (e) => new Date(e.event_date).toLocaleDateString() },
+                    { key: 'location', label: 'Location', render: (e) => e.location || '—' },
+                    { key: 'registration_required', label: 'Reg.', render: (e) => e.registration_required ? 'Yes' : '—' },
+                  ]}
+                  onEdit={(e) => handleEdit('events', e)}
+                  onDelete={(e) => handleDelete('events', e.id)}
+                />
+              )}
 
               {/* Practices List */}
-              {activeTab === 'practices' && practices.map((practice) => (
-                <div key={practice.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">
-                        {practice.title}
-                        {practice.team_id && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 font-normal">{teams.find(t => t.id === practice.team_id)?.name}</span>}
-                      </h3>
-                      {practice.description && <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{practice.description}</p>}
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>{parseClubDateTime(practice.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, {formatClubTime(practice.event_date, practice.time_tbd)}</span>
-                        {practice.location && <span>{practice.location}</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
-                      <button
-                        onClick={() => {
-                          setEditingPractice(practice);
-                          setPracticeForm({
-                            team_id: practice.team_id ?? null,
-                            event_date: toLocalDateTimeString(practice.event_date || ''),
-                            time_tbd: practice.time_tbd ?? false,
-                            location: practice.location || '',
-                            note: practice.description || '',
-                          });
-                        }}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete('events', practice.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {activeTab === 'practices' && (
+                <DataTable<Event>
+                  data={practices}
+                  keyField="id"
+                  searchPlaceholder="Search practices…"
+                  columns={[
+                    { key: 'title', label: 'Practice', render: (p) => (
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {p.title}
+                        {p.team_id && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 font-normal">{teams.find(t => t.id === p.team_id)?.name}</span>}
+                      </span>
+                    ) },
+                    { key: 'event_date', label: 'When', render: (p) => `${parseClubDateTime(p.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}, ${formatClubTime(p.event_date, p.time_tbd)}` },
+                    { key: 'location', label: 'Location', render: (p) => p.location || '—' },
+                  ]}
+                  onEdit={(p) => {
+                    setEditingPractice(p);
+                    setPracticeForm({
+                      team_id: p.team_id ?? null,
+                      event_date: toLocalDateTimeString(p.event_date || ''),
+                      time_tbd: p.time_tbd ?? false,
+                      location: p.location || '',
+                      note: p.description || '',
+                    });
+                  }}
+                  onDelete={(p) => handleDelete('events', p.id)}
+                />
+              )}
 
               {/* Schedule List */}
               {activeTab === 'schedule' && (() => {
                 const filteredGames = schedule
                   .filter((g) => g.game_date && isDateInSeason(g.game_date, scheduleSeason))
                   .sort((a, b) => new Date(a.game_date).getTime() - new Date(b.game_date).getTime());
-
-                const renderGame = (game: typeof schedule[0]) => (
-                  <div key={game.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">vs {game.opponent}</h3>
-                        <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                          <span>{new Date(game.game_date).toLocaleDateString()}</span>
-                          <span>{game.location}</span>
-                          <span>{game.home_game ? 'Home' : 'Away'}</span>
-                          <span className="capitalize">{game.game_type}</span>
-                          <span className="capitalize">{game.status.replace('_', ' ')}</span>
-                          {game.our_score !== null && game.our_score !== undefined &&
-                           game.opponent_score !== null && game.opponent_score !== undefined && (
-                            <span className="font-semibold text-xs sm:text-sm">
-                              {game.our_score} - {game.opponent_score}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 sm:ml-4 flex-shrink-0">
-                        <button
-                          onClick={() => handleEdit('schedule', game)}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete('schedule', game.id)}
-                          className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
 
                 if (bulkScoreMode) {
                   const gamesNeedingScores = filteredGames.filter(g =>
@@ -1756,74 +1682,42 @@ function TeamAdminContent() {
                 }
 
                 return (
-                  <>
-                    {filteredGames.length === 0 && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No games in {scheduleSeason.label}.</p>
-                    )}
-                    {filteredGames.map(renderGame)}
-                  </>
+                  <DataTable<Schedule>
+                    data={filteredGames}
+                    keyField="id"
+                    searchPlaceholder="Search games…"
+                    columns={[
+                      { key: 'opponent', label: 'Opponent', render: (g) => <span className="font-medium text-gray-900 dark:text-white">vs {g.opponent}</span> },
+                      { key: 'game_date', label: 'Date', render: (g) => new Date(g.game_date).toLocaleDateString() },
+                      { key: 'home_game', label: 'H/A', render: (g) => g.home_game ? 'Home' : 'Away' },
+                      { key: 'game_type', label: 'Type', render: (g) => <span className="capitalize">{g.game_type}</span> },
+                      { key: 'status', label: 'Status', render: (g) => <span className="capitalize">{g.status.replace('_', ' ')}</span> },
+                      { key: 'our_score', label: 'Score', render: (g) => (g.our_score != null && g.opponent_score != null) ? <span className="font-semibold tabular-nums">{g.our_score} - {g.opponent_score}</span> : '—' },
+                    ]}
+                    onEdit={(g) => handleEdit('schedule', g)}
+                    onDelete={(g) => handleDelete('schedule', g.id)}
+                  />
                 );
               })()}
 
               {/* Announcements List */}
-              {activeTab === 'announcements' && announcements.map((announcement) => (
-                <div key={announcement.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 md:p-4">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm md:text-base">{announcement.title}</h3>
-                      <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{announcement.content}</p>
-                      <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="capitalize">{announcement.announcement_type}</span>
-                        <span>Priority: {announcement.priority === 1 ? 'Low' : announcement.priority === 2 ? 'Medium' : 'High'}</span>
-                        <span>{announcement.active ? 'Active' : 'Inactive'}</span>
-                        {announcement.expires_at && (
-                          <span>Expires: {new Date(announcement.expires_at).toLocaleDateString()}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 sm:ml-4 flex-shrink-0">
-                      <button
-                        onClick={() => handleEdit('announcements', announcement)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete('announcements', announcement.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-800 text-sm px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Empty states */}
-              {activeTab === 'news' && news.length === 0 && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No news articles found. Create your first article above.
-                </div>
-              )}
-              {activeTab === 'events' && nonPracticeEvents.length === 0 && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No events found. Create your first event above.
-                </div>
-              )}
-              {activeTab === 'practices' && practices.length === 0 && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No upcoming practices. Schedule one above — it will appear on the Attendance page and the RSVP link.
-                </div>
-              )}
-              {activeTab === 'schedule' && schedule.length === 0 && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No schedule items found. Create your first game above.
-                </div>
-              )}
-              {activeTab === 'announcements' && announcements.length === 0 && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No announcements found. Create your first announcement above.
-                </div>
+              {activeTab === 'announcements' && (
+                <DataTable<Announcement>
+                  data={announcements}
+                  keyField="id"
+                  searchPlaceholder="Search announcements…"
+                  columns={[
+                    { key: 'title', label: 'Title', render: (a) => <span className="font-medium text-gray-900 dark:text-white">{a.title}</span> },
+                    { key: 'announcement_type', label: 'Type', render: (a) => <span className="capitalize">{a.announcement_type}</span> },
+                    { key: 'priority', label: 'Priority', render: (a) => a.priority === 1 ? 'Low' : a.priority === 2 ? 'Medium' : 'High' },
+                    { key: 'active', label: 'Status', render: (a) => (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${a.active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>{a.active ? 'Active' : 'Inactive'}</span>
+                    ) },
+                    { key: 'expires_at', label: 'Expires', render: (a) => a.expires_at ? new Date(a.expires_at).toLocaleDateString() : '—' },
+                  ]}
+                  onEdit={(a) => handleEdit('announcements', a)}
+                  onDelete={(a) => handleDelete('announcements', a.id)}
+                />
               )}
             </div>
           </div>
