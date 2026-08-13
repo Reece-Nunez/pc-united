@@ -15,6 +15,8 @@ import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
+import Switch from '@/components/admin/Switch';
+import { SkeletonTable } from '@/components/admin/Skeleton';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 function Content() {
@@ -144,30 +146,12 @@ function Content() {
       label: 'Active',
       sortable: true,
       render: (subscriber) => (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={subscriber.active}
-          aria-label={`Toggle active status for ${subscriber.email}`}
+        <Switch
+          checked={subscriber.active}
+          onChange={() => handleToggleActive(subscriber)}
           disabled={togglingIds.has(subscriber.id)}
-          onClick={() => handleToggleActive(subscriber)}
-          className={`
-            relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full
-            border-2 border-transparent transition-colors duration-200 ease-in-out
-            focus:outline-none focus:ring-2 focus:ring-team-blue focus:ring-offset-2
-            dark:focus:ring-offset-gray-800
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${subscriber.active ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}
-          `}
-        >
-          <span
-            className={`
-              pointer-events-none inline-block h-5 w-5 transform rounded-full
-              bg-white shadow ring-0 transition duration-200 ease-in-out
-              ${subscriber.active ? 'translate-x-5' : 'translate-x-0'}
-            `}
-          />
-        </button>
+          aria-label={`Toggle active status for ${subscriber.email}`}
+        />
       ),
     },
   ];
@@ -175,9 +159,10 @@ function Content() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Loading subscribers...</p>
+        <div className="p-4 md:p-8">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <SkeletonTable rows={6} />
+          </div>
         </div>
       </AdminLayout>
     );
@@ -271,9 +256,10 @@ export default function Page() {
     <Suspense
       fallback={
         <AdminLayout>
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          <div className="p-4 md:p-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+              <SkeletonTable rows={6} />
+            </div>
           </div>
         </AdminLayout>
       }

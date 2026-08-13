@@ -12,6 +12,7 @@ import {
   AdminNotification,
 } from '@/lib/supabase';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import Switch from '@/components/admin/Switch';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface AdminUser {
@@ -337,19 +338,15 @@ export default function NotificationsPage() {
                               {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleToggleEmailNotif(u.id, u.email_notifications)}
-                              disabled={toggling === u.id}
-                              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50"
-                              style={{ backgroundColor: u.email_notifications ? '#22c55e' : '#d1d5db' }}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-                                  u.email_notifications ? 'translate-x-6' : 'translate-x-1'
-                                }`}
+                          <td className="px-4 py-3">
+                            <div className="flex justify-center">
+                              <Switch
+                                checked={u.email_notifications}
+                                onChange={() => handleToggleEmailNotif(u.id, u.email_notifications)}
+                                disabled={toggling === u.id}
+                                aria-label={`Toggle email alerts for ${u.email}`}
                               />
-                            </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

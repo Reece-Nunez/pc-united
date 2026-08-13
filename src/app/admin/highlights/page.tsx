@@ -692,7 +692,7 @@ function HighlightsAdminContent() {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supported formats: MP4, MOV, AVI (max 100MB)</p>
                     
                     {selectedVideoFile && (
-                      <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+                      <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700/40 rounded">
                         <div className="text-sm text-blue-700">
                           📁 Selected: {selectedVideoFile.name}
                         </div>
@@ -930,7 +930,7 @@ function HighlightsAdminContent() {
                           />
                           
                           {editSelectedVideoFile && (
-                            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700/40 rounded">
                               <div className="text-sm text-blue-700">
                                 📁 Selected: {editSelectedVideoFile.name}
                               </div>

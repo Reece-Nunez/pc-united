@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { getRecentActivity } from '@/lib/audit';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import { SkeletonTable } from '@/components/admin/Skeleton';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface ActivityEntry {
@@ -320,11 +321,8 @@ function Content() {
 
         {/* Loading State */}
         {loading && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-team-blue mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Loading activity log...
-            </p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+            <SkeletonTable rows={8} />
           </div>
         )}
 
