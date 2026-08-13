@@ -530,27 +530,27 @@ export default function ExpensesPage() {
           </div>
         </div>
 
-        {/* Financial Overview Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
+        {/* Financial Overview — Balance leads (breaks the equal-triad rhythm) */}
+        <div className="grid gap-4 mb-8 sm:grid-cols-2">
+          <div className="sm:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200/70 dark:border-gray-700 p-5">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Balance</p>
+            <p className={`text-3xl font-bold tabular-nums mt-1 ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {balance < 0 ? '-' : ''}${Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Total revenue minus all expenses (rolls over each season)</p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200/70 dark:border-gray-700 p-5">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Revenue</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold text-green-600 tabular-nums mt-1">${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             <p className="text-xs text-gray-400 mt-1">
               Sponsors ${sponsorRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               {totalAllIncome > 0 && <> + fundraising ${totalAllIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</>}
             </p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200/70 dark:border-gray-700 p-5">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{selectedSeason.label} Expenses</p>
-            <p className="text-2xl font-bold text-red-600 mt-1">${allSeasonExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold text-red-600 tabular-nums mt-1">${allSeasonExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             <p className="text-xs text-gray-400 mt-1">{filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''} this season</p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Balance</p>
-            <p className={`text-2xl font-bold mt-1 ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {balance < 0 ? '-' : ''}${Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">Total revenue minus all expenses (rolls over each season)</p>
           </div>
         </div>
 

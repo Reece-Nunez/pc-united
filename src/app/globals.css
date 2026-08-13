@@ -41,6 +41,18 @@ h1, h2, h3, h4, .font-display {
   letter-spacing: -0.005em;
 }
 
+/* Respect the OS "reduce motion" setting everywhere: near-instant transitions
+   and no spatial animation. A single global safety net so individual components
+   don't each have to remember prefers-reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* react-day-picker (admin DateTimeField) — themed to the app's team colors and
    class-based dark mode. Base layout comes from react-day-picker/style.css; we
    only override the accent + dark-mode text so the calendar reads as ours. */

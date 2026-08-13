@@ -361,7 +361,7 @@ export default function DuesPage() {
                           const bal = (Number(fee.amount) || 0) - paid;
                           const feePayments = paymentsOf(fee.id);
                           return (
-                            <div key={fee.id} className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 p-3 mt-2">
+                            <div key={fee.id} className="py-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <input value={fee.name}
                                   onChange={e => editFeeLocal(fee.id, { name: e.target.value })}

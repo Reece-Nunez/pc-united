@@ -371,7 +371,7 @@ export default function AdminDashboard() {
                         key={player.id}
                         onClick={() => isLinked ? handleUnlinkPlayer(player.id) : handleLinkPlayer(player.id)}
                         disabled={linkingPlayer}
-                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-colors text-left ${
                           isLinked
                             ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20'
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -645,7 +645,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Help Section */}
-          <div className="bg-gradient-to-r from-team-blue to-blue-700 rounded-xl p-6 text-white">
+          <div className="bg-team-blue rounded-xl p-6 text-white">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold mb-2">Need Help?</h2>
@@ -744,7 +744,7 @@ export default function AdminDashboard() {
               <Link
                 key={stat.label}
                 href={stat.link}
-                className="group rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-4 hover:border-team-blue/40 hover:shadow-sm transition-all focus:ring-2 focus:ring-team-blue focus:outline-none"
+                className="group rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-4 hover:border-team-blue/40 hover:shadow-sm transition-colors focus:ring-2 focus:ring-team-blue focus:outline-none"
               >
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[11px] uppercase tracking-wide text-gray-400">{stat.label}</p>
@@ -901,7 +901,7 @@ export default function AdminDashboard() {
                       className="group flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors focus:ring-2 focus:ring-inset focus:ring-team-blue focus:outline-none"
                     >
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{item.name}</span>
-                      <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-team-blue dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-team-blue dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>

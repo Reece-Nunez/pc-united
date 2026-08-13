@@ -25,8 +25,10 @@ export default function LoadingButton({
     <button
       disabled={isDisabled}
       className={`
-        px-4 py-2 rounded-lg font-medium text-sm transition-colors
+        px-4 py-2 rounded-lg font-medium text-sm
+        transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]
         focus:outline-none focus:ring-2 focus:ring-team-blue focus:ring-offset-2
+        ${isDisabled ? '' : 'active:scale-[0.98]'} motion-reduce:transition-none motion-reduce:active:scale-100
         ${variantStyles[variant]}
         ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
         ${className}

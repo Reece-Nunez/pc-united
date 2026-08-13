@@ -746,7 +746,7 @@ function HighlightsAdminContent() {
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
-                      className="bg-team-red h-2 rounded-full transition-all duration-300"
+                      className="bg-team-red h-2 rounded-full transition-[width] duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
@@ -846,7 +846,7 @@ function HighlightsAdminContent() {
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                           <div 
-                            className={`h-2 rounded-full transition-all duration-300 ${
+                            className={`h-2 rounded-full transition-[width] duration-300 ${
                               uploadProgress === 100 ? 'bg-green-500' : 'bg-team-blue'
                             }`}
                             style={{ width: `${uploadProgress}%` }}

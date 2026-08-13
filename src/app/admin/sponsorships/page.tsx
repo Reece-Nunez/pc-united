@@ -578,7 +578,7 @@ function Content() {
                     {SPONSORSHIP_LEVELS.map((level) => (
                       <label
                         key={level.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
                           addForm.sponsorship_level === level.id
                             ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500'
                             : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
@@ -607,7 +607,7 @@ function Content() {
                       {LOGO_PLACEMENTS.map((placement) => (
                         <label
                           key={placement}
-                          className={`px-4 py-2 rounded-full border-2 cursor-pointer transition-all text-sm font-medium ${
+                          className={`px-4 py-2 rounded-full border-2 cursor-pointer transition-colors text-sm font-medium ${
                             addForm.logo_placement === placement
                               ? 'border-team-blue bg-team-blue text-white'
                               : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'
@@ -769,7 +769,7 @@ function Content() {
                   <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Sponsorship Level</h3>
                   <div className="grid gap-2">
                     {SPONSORSHIP_LEVELS.map((level) => (
-                      <label key={level.id} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${editForm.sponsorship_level === level.id ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}>
+                      <label key={level.id} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${editForm.sponsorship_level === level.id ? 'border-team-blue bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}>
                         <input type="radio" name="edit_level" value={level.id} checked={editForm.sponsorship_level === level.id} onChange={() => { const lev = SPONSORSHIP_LEVELS.find((l) => l.id === level.id); setEditForm((p) => ({ ...p, sponsorship_level: level.id, amount: lev && lev.amount > 0 ? lev.amount.toString() : '', logo_placement: level.id === 'platinum' || level.id === 'gold' ? p.logo_placement : '' })); }} className="accent-team-blue" />
                         <span className="flex-1 font-medium text-gray-900 dark:text-white">{level.name}</span>
                         <span className="font-bold text-team-blue dark:text-blue-400">{level.amount > 0 ? `$${level.amount.toLocaleString()}` : 'Any amount'}</span>
@@ -784,7 +784,7 @@ function Content() {
                     <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Logo Placement</h3>
                     <div className="flex flex-wrap gap-2">
                       {LOGO_PLACEMENTS.map((placement) => (
-                        <label key={placement} className={`px-4 py-2 rounded-full border-2 cursor-pointer transition-all text-sm font-medium ${editForm.logo_placement === placement ? 'border-team-blue bg-team-blue text-white' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'}`}>
+                        <label key={placement} className={`px-4 py-2 rounded-full border-2 cursor-pointer transition-colors text-sm font-medium ${editForm.logo_placement === placement ? 'border-team-blue bg-team-blue text-white' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'}`}>
                           <input type="radio" name="edit_placement" value={placement} checked={editForm.logo_placement === placement} onChange={(e) => setEditForm((p) => ({ ...p, logo_placement: e.target.value }))} className="sr-only" />
                           {placement}
                         </label>

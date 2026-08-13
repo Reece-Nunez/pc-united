@@ -15,6 +15,7 @@ import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import ImageUpload from '@/components/ImageUpload';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
+import StatusBadge from '@/components/admin/StatusBadge';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 const TITLE_OPTIONS = ['Head Coach', 'Assistant Coach', 'Goalkeeper Coach', 'Fitness Coach', 'Volunteer'];
@@ -651,7 +652,7 @@ export default function CoachesAdminPage() {
             {filteredCoaches.map((coach) => (
               <div
                 key={coach.id}
-                className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border-2 transition-all hover:shadow-md ${
+                className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border-2 transition-colors hover:shadow-md ${
                   editingCoachId === coach.id
                     ? 'border-team-blue ring-2 ring-team-blue/20'
                     : 'border-transparent'
@@ -701,19 +702,11 @@ export default function CoachesAdminPage() {
                   ) : null}
 
                   {/* Certification Badges */}
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {coach.background_check && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400">BG Check</span>
-                    )}
-                    {coach.first_aid_certified && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">First Aid</span>
-                    )}
-                    {coach.safesport_certified && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">SafeSport</span>
-                    )}
-                    {coach.concussion_trained && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">Concussion</span>
-                    )}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {coach.background_check && <StatusBadge variant="success">BG Check</StatusBadge>}
+                    {coach.first_aid_certified && <StatusBadge variant="success">First Aid</StatusBadge>}
+                    {coach.safesport_certified && <StatusBadge variant="success">SafeSport</StatusBadge>}
+                    {coach.concussion_trained && <StatusBadge variant="success">Concussion</StatusBadge>}
                   </div>
 
                   {/* Actions */}
