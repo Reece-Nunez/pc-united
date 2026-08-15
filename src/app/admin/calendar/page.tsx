@@ -4,9 +4,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import EventCalendar from '@/components/EventCalendar';
-import { buildCalendarItems, CalendarItem } from '@/lib/calendar';
-import { getAllEvents, getSchedule, getTeams, Event, Schedule, Team } from '@/lib/supabase';
+import toast from 'react-hot-toast';
+import { buildCalendarItems, calendarEditHref, CalendarItem } from '@/lib/calendar';
+import { getAllEvents, getSchedule, getTeams, deleteEvent, deleteScheduleItem, Event, Schedule, Team } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase-browser';
+import { logActivity } from '@/lib/audit';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 export default function AdminCalendarPage() {
@@ -14,6 +16,7 @@ export default function AdminCalendarPage() {
   const [games, setGames] = useState<Schedule[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [role, setRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -27,7 +30,10 @@ export default function AdminCalendarPage() {
   useEffect(() => {
     loadData();
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }: any) => setRole(data?.user?.user_metadata?.role || null));
+    supabase.auth.getUser().then(({ data }: any) => {
+      setRole(data?.user?.user_metadata?.role || null);
+      setUserEmail(data?.user?.email || '');
+    });
   }, [loadData]);
 
   useRealtimeTable(['events','schedule','teams'], loadData);
@@ -35,10 +41,17 @@ export default function AdminCalendarPage() {
   const items = useMemo(() => buildCalendarItems(events, games, teams), [events, games, teams]);
   const canEdit = role === 'admin' || role === 'approved';
 
-  const editHref = (item: CalendarItem) =>
-    item.kind === 'game' ? '/admin/team?tab=schedule'
-      : item.typeLabel === 'practice' ? '/admin/team?tab=practices'
-      : '/admin/team?tab=events';
+  const handleDelete = async (item: CalendarItem) => {
+    try {
+      const result = item.kind === 'game' ? await deleteScheduleItem(item.id) : await deleteEvent(item.id);
+      if (result.error) throw new Error(result.error.message);
+      toast.success('Deleted from calendar');
+      logActivity('delete', item.kind === 'game' ? 'schedule' : 'event', item.title, userEmail, { name: item.title });
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete');
+    }
+  };
 
   return (
     <AdminLayout>
@@ -60,7 +73,7 @@ export default function AdminCalendarPage() {
           {loading ? (
             <div className="py-16 text-center text-gray-400 text-sm">Loading calendar…</div>
           ) : (
-            <EventCalendar items={items} canEdit={canEdit} editHref={editHref} />
+            <EventCalendar items={items} canEdit={canEdit} editHref={calendarEditHref} onDelete={handleDelete} />
           )}
         </div>
       </div>

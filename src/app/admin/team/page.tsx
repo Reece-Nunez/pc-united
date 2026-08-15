@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ImageUpload from "@/components/ImageUpload";
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
@@ -786,6 +786,45 @@ function TeamAdminContent() {
     });
   };
 
+  // Deep-link from the calendar's "Edit in Team Content" button (?edit=<id>).
+  // Open the existing record in the form instead of a blank create form —
+  // without this the tab loads empty and re-saving creates a duplicate. Runs
+  // once, and only after the record's data has loaded (find() returns the row).
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+    const editParam = searchParams.get('edit');
+    if (!editParam) return;
+    const id = parseInt(editParam, 10);
+    if (Number.isNaN(id)) { deepLinkHandled.current = true; return; }
+
+    if (tabParam === 'schedule') {
+      const game = schedule.find(s => s.id === id);
+      if (!game) return; // data not loaded yet — retry on next data change
+      handleEdit('schedule', game);
+    } else if (tabParam === 'practices') {
+      const practice = events.find(e => e.id === id && e.event_type === 'practice');
+      if (!practice) return;
+      setEditingPractice(practice);
+      setPracticeForm({
+        team_id: practice.team_id ?? null,
+        event_date: toLocalDateTimeString(practice.event_date || ''),
+        time_tbd: practice.time_tbd ?? false,
+        location: practice.location || '',
+        note: practice.description || '',
+      });
+    } else {
+      const event = events.find(e => e.id === id);
+      if (!event) return;
+      handleEdit('events', event);
+    }
+    deepLinkHandled.current = true;
+    // Bring the form into view (the list can push it off-screen on mobile).
+    requestAnimationFrame(() => {
+      document.getElementById('team-content-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [searchParams, tabParam, schedule, events]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-8">
@@ -824,7 +863,7 @@ function TeamAdminContent() {
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
           {/* Form Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 self-start">
+          <div id="team-content-form" className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 md:p-6 self-start scroll-mt-4">
             <h2 className="text-lg md:text-xl font-semibold mb-4 text-center md:text-left">
               {activeTab === 'news' && (editingNews ? 'Edit News Article' : 'Add New News Article')}
               {activeTab === 'events' && (editingEvent ? 'Edit Event' : 'Add New Event')}

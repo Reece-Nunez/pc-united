@@ -39,3 +39,16 @@ export function buildCalendarItems(events: Event[], games: Schedule[], teams: Te
   }));
   return [...g, ...e];
 }
+
+// Deep-link from a calendar item to its edit form in Team Content. Games live
+// in the schedule table; practices and other events live in the events table
+// but land on different tabs. The `edit=<id>` param tells the team page which
+// existing record to open in edit mode — without it the tab opens a blank
+// "create" form, which reads as adding a duplicate. See the deep-link effect
+// in src/app/admin/team/page.tsx that consumes this.
+export function calendarEditHref(item: CalendarItem): string {
+  const tab = item.kind === 'game' ? 'schedule'
+    : item.typeLabel === 'practice' ? 'practices'
+    : 'events';
+  return `/admin/team?tab=${tab}&edit=${item.id}`;
+}

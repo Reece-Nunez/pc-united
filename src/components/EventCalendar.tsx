@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { CalendarDaysIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { CalendarItem } from '@/lib/calendar';
 import { parseClubDateTime, formatClubTime } from '@/lib/time';
+import { confirmToast } from '@/lib/confirmToast';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -28,10 +29,11 @@ const fmtDateTime = (s?: string, timeTbd?: boolean) => {
   return `${date} · ${formatClubTime(s, timeTbd)}`;
 };
 
-export default function EventCalendar({ items, canEdit = false, editHref }: {
+export default function EventCalendar({ items, canEdit = false, editHref, onDelete }: {
   items: CalendarItem[];
   canEdit?: boolean;
   editHref?: (item: CalendarItem) => string;
+  onDelete?: (item: CalendarItem) => void;
 }) {
   const today = new Date();
   const [view, setView] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -143,11 +145,25 @@ export default function EventCalendar({ items, canEdit = false, editHref }: {
               )}
               {selected.description && <p className="text-gray-600 dark:text-gray-400 whitespace-pre-line pt-1">{selected.description}</p>}
             </div>
-            {canEdit && editHref && (
-              <div className="mt-5">
-                <Link href={editHref(selected)} className="inline-block bg-team-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-                  Edit in Team Content →
-                </Link>
+            {canEdit && (editHref || onDelete) && (
+              <div className="mt-5 flex items-center gap-3">
+                {editHref && (
+                  <Link href={editHref(selected)} className="inline-block bg-team-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                    Edit in Team Content →
+                  </Link>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => confirmToast(
+                      `Delete "${selected.title}"? This can't be undone.`,
+                      () => { onDelete(selected); setSelected(null); },
+                    )}
+                    className="ml-auto inline-block px-4 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             )}
           </div>
