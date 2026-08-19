@@ -224,8 +224,14 @@ describe('buildGroupMeItems', () => {
     expect(messages[2]).toContain('Team social: End of season party');
   });
 
-  it('still skips event_type "other" as too vague to announce', () => {
-    expect(buildGroupMeItems([practice({ event_type: 'other' })], [], TEAMS, DAY, 'today')).toEqual([]);
+  it('announces event_type "other" using its title as the label', () => {
+    // The club uses 'other' for real fixtures (e.g. a scrimmage); dropping
+    // those silently is worse than an occasional low-value post.
+    const [item] = buildGroupMeItems(
+      [practice({ event_type: 'other', title: '⚽ ENID SCRIMMAGE' })], [], TEAMS, DAY, 'today',
+    );
+    expect(item.message).toContain('⚽ ENID SCRIMMAGE');
+    expect(item.message).not.toContain('Event:');
   });
 
   it('says "tomorrow" on the evening run', () => {

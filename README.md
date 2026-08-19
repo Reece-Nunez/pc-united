@@ -36,7 +36,7 @@ Set these in `.env.local` (local) and in the Vercel project settings (production
 | `TWILIO_FROM_NUMBER` | Twilio phone number to send from, E.164 (e.g. `+1918...`). Alternatively set `TWILIO_MESSAGING_SERVICE_SID` |
 | `CRON_SECRET` | Auth for the daily SMS reminder cron (`/api/cron/reminders`). Vercel sends it automatically as a Bearer token when set |
 | `GROUPME_BOT_ID` | Default GroupMe bot id, used by the `!command` replies on the callback |
-| `GROUPME_TEAM_BOTS` | JSON map of team id → bot id for reminders, e.g. `{"1":"abc","2":"def"}`. Key `"all"` registers a group with no team binding |
+| `GROUPME_TEAM_BOTS` | JSON map of team id → `botId:groupId`, e.g. `{"1":"abc:111111111","2":"def:222222222"}`. The `:groupId` suffix is optional but lets inbound `!commands` be answered in the group that asked. Key `"all"` registers a group with no team binding |
 | `GROUPME_CALLBACK_TOKEN` | Secret path segment for the GroupMe callback URL. **This is the only credential on that endpoint** — treat it like a password |
 | `GROUPME_GROUP_ID` | Group the bot is bound to; callbacks from any other group are ignored. Optional but recommended |
 
@@ -83,7 +83,7 @@ To post into the group from server code, use `postToGroupMe()` in
 Each team's group is one bot. Map them in `GROUPME_TEAM_BOTS`:
 
 ```
-GROUPME_TEAM_BOTS={"1":"botIdForTeam1","2":"botIdForTeam2"}
+GROUPME_TEAM_BOTS={"1":"botIdForTeam1:groupIdForTeam1","2":"botIdForTeam2:groupIdForTeam2"}
 ```
 
 Team ids come from the `teams` table. An item whose `team_id` matches posts to
@@ -103,8 +103,12 @@ Two Vercel Crons drive it (`vercel.json`):
 | `?phase=evening` | 23:00 | 6 PM CDT / 5 PM CST | **Tomorrow's** items |
 | `?phase=morning` | 13:00 | 8 AM CDT / 7 AM CST | **Today's** items |
 
-Posted: practices, scheduled games, tournaments, meetings and socials.
-`event_type: 'other'` is skipped as too vague to be useful in a group chat.
+Posted: every event type the calendar offers — practices, scheduled games,
+tournaments, meetings, socials and `other`. `other` was excluded at first as too
+vague, but the club uses it for real fixtures (e.g. "⚽ ENID SCRIMMAGE"), and
+silently dropping something families need to show up for is worse than an
+occasional low-value post. An `other` event is labelled by its title alone,
+since the type name adds nothing.
 
 `groupme_reminder_log` (migration `20260819_create_groupme_reminder_log.sql`) is
 the idempotency guard, keyed on item + date + **phase** + bot — the phase is in
@@ -117,6 +121,19 @@ arrives with tomorrow's reminder is worthless. Flipping a game to `cancelled` or
 `postponed` in the admin schedule editor calls `/api/groupme/announce`, which
 rebuilds the message from the stored row (a caller cannot dictate arbitrary text
 into the group chats — it only chooses *which game*) and posts once per group.
+
+### Bot activity log
+
+Every message a bot sends is recorded in `groupme_activity_log` (migration
+`20260819_create_groupme_activity_log.sql`) with the exact text, which group it
+went to, and whether it landed. Failed sends are recorded too — a silent gap in
+a group chat is the main thing you need this log to explain. View it at
+**/admin/groupme**; the table is default-deny under RLS and read through a
+service-role API route rather than from the browser.
+
+This is separate from `groupme_reminder_log` / `groupme_announcement_log`, which
+hold bare rows purely for idempotency ("has this been sent?"). The activity log
+answers "what did the bots actually say?".
 
 Reminder text is built by `buildGroupMeItems()` in `src/lib/reminders.ts`,
 deliberately separate from the SMS `buildReminderItems()`: SMS messages carry

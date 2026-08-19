@@ -66,12 +66,18 @@ export interface GroupTarget {
   key: string;
   botId: string;
   teamId: number | null;
+  /** GroupMe group id, when configured. Lets an inbound command be answered
+   *  in the group that asked rather than broadcast to every group. */
+  groupId: string | null;
 }
 
 /**
- * Parse `GROUPME_TEAM_BOTS`, a JSON object of team id → bot id:
+ * Parse `GROUPME_TEAM_BOTS`, a JSON object of team id → bot:
  *
- *     {"1":"abc123","2":"def456"}
+ *     {"1":"botId:groupId","2":"botId:groupId"}
+ *
+ * The `:groupId` suffix is optional — a bare `"botId"` still works for posting,
+ * it just can't route inbound commands back to the right chat.
  *
  * A bot id is a write credential for one group, so it stays in env rather than
  * in the `teams` table — that table is client-readable for the public roster,
@@ -92,13 +98,23 @@ export function parseTeamBots(raw: string | null | undefined): GroupTarget[] {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
 
   return Object.entries(parsed as Record<string, unknown>)
-    .filter(([, botId]) => typeof botId === 'string' && botId.trim() !== '')
-    .map(([key, botId]) => ({
-      key,
-      botId: String(botId),
-      teamId: key === 'all' ? null : Number(key),
-    }))
-    .filter(t => t.teamId === null || Number.isFinite(t.teamId));
+    .filter(([, v]) => typeof v === 'string' && v.trim() !== '')
+    .map(([key, v]) => {
+      const [botId, groupId] = String(v).split(':');
+      return {
+        key,
+        botId: (botId || '').trim(),
+        groupId: groupId ? groupId.trim() : null,
+        teamId: key === 'all' ? null : Number(key),
+      };
+    })
+    .filter(t => t.botId !== '' && (t.teamId === null || Number.isFinite(t.teamId)));
+}
+
+/** The group a GroupMe callback came from, so a reply lands in that chat. */
+export function targetForGroup(targets: GroupTarget[], groupId: string | undefined): GroupTarget | null {
+  if (!groupId) return null;
+  return targets.find(t => t.groupId === groupId) || null;
 }
 
 /**

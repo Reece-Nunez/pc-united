@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
-import { shouldHandleCallback, parseCommand, postToGroupMe, type GroupMeCallback } from '@/lib/groupme';
+import { shouldHandleCallback, parseCommand, parseTeamBots, targetForGroup, postToGroupMe, type GroupMeCallback } from '@/lib/groupme';
+import { postAndLog } from '@/lib/groupme-log';
 import { clubStartOfTodayISO, formatClubTime, parseClubDateTime } from '@/lib/time';
 
 export const runtime = 'nodejs';
@@ -54,7 +55,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } catch {
     reply = null;
   }
-  if (reply) await postToGroupMe(reply);
+  if (reply) {
+    // Answer in the group that asked — a command in the U11 chat must never be
+    // answered in the U12 chat. Falls back to GROUPME_BOT_ID when the group
+    // isn't in the map (e.g. a bare bot id with no :groupId suffix).
+    const target = targetForGroup(parseTeamBots(process.env.GROUPME_TEAM_BOTS), body.group_id)
+      ?? { key: 'all', botId: process.env.GROUPME_BOT_ID || '', teamId: null, groupId: body.group_id ?? null };
+    if (!target.botId) return NextResponse.json({ ok: true, skipped: 'no bot configured for this group' });
+    try {
+      await postAndLog({ admin: getAdminClient(), target, message: reply, kind: 'command_reply' });
+    } catch {
+      // Logging unavailable (e.g. missing service key) must not swallow the reply.
+      await postToGroupMe(reply, target.botId);
+    }
+  }
 
   return NextResponse.json({ ok: true, handled: command });
 }

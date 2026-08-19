@@ -103,14 +103,21 @@ export interface GroupMeItem {
   message: string;
 }
 
-/** Event types worth announcing in a group chat. 'other' is too vague to be useful. */
-const ANNOUNCED_EVENT_TYPES = new Set(['practice', 'tournament', 'meeting', 'social']);
+/**
+ * Event types announced in a group chat — every type the calendar offers.
+ *
+ * 'other' was excluded at first as too vague, but the club uses it for real
+ * fixtures (e.g. "⚽ ENID SCRIMMAGE"), and silently dropping something families
+ * need to show up for is far worse than an occasional low-value post.
+ */
+const ANNOUNCED_EVENT_TYPES = new Set(['practice', 'tournament', 'meeting', 'social', 'other', 'game']);
 
 const EVENT_NOUN: Record<string, string> = {
   practice: 'Practice',
   tournament: 'Tournament',
   meeting: 'Meeting',
   social: 'Team social',
+  game: 'Game',
 };
 
 /**
@@ -141,8 +148,12 @@ export function buildGroupMeItems(
     const team = teamName(teams, e.team_id);
     const time = formatWallClockTime(e.event_date, e.time_tbd);
     const noun = EVENT_NOUN[e.event_type] || 'Event';
-    // Meetings and socials carry a real title; a practice's title is noise.
-    const label = e.event_type === 'practice' ? noun : `${noun}: ${e.title}`;
+    // A practice's title is always just "Practice", so the noun alone reads
+    // better. An 'other' event has no useful noun — its title IS the label.
+    // Everything else pairs the two ("Tournament: Broken Arrow Friendlies").
+    const label = e.event_type === 'practice' ? noun
+      : e.event_type === 'other' ? e.title
+      : `${noun}: ${e.title}`;
     const parts = [`${team ? `${team} — ` : ''}${label} ${day}`];
     if (time) parts.push(time === 'TBD' ? 'at a time still TBD' : `at ${time}`);
     if (e.location) parts.push(`· ${e.location}`);

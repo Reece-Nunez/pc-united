@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { buildGroupMeItems } from '@/lib/reminders';
-import { parseTeamBots, targetsForItem, postToGroupMe } from '@/lib/groupme';
+import { parseTeamBots, targetsForItem } from '@/lib/groupme';
+import { postAndLog } from '@/lib/groupme-log';
 import { CLUB_TIME_ZONE } from '@/lib/time';
 import type { Event, Schedule, Team } from '@/lib/supabase';
 
@@ -84,7 +85,9 @@ export async function GET(request: NextRequest) {
         const key = `${item.kind}:${item.id}:${target.key}`;
         if (alreadySent.has(key)) { skipped++; continue; }
 
-        const ok = await postToGroupMe(item.message, target.botId);
+        const ok = await postAndLog({
+          admin, target, message: item.message, kind: 'reminder', itemKind: item.kind, itemId: item.id,
+        });
         if (!ok) { errors.push(`post ${key}: GroupMe rejected the message`); continue; }
 
         alreadySent.add(key);

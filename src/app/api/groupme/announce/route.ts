@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { buildCancellationMessage } from '@/lib/reminders';
-import { parseTeamBots, targetsForItem, postToGroupMe } from '@/lib/groupme';
+import { parseTeamBots, targetsForItem } from '@/lib/groupme';
+import { postAndLog } from '@/lib/groupme-log';
 import type { Schedule, Team } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -71,7 +72,9 @@ export async function POST(request: NextRequest) {
       const key = `${game.status}:${target.key}`;
       if (already.has(key)) { skipped++; continue; }
 
-      const ok = await postToGroupMe(message, target.botId);
+      const ok = await postAndLog({
+        admin, target, message, kind: 'cancellation', itemKind: 'game', itemId: scheduleId,
+      });
       if (!ok) { errors.push(`post ${key}: GroupMe rejected the message`); continue; }
 
       posted++;
