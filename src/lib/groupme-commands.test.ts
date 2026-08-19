@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  formatWallClockDate, formatNextGame, formatSchedule, formatNextPractice,
+  formatWallClockDate, splitLocation, formatNextGame, formatSchedule, formatNextPractice,
   formatField, formatRecord, formatRoster, formatHelp, COMMAND_HELP,
 } from './groupme-commands';
 import type { Schedule, Event, Player, Team } from '@/lib/supabase';
 
 const TEAMS: Team[] = [{ id: 1, name: 'U11' } as Team, { id: 2, name: 'U12' } as Team];
+
+// The real shape Google Places writes into the location column.
+const VENUE = 'Woodridge Soccer Complex, 4128 Lake Rd, Ponca City, OK 74604, USA';
 
 const game = (over: Partial<Schedule> = {}): Schedule => ({
   id: 1, opponent: 'Tulsa FC', game_date: '2026-09-12T11:00:00', location: 'Sooner Complex',
@@ -22,6 +25,36 @@ const player = (over: Partial<Player> = {}): Player => ({
   birth_year: 2015, status: 'active', team_id: 1, ...over,
 } as Player);
 
+describe('splitLocation', () => {
+  it('splits a Google Places string into venue and street address', () => {
+    expect(splitLocation(VENUE)).toEqual({
+      venue: 'Woodridge Soccer Complex',
+      address: '4128 Lake Rd, Ponca City, OK 74604',
+    });
+  });
+
+  it('treats a bare venue name as having no address', () => {
+    expect(splitLocation('Wentz Field')).toEqual({ venue: 'Wentz Field', address: null });
+  });
+
+  it('treats a string starting with a street number as address-only', () => {
+    // "4128 Lake Rd, Ponca City" has no venue to name.
+    expect(splitLocation('4128 Lake Rd, Ponca City, OK 74604')).toEqual({
+      venue: null,
+      address: '4128 Lake Rd, Ponca City, OK 74604',
+    });
+  });
+
+  it('drops a trailing country', () => {
+    expect(splitLocation('Wentz Field, USA').address).toBeNull();
+  });
+
+  it('is empty for a missing or blank location', () => {
+    expect(splitLocation(undefined)).toEqual({ venue: null, address: null });
+    expect(splitLocation('   ')).toEqual({ venue: null, address: null });
+  });
+});
+
 describe('formatWallClockDate', () => {
   it('formats without letting a timezone shift the day', () => {
     // "2026-09-12" must read as Sep 12 on a UTC server and a US one alike.
@@ -32,11 +65,31 @@ describe('formatWallClockDate', () => {
   });
 });
 
-describe('formatNextGame — team awareness', () => {
+describe('formatNextGame', () => {
   const games = [
     game({ id: 1, game_date: '2026-09-12T09:00:00', opponent: 'Enid SC', team_id: 2 }),
     game({ id: 2, game_date: '2026-09-12T11:00:00', opponent: 'Broken Arrow', team_id: 1 }),
   ];
+
+  it('lays the reply out as labelled lines, splitting venue from address', () => {
+    // The old one-liner wrapped into an unreadable blob in the group chat
+    // because the location column carries a full postal address.
+    const out = formatNextGame([game({ location: VENUE, time_tbd: true })], TEAMS, 1);
+    expect(out.split('\n')).toEqual([
+      'Next Game',
+      'Opponent: vs Tulsa FC',
+      'Date: Sat, Sep 12',
+      'Time: TBD',
+      'Location: Woodridge Soccer Complex',
+      'Address: 4128 Lake Rd, Ponca City, OK 74604',
+    ]);
+  });
+
+  it('omits rows with nothing to show rather than printing a bare label', () => {
+    const out = formatNextGame([game({ location: '' })], TEAMS, 1);
+    expect(out).not.toContain('Location:');
+    expect(out).not.toContain('Address:');
+  });
 
   it('answers the U11 chat with the U11 game, not the earlier U12 one', () => {
     expect(formatNextGame(games, TEAMS, 1)).toContain('Broken Arrow');
@@ -61,16 +114,23 @@ describe('formatNextGame — team awareness', () => {
   });
 
   it('uses "@" for away games', () => {
-    expect(formatNextGame([game({ home_game: false })], TEAMS, 1)).toContain('@ Tulsa FC');
+    expect(formatNextGame([game({ home_game: false })], TEAMS, 1)).toContain('Opponent: @ Tulsa FC');
   });
 });
 
 describe('formatSchedule', () => {
-  it('lists up to the limit, one per line', () => {
+  it('separates games into blocks', () => {
     const games = [1, 2, 3, 4, 5].map(i => game({ id: i, game_date: `2026-09-1${i}T11:00:00` }));
     const out = formatSchedule(games, TEAMS, 1, 4);
-    expect(out.split('\n')).toHaveLength(5); // header + 4
-    expect(out).toContain('Next 4 games');
+    expect(out).toContain('Next 4 Games');
+    expect(out.split('\n\n')).toHaveLength(5); // header + 4 blocks
+  });
+
+  it('shows only the venue name, not the full postal address', () => {
+    // Four full addresses would run past twenty lines and defeat the point.
+    const out = formatSchedule([game({ location: VENUE })], TEAMS, 1);
+    expect(out).toContain('Woodridge Soccer Complex');
+    expect(out).not.toContain('4128 Lake Rd');
   });
 
   it('is scoped to the asking team', () => {
@@ -80,11 +140,14 @@ describe('formatSchedule', () => {
 });
 
 describe('formatNextPractice', () => {
-  it('returns the soonest practice with time and place', () => {
+  it('returns the soonest practice as labelled lines', () => {
     const out = formatNextPractice([event()], null);
-    expect(out).toContain('Next practice');
-    expect(out).toContain('9:00 AM');
-    expect(out).toContain('Wentz Field');
+    expect(out.split('\n')).toEqual([
+      'Next Practice',
+      'Date: Sat, Aug 22',
+      'Time: 9:00 AM',
+      'Location: Wentz Field',
+    ]);
   });
 
   it('ignores non-practice events', () => {
@@ -93,15 +156,24 @@ describe('formatNextPractice', () => {
   });
 
   it('renders a TBD time as TBD rather than midnight', () => {
-    expect(formatNextPractice([event({ time_tbd: true })], null)).toContain('TBD');
+    expect(formatNextPractice([event({ time_tbd: true })], null)).toContain('Time: TBD');
   });
 });
 
 describe('formatField', () => {
   it('points at the soonest located item, with a map link', () => {
     const out = formatField([game({ game_date: '2026-09-12T11:00:00' })], [], 1);
-    expect(out).toContain('Sooner Complex');
-    expect(out).toContain('https://maps.google.com/?q=Sooner%20Complex');
+    expect(out).toContain('Next Up');
+    expect(out).toContain('What: vs Tulsa FC');
+    expect(out).toContain('Location: Sooner Complex');
+    expect(out).toContain('Map: https://maps.google.com/?q=Sooner%20Complex');
+  });
+
+  it('links the full stored location even though it displays split', () => {
+    const out = formatField([game({ location: VENUE })], [], 1);
+    expect(out).toContain('Location: Woodridge Soccer Complex');
+    expect(out).toContain('Address: 4128 Lake Rd, Ponca City, OK 74604');
+    expect(out).toContain('Map: https://maps.google.com/?q=Woodridge');
   });
 
   it('prefers whichever comes first across games and events', () => {
@@ -124,16 +196,20 @@ describe('formatRecord', () => {
 
   it('counts wins, losses and draws with goals for and against', () => {
     const out = formatRecord([played(3, 1, 1), played(0, 2, 2), played(1, 1, 3)], 1, 'Fall 2026');
-    expect(out).toContain('2026');
-    expect(out).toContain('1-1-1');
-    expect(out).toContain('4 scored, 4 conceded');
+    expect(out.split('\n')).toEqual([
+      'Season Record',
+      'Season: Fall 2026',
+      'Record: 1-1-1',
+      'Played: 3',
+      'Goals: 4 scored, 4 conceded',
+    ]);
   });
 
   it('ignores a completed game that has no score yet', () => {
     // Otherwise an unscored game registers as a 0-0 draw and skews the record.
     const out = formatRecord([game({ status: 'completed' }), played(2, 0, 2)], 1);
-    expect(out).toContain('1-0-0');
-    expect(out).toContain('1 game');
+    expect(out).toContain('Record: 1-0-0');
+    expect(out).toContain('Played: 1');
   });
 
   it('ignores games that are not completed', () => {
@@ -142,7 +218,7 @@ describe('formatRecord', () => {
 
   it('is scoped to the asking team', () => {
     const out = formatRecord([played(5, 0, 1), { ...played(0, 5, 2), team_id: 2 } as Schedule], 1);
-    expect(out).toContain('1-0-0');
+    expect(out).toContain('Record: 1-0-0');
   });
 });
 
@@ -155,14 +231,27 @@ describe('formatRoster', () => {
 
   it('lists the asking team only, ordered by jersey number', () => {
     const out = formatRoster(roster, 1, TEAMS);
-    expect(out).toContain('U11 roster (2)');
+    expect(out).toContain('U11 Roster (2)');
     expect(out.indexOf('Alex Chen')).toBeLessThan(out.indexOf('Sam Rivera')); // #3 before #7
     expect(out).not.toContain('Jordan Lee');
   });
 
+  it('puts each player on their own line', () => {
+    expect(formatRoster(roster, 1, TEAMS).split('\n')).toEqual([
+      'U11 Roster (2)',
+      '#3 Alex Chen — Midfielder',
+      '#7 Sam Rivera — Midfielder',
+    ]);
+  });
+
+  it('omits an undecided "TBD" position rather than printing it', () => {
+    const out = formatRoster([player({ position: 'TBD' })], 1, TEAMS);
+    expect(out).toContain('#7 Sam Rivera');
+    expect(out).not.toContain('TBD');
+  });
+
   it('omits inactive players', () => {
-    const out = formatRoster([player({ status: 'inactive' })], 1, TEAMS);
-    expect(out).toBe('No players on the roster yet.');
+    expect(formatRoster([player({ status: 'inactive' })], 1, TEAMS)).toBe('No players on the roster yet.');
   });
 
   it('NEVER exposes coach-only fields', () => {
@@ -185,8 +274,9 @@ describe('formatRoster', () => {
 });
 
 describe('formatHelp', () => {
-  it('lists every command', () => {
+  it('lists every command, one per line', () => {
     const out = formatHelp();
+    expect(out.split('\n')[0]).toBe('Commands');
     COMMAND_HELP.forEach(([cmd]) => expect(out).toContain(cmd));
   });
 });

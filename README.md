@@ -88,6 +88,12 @@ edge: the `players` row also carries `coach_notes`, `strengths` and
 `areas_to_improve`, so `formatRoster()` selects jersey number, name and position
 and nothing else. There is a test asserting those fields never appear; keep it.
 
+Replies are laid out as multi-line `Label: value` rows. A single-line reply
+wrapped into an unreadable blob on phones once real venue strings were in play:
+Google Places writes venue *and* full postal address into one `location` column,
+so `splitLocation()` separates them into `Location:` and `Address:` rows. Rows
+with nothing to show are dropped rather than printed as a bare label.
+
 Reply text is built by pure formatters in `src/lib/groupme-commands.ts` — the
 route only queries and dispatches, so every reply is unit-testable.
 
