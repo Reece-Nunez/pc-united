@@ -35,10 +35,47 @@ Set these in `.env.local` (local) and in the Vercel project settings (production
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | Twilio phone number to send from, E.164 (e.g. `+1918...`). Alternatively set `TWILIO_MESSAGING_SERVICE_SID` |
 | `CRON_SECRET` | Auth for the daily SMS reminder cron (`/api/cron/reminders`). Vercel sends it automatically as a Bearer token when set |
+| `GROUPME_BOT_ID` | GroupMe bot id, used to post messages into the group |
+| `GROUPME_CALLBACK_TOKEN` | Secret path segment for the GroupMe callback URL. **This is the only credential on that endpoint** — treat it like a password |
+| `GROUPME_GROUP_ID` | Group the bot is bound to; callbacks from any other group are ignored. Optional but recommended |
 
 > **Twilio / SMS:** sending medical-form links by text uses Twilio. US app-to-person
 > SMS requires A2P 10DLC brand + campaign registration for the sending number, or
 > carriers will filter the messages. Configure this in the Twilio console.
+
+## GroupMe bot
+
+Create a bot at <https://dev.groupme.com/bots>, pick the group, and set its
+callback URL to:
+
+```
+https://poncacityunited.com/api/groupme/callback/<GROUPME_CALLBACK_TOKEN>
+```
+
+Copy the bot id it hands back into `GROUPME_BOT_ID`, and the group id into
+`GROUPME_GROUP_ID`.
+
+**GroupMe does not sign its callbacks** — unlike Twilio there is no HMAC to
+verify, so the secret token in the URL path is the entire authentication story.
+Anyone who learns that URL can POST arbitrary payloads to it. Keep it out of
+logs and screenshots, and rotate it (edit the bot, change the env var) if it
+leaks. The route additionally drops any payload whose `group_id` doesn't match
+`GROUPME_GROUP_ID`, and drops `sender_type: "bot"` messages so the bot can't
+answer itself in a loop.
+
+Chat commands (`src/app/api/groupme/callback/[token]/route.ts`):
+
+| Command | Reply |
+| --- | --- |
+| `!next` | Next scheduled game — opponent, date, time, location |
+| `!help` | Lists the available commands |
+
+Commands answer **only information already public on the site**. A GroupMe group
+is a shared room, so anything tied to an individual — dues balances, contact
+details, medical forms — must never be answerable here.
+
+To post into the group from server code, use `postToGroupMe()` in
+`src/lib/groupme.ts`.
 
 ## SMS practice/game reminders + reply-to-RSVP
 
