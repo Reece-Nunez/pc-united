@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
-import { shouldHandleCallback, parseCommand, parseTeamBots, targetForGroup, postToGroupMe, type GroupMeCallback } from '@/lib/groupme';
+import {
+  shouldHandleCallback, parseCommand, parseTeamBots, targetForGroup, postToGroupMe,
+  type GroupMeCallback, type GroupTarget,
+} from '@/lib/groupme';
 import { postAndLog } from '@/lib/groupme-log';
-import { clubStartOfTodayISO, formatClubTime, parseClubDateTime } from '@/lib/time';
+import {
+  formatNextGame, formatSchedule, formatNextPractice, formatField,
+  formatRecord, formatRoster, formatHelp,
+} from '@/lib/groupme-commands';
+import { clubStartOfTodayISO } from '@/lib/time';
+import { getCurrentSeason } from '@/lib/seasons';
+import type { Schedule, Event, Player, Team } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,70 +56,101 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const command = parseCommand(body.text || '');
   if (!command) return NextResponse.json({ ok: true, ignored: 'no command' });
 
+  // Resolve the asking group first: it decides both which team the answer is
+  // scoped to and which chat the reply goes back into. A command in the U11
+  // chat must never be answered with U12 fixtures, or in the U12 chat.
+  const target: GroupTarget = targetForGroup(parseTeamBots(process.env.GROUPME_TEAM_BOTS), body.group_id)
+    ?? { key: 'all', botId: process.env.GROUPME_BOT_ID || '', teamId: null, groupId: body.group_id ?? null };
+  if (!target.botId) return NextResponse.json({ ok: true, skipped: 'no bot configured for this group' });
+
   // A thrown error here (missing service-role key, Supabase down) must not turn
   // into a 5xx, or GroupMe will retry the same message on a loop.
   let reply: string | null = null;
   try {
-    reply = await buildReply(command);
+    reply = await buildReply(command, target.teamId);
   } catch {
     reply = null;
   }
-  if (reply) {
-    // Answer in the group that asked — a command in the U11 chat must never be
-    // answered in the U12 chat. Falls back to GROUPME_BOT_ID when the group
-    // isn't in the map (e.g. a bare bot id with no :groupId suffix).
-    const target = targetForGroup(parseTeamBots(process.env.GROUPME_TEAM_BOTS), body.group_id)
-      ?? { key: 'all', botId: process.env.GROUPME_BOT_ID || '', teamId: null, groupId: body.group_id ?? null };
-    if (!target.botId) return NextResponse.json({ ok: true, skipped: 'no bot configured for this group' });
-    try {
-      await postAndLog({ admin: getAdminClient(), target, message: reply, kind: 'command_reply' });
-    } catch {
-      // Logging unavailable (e.g. missing service key) must not swallow the reply.
-      await postToGroupMe(reply, target.botId);
-    }
+  if (!reply) return NextResponse.json({ ok: true, ignored: 'unknown command' });
+
+  try {
+    await postAndLog({ admin: getAdminClient(), target, message: reply, kind: 'command_reply' });
+  } catch {
+    // Logging unavailable (e.g. missing service key) must not swallow the reply.
+    await postToGroupMe(reply, target.botId);
   }
 
   return NextResponse.json({ ok: true, handled: command });
 }
 
 /**
- * Answer a `!command`.
+ * Answer a `!command`, scoped to the asking group's team.
  *
- * Deliberately limited to information that is already public on the site.
- * Anything tied to an individual — dues balances, contact details, medical
- * forms — must never be answerable here: a GroupMe group is a shared room, and
- * any member could ask on another family's behalf.
+ * Deliberately limited to information already public on the site. Anything tied
+ * to an individual — dues balances, contact details, medical forms, coach-only
+ * player notes — must never be answerable here: a GroupMe group is a shared
+ * room, and any member could ask on another family's behalf.
  */
-async function buildReply(command: string): Promise<string | null> {
+async function buildReply(command: string, teamId: number | null): Promise<string | null> {
+  if (command === 'help') return formatHelp();
+
+  const admin = getAdminClient();
+  const from = clubStartOfTodayISO();
+
+  const upcomingGames = async (limit: number) => {
+    const { data } = await admin.from('schedule')
+      .select('opponent, game_date, time_tbd, location, home_game, status, team_id')
+      .eq('status', 'scheduled').gte('game_date', from)
+      .order('game_date', { ascending: true }).limit(limit);
+    return (data || []) as Schedule[];
+  };
+  const teams = async () => {
+    const { data } = await admin.from('teams').select('id, name');
+    return (data || []) as Team[];
+  };
+
   switch (command) {
     case 'next':
-      return nextGameMessage();
-    case 'help':
-      return 'Commands: !next (next scheduled game), !help (this message).';
+      return formatNextGame(await upcomingGames(20), await teams(), teamId);
+
+    case 'schedule':
+      return formatSchedule(await upcomingGames(20), await teams(), teamId);
+
+    case 'practice': {
+      const { data } = await admin.from('events')
+        .select('id, title, event_date, time_tbd, location, event_type, team_id')
+        .eq('event_type', 'practice').gte('event_date', from)
+        .order('event_date', { ascending: true }).limit(20);
+      return formatNextPractice((data || []) as Event[], teamId);
+    }
+
+    case 'field':
+    case 'where': {
+      const { data: events } = await admin.from('events')
+        .select('id, title, event_date, time_tbd, location, event_type, team_id')
+        .gte('event_date', from).order('event_date', { ascending: true }).limit(20);
+      return formatField(await upcomingGames(20), (events || []) as Event[], teamId);
+    }
+
+    case 'record': {
+      // Season-scoped: a lifetime record is not what anyone means by "!record".
+      const season = getCurrentSeason();
+      const seasonStart = season.startDate.toISOString().slice(0, 10);
+      const { data } = await admin.from('schedule')
+        .select('our_score, opponent_score, status, game_date, team_id')
+        .eq('status', 'completed').gte('game_date', seasonStart);
+      return formatRecord((data || []) as Schedule[], teamId, season.label);
+    }
+
+    case 'roster': {
+      // Only the three public fields — the row also carries coach_notes,
+      // strengths and areas_to_improve, which must never reach a group chat.
+      const { data } = await admin.from('players')
+        .select('id, name, jersey_number, position, status, team_id');
+      return formatRoster((data || []) as Player[], teamId, await teams());
+    }
+
     default:
       return null;
   }
-}
-
-async function nextGameMessage(): Promise<string> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from('schedule')
-    .select('opponent, game_date, time_tbd, location, home_game, status')
-    .gte('game_date', clubStartOfTodayISO())
-    .eq('status', 'scheduled')
-    .order('game_date', { ascending: true })
-    .limit(1);
-
-  if (error) return 'Could not look up the schedule right now.';
-  const game = data?.[0];
-  if (!game) return 'No upcoming games on the schedule yet.';
-
-  const date = parseClubDateTime(game.game_date).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
-  });
-  const time = formatClubTime(game.game_date, game.time_tbd);
-  const side = game.home_game ? 'vs' : 'at';
-  const where = game.location ? ` — ${game.location}` : '';
-  return `Next up: ${side} ${game.opponent}, ${date} at ${time}${where}`;
 }

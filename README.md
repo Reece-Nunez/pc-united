@@ -69,11 +69,27 @@ Chat commands (`src/app/api/groupme/callback/[token]/route.ts`):
 | Command | Reply |
 | --- | --- |
 | `!next` | Next scheduled game — opponent, date, time, location |
+| `!schedule` | Next four games, one per line |
+| `!practice` | Next practice — date, time, location |
+| `!field` / `!where` | Where the next event is, with a Google Maps link |
+| `!record` | Season record — W-L-D plus goals for and against |
+| `!roster` | Active players: jersey number, name, position |
 | `!help` | Lists the available commands |
+
+Every reply is **scoped to the team whose group asked**, resolved from the
+callback's `group_id` via the `:groupId` suffix in `GROUPME_TEAM_BOTS`. Asking
+`!next` in the U11 chat never returns a U12 fixture. Items with no `team_id` are
+club-wide and appear in both. A group with no team binding sees everything.
 
 Commands answer **only information already public on the site**. A GroupMe group
 is a shared room, so anything tied to an individual — dues balances, contact
-details, medical forms — must never be answerable here.
+details, medical forms — must never be answerable here. `!roster` is the sharp
+edge: the `players` row also carries `coach_notes`, `strengths` and
+`areas_to_improve`, so `formatRoster()` selects jersey number, name and position
+and nothing else. There is a test asserting those fields never appear; keep it.
+
+Reply text is built by pure formatters in `src/lib/groupme-commands.ts` — the
+route only queries and dispatches, so every reply is unit-testable.
 
 To post into the group from server code, use `postToGroupMe()` in
 `src/lib/groupme.ts`.
