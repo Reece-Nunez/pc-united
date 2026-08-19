@@ -199,6 +199,36 @@ pinned to a misleading midnight.
 Unlike bot posting, this needs `GROUPME_ACCESS_TOKEN` — a **user** token, since
 bots cannot touch the calendar. Events are created as that user, not the bot.
 
+### GroupMe RSVPs → attendance
+
+`/api/cron/groupme-rsvp` (hourly) reads the RSVPs off the calendar events the
+sync published and records them in `event_attendance`. GroupMe has no webhook
+for RSVP changes, so polling is the only option.
+
+**RSVP is not attendance.** `event_attendance` already separates parent intent
+(`rsvp`) from what the coach recorded (`attendance`). A GroupMe tap fills
+`rsvp`. It also drafts `attendance = 'present'` for a *going* only, stamped
+`marked_by = 'groupme:auto'` so the UI can show it as unreviewed — playing-time
+decisions should rest on a coach confirming who actually turned up, not on who
+tapped a button. **A row a coach has already marked is never overwritten.**
+A *maybe* or *no* drafts nothing, since neither says anything about turning up.
+
+**Members must be linked first.** GroupMe reports RSVPs as bare user ids and its
+member payload carries no email or phone, so nothing joins to `parent_children`.
+Link each member once at **/admin/groupme/members**; `groupme_member_map`
+(migration `20260819_create_groupme_member_map.sql`) stores it. The page
+suggests matches by surname but only marks one *confident* when exactly one
+parent shares it — a wrong link silently attributes one family's RSVPs to
+another, so ambiguous and nickname-only members are left for a human.
+
+A member maps to a **parent** (covering all their approved children) or to a
+single **player**, or is flagged as having no children on the roster. Unlinked
+members' RSVPs are ignored and the page shows how many are outstanding.
+
+Because group members are parents, an RSVP expands to their children **on that
+group's team only** — a parent with a child in each age group RSVPs separately
+in each chat, and a U11 tap must not mark their U12 child as going.
+
 ## SMS practice/game reminders + reply-to-RSVP
 
 A Vercel Cron (`vercel.json`) hits `/api/cron/reminders` daily at 13:00 UTC

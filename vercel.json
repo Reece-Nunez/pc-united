@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/groupme-calendar",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/groupme-rsvp",
+      "schedule": "15 * * * *"
     }
   ]
 }
