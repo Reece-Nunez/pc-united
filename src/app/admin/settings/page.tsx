@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import toast from 'react-hot-toast';
 import { getAllSettings, updateSettings } from '@/lib/supabase';
+import { DEFAULT_PASSTHROUGH_FEE_TITLES } from '@/lib/finance';
 import PlacesAutocomplete from '@/components/admin/PlacesAutocomplete';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 
@@ -154,6 +155,28 @@ export default function SettingsPage() {
                     <p className={helpClass}>Override automatic registration open/close behavior.</p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Finances */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Finances</h2>
+              <div>
+                <label className={labelClass}>Club pass-through fees</label>
+                <textarea
+                  rows={3}
+                  value={settings.passthrough_fee_titles ?? DEFAULT_PASSTHROUGH_FEE_TITLES.join('\n')}
+                  onChange={(e) => update('passthrough_fee_titles', e.target.value)}
+                  className={inputClass}
+                  placeholder={DEFAULT_PASSTHROUGH_FEE_TITLES.join('\n')}
+                />
+                <p className={helpClass}>
+                  One dues fee title per line. Money collected under these titles is handed to the parent
+                  club, so it is <strong>excluded</strong> from team revenue and balance &mdash; it is still
+                  tracked and shown separately on the dues page. Fee titles not listed here (tournament fees
+                  and the like) count as revenue, because the team pays the matching expense itself. Titles
+                  must match exactly as typed on the dues page.
+                </p>
               </div>
             </div>
 

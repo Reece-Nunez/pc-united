@@ -1,21 +1,25 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
 import toast from 'react-hot-toast';
 import {
   getDuesFeesBySeason, getPaymentsForFees, createFee, updateFee, deleteFee,
-  addPayment, deletePayment, getRoster, getTeams,
+  addPayment, deletePayment, getRoster, getTeams, getAllSettings,
   DuesFee, DuesPayment, Player, Team,
 } from '@/lib/supabase';
 import { getCurrentSeason, getAvailableSeasons } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { computePlayerDues, feePaid, duesStatus, distinctFeeNames, matchesDuesFilter, DuesFilter } from '@/lib/dues';
+import { duesByFeeTitle, parsePassthroughFeeTitles } from '@/lib/finance';
+// Shared formatter: `style: 'currency'` also puts the minus outside the symbol
+// (-$25.00), which the old local helper got wrong on overpaid balances.
+import { formatMoney as money } from '@/lib/format';
 import { confirmToast } from '@/lib/confirmToast';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
-const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Local YYYY-MM-DD (en-CA formats that way) so the date input defaults to the
 // admin's own day, not a UTC one that can roll over near midnight.
 const todayLocal = () => new Date().toLocaleDateString('en-CA');
@@ -29,21 +33,32 @@ const STATUS_STYLES: Record<string, string> = {
 type PayDraft = { amount: string; method: string; paid_on: string; note: string };
 const emptyPay = (): PayDraft => ({ amount: '', method: '', paid_on: todayLocal(), note: '' });
 
-export default function DuesPage() {
+function DuesPageContent() {
+  // The overview dashboard deep-links here carrying the filter its card showed,
+  // so "Preseason Tournament" or "3 players still owe" lands pre-narrowed.
+  const searchParams = useSearchParams();
+
   const [roster, setRoster] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [season, setSeason] = useState(getCurrentSeason().label);
-  const [teamFilter, setTeamFilter] = useState('All');
+  const [season, setSeason] = useState(() => searchParams.get('season') || getCurrentSeason().label);
+  const [teamFilter, setTeamFilter] = useState(() => searchParams.get('team') || 'All');
   // Narrow the list to a single line item (e.g. "Preseason Tournament") and/or
   // to a payment state, so a coach can pull up exactly who still owes for it.
-  const [feeFilter, setFeeFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState<DuesFilter>('all');
+  const [feeFilter, setFeeFilter] = useState(() => searchParams.get('fee') || 'All');
+  const [statusFilter, setStatusFilter] = useState<DuesFilter>(() => {
+    const s = searchParams.get('status');
+    return s === 'owes' || s === 'paid' ? s : 'all';
+  });
   const [fees, setFees] = useState<DuesFee[]>([]);
   const [payments, setPayments] = useState<DuesPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [passthroughRaw, setPassthroughRaw] = useState<string | null>(null);
   const seasons = useMemo(() => getAvailableSeasons(8), []);
+  // Fee titles handed to the parent club: tracked here, but excluded from the
+  // team's revenue on the dashboard and expenses page. Set in admin Settings.
+  const passthroughFeeTitles = useMemo(() => parsePassthroughFeeTitles(passthroughRaw), [passthroughRaw]);
 
   // Quick-entry: a named fee applied to every shown player.
   const [quickName, setQuickName] = useState('');
@@ -60,9 +75,10 @@ export default function DuesPage() {
 
   useEffect(() => {
     (async () => {
-      const [rRes, tRes] = await Promise.all([getRoster(), getTeams()]);
+      const [rRes, tRes, sRes] = await Promise.all([getRoster(), getTeams(), getAllSettings()]);
       if (!rRes.error && rRes.data) setRoster(rRes.data);
       if (!tRes.error) setTeams(tRes.data || []);
+      setPassthroughRaw(sRes.settings?.passthrough_fee_titles ?? null);
       setLoading(false);
     })();
     const supabase = createClient();
@@ -93,6 +109,15 @@ export default function DuesPage() {
     fees.forEach(f => { (map[f.player_id] = map[f.player_id] || []).push(f); });
     return map;
   }, [fees]);
+
+  // Per-line-item rollup for the whole selected team, deliberately ignoring the
+  // fee/status narrowing above — it's the "what does each fee title total"
+  // overview, so it must keep showing every title even while the list below is
+  // filtered down to one of them.
+  const feeTitleTotals = useMemo(() => {
+    const teamPlayerIds = new Set(teamRoster.map(p => p.id));
+    return duesByFeeTitle(fees.filter(f => teamPlayerIds.has(f.player_id)), payments, passthroughFeeTitles);
+  }, [fees, payments, teamRoster, passthroughFeeTitles]);
 
   const paymentsOf = (feeId: number) => payments.filter(p => p.fee_id === feeId);
   const feesOf = (pid: number) => feesByPlayer[pid] || [];
@@ -131,6 +156,27 @@ export default function DuesPage() {
     return { owed, paid, outstanding: owed - paid, paidCount, partial, unpaid };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamRoster, fees, payments, feeFilter]);
+
+  /**
+   * Everyone on the selected team with a balance left, biggest first.
+   *
+   * Uses the *unfiltered* fee set on purpose: this is the "who do I still need
+   * to chase" list, so narrowing the table below to one line item must not make
+   * people disappear from it.
+   */
+  const owesList = useMemo(() =>
+    teamRoster
+      .map(p => {
+        const t = computePlayerDues(feesOf(p.id), payments);
+        return { id: p.id, name: p.name, balance: t.balance, paid: t.paid };
+      })
+      .filter(p => p.balance > 0)
+      .sort((a, b) => b.balance - a.balance),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [teamRoster, fees, payments]
+  );
+
+  const owesTotal = useMemo(() => owesList.reduce((sum, p) => sum + p.balance, 0), [owesList]);
 
   const toggle = (pid: number) =>
     setExpanded(prev => {
@@ -302,6 +348,108 @@ export default function DuesPage() {
           </div>
         </div>
 
+        {/* Who still owes. Clicking a name expands that player's card below and
+            scrolls to it, so the alert is a jump list rather than a dead end. */}
+        {!loading && owesList.length > 0 && (
+          <div className="bg-amber-50/70 dark:bg-amber-900/10 border border-amber-300/70 dark:border-amber-500/30 rounded-xl p-4 mb-6">
+            <div className="flex items-baseline justify-between gap-3 mb-3">
+              <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                {owesList.length} still {owesList.length === 1 ? 'owes' : 'owe'}
+              </h2>
+              <div className="flex items-baseline gap-3">
+                <span className="text-sm font-bold text-amber-900 dark:text-amber-200 tabular-nums">{money(owesTotal)}</span>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter(statusFilter === 'owes' ? 'all' : 'owes')}
+                  className="text-xs text-amber-800 dark:text-amber-300 hover:underline"
+                >
+                  {statusFilter === 'owes' ? 'Show all' : 'Filter list'}
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {owesList.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setExpanded(prev => new Set(prev).add(p.id));
+                    document.getElementById(`player-${p.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  title={p.paid > 0 ? `${money(p.paid)} paid so far` : 'Nothing paid yet'}
+                  className="inline-flex items-baseline gap-1.5 rounded-lg border border-amber-300/70 dark:border-amber-500/30 bg-white dark:bg-gray-800 px-2.5 py-1.5 hover:border-amber-500 transition-colors"
+                >
+                  <span className="text-xs text-gray-900 dark:text-white">{p.name}</span>
+                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{money(p.balance)}</span>
+                  {p.paid > 0 && <span className="text-[9px] uppercase tracking-wide text-gray-400">part</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Per-fee-title totals. Season dues and tournament fees behave very
+            differently — tournament money is collected only to be paid straight
+            back out — so the coach needs each line item's own owed/collected
+            figure, not just the combined total above. */}
+        {feeTitleTotals.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Totals by fee</h2>
+              <span className="text-xs text-gray-400">
+                {season}{teamFilter !== 'All' ? ` · ${teams.find(t => String(t.id) === teamFilter)?.name ?? ''}` : ''}
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {feeTitleTotals.map(fee => {
+                const pct = fee.owed > 0 ? (fee.collected / fee.owed) * 100 : 0;
+                const isActiveFilter = feeFilter === fee.name;
+                return (
+                  <button
+                    key={fee.name}
+                    type="button"
+                    onClick={() => setFeeFilter(isActiveFilter ? 'All' : fee.name)}
+                    aria-pressed={isActiveFilter}
+                    title={isActiveFilter ? 'Clear this filter' : `Show only ${fee.name}`}
+                    className={`text-left rounded-lg border p-3 transition-colors ${
+                      isActiveFilter
+                        ? 'border-team-blue bg-team-blue/5 dark:bg-team-blue/10'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-team-blue/40'
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{fee.name}</p>
+                      {fee.passthrough ? (
+                        <span
+                          className="text-[9px] uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded px-1 py-0.5 shrink-0"
+                          title="Collected for the parent club — not counted as team revenue"
+                        >
+                          To club
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">
+                          {fee.playerCount} player{fee.playerCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white tabular-nums mt-1">{money(fee.collected)}</p>
+                    <p className="text-[11px] text-gray-400">of {money(fee.owed)} billed</p>
+                    <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden mt-2">
+                      <div
+                        className={`h-full rounded-full ${pct >= 100 ? 'bg-green-500' : 'bg-yellow-500'}`}
+                        style={{ width: `${Math.min(100, pct)}%` }}
+                      />
+                    </div>
+                    <p className={`text-[11px] mt-1.5 tabular-nums ${fee.outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {fee.outstanding > 0 ? `${money(fee.outstanding)} outstanding` : 'Fully collected'}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Quick-add a fee to everyone */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
           <div className="flex items-center gap-2 flex-wrap">
@@ -336,7 +484,8 @@ export default function DuesPage() {
                 const st = duesStatus(t.owed, t.paid);
                 const isOpen = expanded.has(p.id);
                 return (
-                  <li key={p.id}>
+                  // id is the scroll target for the "still owes" jump list above.
+                  <li key={p.id} id={`player-${p.id}`}>
                     {/* Player summary row */}
                     <button onClick={() => toggle(p.id)}
                       className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -475,5 +624,15 @@ export default function DuesPage() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+// useSearchParams needs a Suspense boundary so the route can still be
+// statically prerendered (same pattern as the highlights and players pages).
+export default function DuesPage() {
+  return (
+    <Suspense fallback={<AdminLayout><div className="p-4 md:p-8" /></AdminLayout>}>
+      <DuesPageContent />
+    </Suspense>
   );
 }

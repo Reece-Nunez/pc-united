@@ -80,8 +80,31 @@ export function getSeasonForDate(date: Date): Season {
   return buildSeason(type, year);
 }
 
+/**
+ * Parse a date string into a *local* Date.
+ *
+ * Postgres `date` columns (expense_date, income_date, paid_on) arrive as bare
+ * "YYYY-MM-DD", which `new Date()` interprets as UTC midnight — so in any
+ * US timezone it lands on the previous evening. Season boundaries are built
+ * with the local `new Date(y, m, d)` constructor, so comparing the two shifted
+ * every boundary date into the wrong season: an expense dated Sep 6 (the first
+ * day of Fall) was counted against Summer.
+ *
+ * Date-only strings are therefore parsed as local midnight. Anything carrying a
+ * time or zone (full ISO timestamps from `created_at`) is left to the normal
+ * parser, which already handles the offset correctly.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (dateOnly) {
+    const [, y, m, d] = dateOnly;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+  return new Date(dateStr);
+}
+
 export function getSeasonLabel(dateStr: string): string {
-  return getSeasonForDate(new Date(dateStr)).label;
+  return getSeasonForDate(parseLocalDate(dateStr)).label;
 }
 
 /** Returns a list of recent seasons for dropdown selection, most recent first. */
@@ -110,6 +133,6 @@ export function getAvailableSeasons(count = 8): Season[] {
 }
 
 export function isDateInSeason(dateStr: string, season: Season): boolean {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   return date >= season.startDate && date <= season.endDate;
 }

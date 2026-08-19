@@ -494,6 +494,25 @@ export async function getDuesFeesForPlayers(playerIds: number[]) {
   return { data: data as DuesFee[] | null, error };
 }
 
+// Club-wide dues reads. The per-player fetchers above answer "what does this
+// family owe"; these answer "how much has the club actually collected", which
+// the overview dashboard and the expenses balance both need. Kept separate so
+// the family views keep their narrow, RLS-friendly queries.
+export async function getAllDuesFees() {
+  const { data, error } = await supabase
+    .from('dues_fees')
+    .select('id, player_id, season, name, amount, created_at');
+  return { data: data as DuesFee[] | null, error };
+}
+
+export async function getAllDuesPayments() {
+  const { data, error } = await supabase
+    .from('dues_payments')
+    .select('id, fee_id, amount, method, paid_on, created_at')
+    .order('paid_on', { ascending: true });
+  return { data: data as DuesPayment[] | null, error };
+}
+
 export async function getPaymentsForFees(feeIds: number[]) {
   if (feeIds.length === 0) return { data: [] as DuesPayment[], error: null };
   const { data, error } = await supabase

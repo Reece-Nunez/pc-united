@@ -13,11 +13,10 @@ import { getCurrentSeason } from '@/lib/seasons';
 import { createClient } from '@/lib/supabase-browser';
 import { isClubTodayOrLater } from '@/lib/time';
 import { computePlayerDues } from '@/lib/dues';
+import { formatMoney as money } from '@/lib/format';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 type DuesSummary = { owed: number; paid: number; balance: number };
-
-const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 type FamilySession = { key: string; kind: 'game' | 'event'; id: number; label: string; date: string; sub: string; location?: string; team_id: number | null };
 

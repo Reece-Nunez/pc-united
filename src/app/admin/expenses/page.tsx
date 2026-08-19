@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
 import toast from 'react-hot-toast';
-import { getExpenses, createExpense, updateExpense, deleteExpense, getSponsorships, getIncome, createIncome, updateIncome, deleteIncome, Expense, Income } from '@/lib/supabase';
+import { getExpenses, createExpense, updateExpense, deleteExpense, getSponsorships, getIncome, createIncome, updateIncome, deleteIncome, getAllDuesPayments, getAllDuesFees, getAllSettings, Expense, Income, DuesPayment, DuesFee } from '@/lib/supabase';
 import { logActivity } from '@/lib/audit';
 import { createClient } from '@/lib/supabase-browser';
 import { getCurrentSeason, getAvailableSeasons, getSeasonLabel, isDateInSeason, type Season } from '@/lib/seasons';
+import { sponsorRevenue as calcSponsorRevenue, sponsorRevenueInSeason, sumAmounts, duesRevenue, duesRevenueInSeason, sumInSeason, formatSignedMoney, parsePassthroughFeeTitles } from '@/lib/finance';
+import { formatMoney } from '@/lib/format';
 import { confirmToast } from '@/lib/confirmToast';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
@@ -98,10 +101,19 @@ const emptyIncomeForm: IncomeForm = {
   season: getCurrentSeason().label,
 };
 
-export default function ExpensesPage() {
+function ExpensesPageContent() {
+  // Overview-dashboard cards deep-link here with the filter they represent, so
+  // clicking "Top spending: Uniforms" lands on exactly those rows.
+  const searchParams = useSearchParams();
+  const seasonParam = searchParams.get('season');
+  const categoryParam = searchParams.get('category');
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [income, setIncome] = useState<Income[]>([]);
-  const [sponsorRevenue, setSponsorRevenue] = useState(0);
+  const [sponsorships, setSponsorships] = useState<any[]>([]);
+  const [duesPayments, setDuesPayments] = useState<DuesPayment[]>([]);
+  const [duesFees, setDuesFees] = useState<DuesFee[]>([]);
+  const [passthroughRaw, setPassthroughRaw] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -109,8 +121,12 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const receiptInputRef = useRef<HTMLInputElement>(null);
-  const [selectedSeason, setSelectedSeason] = useState<Season>(getCurrentSeason());
-  const [filterCategory, setFilterCategory] = useState('all');
+  const [selectedSeason, setSelectedSeason] = useState<Season>(
+    () => getAvailableSeasons(8).find(s => s.label === seasonParam) ?? getCurrentSeason()
+  );
+  const [filterCategory, setFilterCategory] = useState(
+    () => (categoryParam && CATEGORIES.includes(categoryParam) ? categoryParam : 'all')
+  );
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [incomeForm, setIncomeForm] = useState<IncomeForm>(emptyIncomeForm);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
@@ -127,21 +143,22 @@ export default function ExpensesPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [expensesRes, sponsorshipsRes, incomeRes] = await Promise.all([
+      const [expensesRes, sponsorshipsRes, incomeRes, duesRes, duesFeesRes, settingsRes] = await Promise.all([
         getExpenses(),
         getSponsorships(),
         getIncome(),
+        getAllDuesPayments(),
+        getAllDuesFees(),
+        getAllSettings(),
       ]);
       if (!expensesRes.error) setExpenses(expensesRes.data || []);
       if (!incomeRes.error) setIncome(incomeRes.data || []);
-
-      // Calculate revenue from approved/completed sponsorships (excluding Services/In-Kind).
-      // Fundraising income is added on top of this — see totalRevenue below.
-      const sponsorships = sponsorshipsRes.data || [];
-      const revenue = sponsorships
-        .filter((s: any) => (s.status === 'approved' || s.status === 'completed') && s.payment_method !== 'Services/In-Kind')
-        .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
-      setSponsorRevenue(revenue);
+      if (!duesRes.error) setDuesPayments(duesRes.data || []);
+      if (!duesFeesRes.error) setDuesFees(duesFeesRes.data || []);
+      setPassthroughRaw(settingsRes.settings?.passthrough_fee_titles ?? null);
+      // Raw rows in, math in useMemo via @/lib/finance — the sponsor-revenue
+      // rule lives in one place now instead of being re-derived here.
+      setSponsorships(sponsorshipsRes.data || []);
     } catch (error: any) {
       toast.error('Error loading data');
     } finally {
@@ -149,7 +166,7 @@ export default function ExpensesPage() {
     }
   };
 
-  useRealtimeTable(['expenses','income','sponsorships'], fetchData);
+  useRealtimeTable(['expenses','income','sponsorships','dues_payments','dues_fees'], fetchData);
 
   // Filter expenses by selected season
   const filteredExpenses = useMemo(() => {
@@ -160,24 +177,27 @@ export default function ExpensesPage() {
     return filtered;
   }, [expenses, selectedSeason, filterCategory]);
 
-  const totalExpenses = useMemo(() =>
-    filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
-    [filteredExpenses]
+  // Total of the rows actually listed below (category filter applied).
+  const totalExpenses = useMemo(() => sumAmounts(filteredExpenses), [filteredExpenses]);
+
+  // The season's whole spend, ignoring the category filter.
+  const allSeasonExpenses = useMemo(
+    () => sumInSeason(expenses, e => e.expense_date, e => e.amount, selectedSeason),
+    [expenses, selectedSeason]
   );
 
-  const allSeasonExpenses = useMemo(() =>
-    expenses.filter(e => e.expense_date && isDateInSeason(e.expense_date, selectedSeason))
-      .reduce((sum, e) => sum + Number(e.amount), 0),
+  // Count that matches `allSeasonExpenses`. The card previously paired the
+  // unfiltered season total with `filteredExpenses.length`, so filtering to
+  // "Uniforms" showed the full season figure captioned with the uniform count.
+  const seasonExpenseCount = useMemo(
+    () => expenses.filter(e => e.expense_date && isDateInSeason(e.expense_date, selectedSeason)).length,
     [expenses, selectedSeason]
   );
 
   // All-time expenses across every season. Used for the running balance so
   // that prior seasons' spending carries forward (rolls over) instead of the
   // full revenue being "recycled" each season. See balance calc below.
-  const totalAllExpenses = useMemo(() =>
-    expenses.reduce((sum, e) => sum + Number(e.amount), 0),
-    [expenses]
-  );
+  const totalAllExpenses = useMemo(() => sumAmounts(expenses), [expenses]);
 
   // Fundraising income (water sales, donations, etc.), separate from sponsors.
   const filteredIncome = useMemo(() =>
@@ -185,18 +205,39 @@ export default function ExpensesPage() {
     [income, selectedSeason]
   );
 
-  const seasonIncome = useMemo(() =>
-    filteredIncome.reduce((sum, i) => sum + Number(i.amount), 0),
-    [filteredIncome]
+  const seasonIncome = useMemo(() => sumAmounts(filteredIncome), [filteredIncome]);
+
+  const totalAllIncome = useMemo(() => sumAmounts(income), [income]);
+
+  // Cash sponsorships, all time (approved/completed, in-kind excluded).
+  const sponsorRevenue = useMemo(() => calcSponsorRevenue(sponsorships), [sponsorships]);
+
+  const passthroughFeeTitles = useMemo(() => parsePassthroughFeeTitles(passthroughRaw), [passthroughRaw]);
+
+  // Dues the team actually keeps. Season dues are collected on the parent club's
+  // behalf and excluded (configurable in Settings); tournament fees are kept,
+  // because the team pays the matching "Tournament Fees" expense itself — booking
+  // only that outflow made every tournament read as a pure loss.
+  const totalAllDues = useMemo(
+    () => duesRevenue(duesPayments, duesFees, passthroughFeeTitles),
+    [duesPayments, duesFees, passthroughFeeTitles]
   );
 
-  const totalAllIncome = useMemo(() =>
-    income.reduce((sum, i) => sum + Number(i.amount), 0),
-    [income]
+  const seasonDues = useMemo(
+    () => duesRevenueInSeason(duesPayments, duesFees, passthroughFeeTitles, selectedSeason),
+    [duesPayments, duesFees, passthroughFeeTitles, selectedSeason]
   );
 
-  // Total revenue = approved sponsorships (all-time) + all fundraising income.
-  const totalRevenue = sponsorRevenue + totalAllIncome;
+  // All-time revenue across all three streams. Pairs with totalAllExpenses for
+  // the running balance; the per-season figures below are for the season cards.
+  const totalRevenue = sponsorRevenue + totalAllIncome + totalAllDues;
+
+  const seasonSponsors = useMemo(
+    () => sponsorRevenueInSeason(sponsorships, selectedSeason),
+    [sponsorships, selectedSeason]
+  );
+
+  const seasonRevenue = seasonSponsors + seasonIncome + seasonDues;
 
   // Category breakdown for pie chart
   const categoryData = useMemo(() => {
@@ -463,12 +504,16 @@ export default function ExpensesPage() {
 <p class="subtitle">${selectedSeason.label}</p>
 <p class="date">Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
 <table class="summary">
-  <tr><td class="label">Total Revenue:</td><td>${fmt(totalRevenue)}</td></tr>
-  <tr><td class="label">&nbsp;&nbsp;Sponsorships:</td><td>${fmt(sponsorRevenue)}</td></tr>
-  <tr><td class="label">&nbsp;&nbsp;Fundraising income:</td><td>${fmt(totalAllIncome)}</td></tr>
-  <tr><td class="label">Total Expenses (all seasons):</td><td>${fmt(totalAllExpenses)}</td></tr>
-  <tr><td class="label">Current Balance:</td><td>${balance < 0 ? '-' : ''}${fmt(balance)}</td></tr>
+  <tr><td class="label">${selectedSeason.label} Revenue:</td><td>${fmt(seasonRevenue)}</td></tr>
+  <tr><td class="label">&nbsp;&nbsp;Sponsorships:</td><td>${fmt(seasonSponsors)}</td></tr>
+  <tr><td class="label">&nbsp;&nbsp;Fundraising income:</td><td>${fmt(seasonIncome)}</td></tr>
+  <tr><td class="label">&nbsp;&nbsp;Dues collected:</td><td>${fmt(seasonDues)}</td></tr>
   <tr><td class="label">${selectedSeason.label} Expenses:</td><td>${fmt(allSeasonExpenses)}</td></tr>
+  <tr><td class="label">${selectedSeason.label} Net:</td><td>${formatSignedMoney(seasonRevenue - allSeasonExpenses)}</td></tr>
+  <tr><td class="label">&nbsp;</td><td></td></tr>
+  <tr><td class="label">Total Revenue (all seasons):</td><td>${fmt(totalRevenue)}</td></tr>
+  <tr><td class="label">Total Expenses (all seasons):</td><td>${fmt(totalAllExpenses)}</td></tr>
+  <tr><td class="label">Current Balance:</td><td>${formatSignedMoney(balance)}</td></tr>
 </table>
 <table class="expenses">
   <thead><tr>
@@ -532,27 +577,46 @@ export default function ExpensesPage() {
           </div>
         </div>
 
-        {/* Financial Overview — Balance leads (breaks the equal-triad rhythm) */}
+        {/* Financial Overview. Balance leads and is deliberately all-time — money
+            left at the end of a season is still in the account the next one, so
+            scoping it would make funds vanish every September. The two cards
+            below it are season-scoped, and each card states its own scope so the
+            row can't be misread as Revenue − Expenses = Balance. */}
         <div className="grid gap-4 mb-8 sm:grid-cols-2">
           <div className="sm:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200/70 dark:border-gray-700 p-5">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Balance</p>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Balance</p>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5">All time</span>
+            </div>
             <p className={`text-3xl font-bold tabular-nums mt-1 ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {balance < 0 ? '-' : ''}${Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatSignedMoney(balance)}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Total revenue minus all expenses (rolls over each season)</p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200/70 dark:border-gray-700 p-5">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Revenue</p>
-            <p className="text-2xl font-bold text-green-600 tabular-nums mt-1">${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             <p className="text-xs text-gray-400 mt-1">
-              Sponsors ${sponsorRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              {totalAllIncome > 0 && <> + fundraising ${totalAllIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</>}
+              All revenue ever ({formatMoney(totalRevenue)}) minus all expenses ever ({formatMoney(totalAllExpenses)}). Rolls over each season.
             </p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200/70 dark:border-gray-700 p-5">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{selectedSeason.label} Expenses</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums mt-1">${allSeasonExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-            <p className="text-xs text-gray-400 mt-1">{filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''} this season</p>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Revenue</p>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5">{selectedSeason.label}</span>
+            </div>
+            <p className="text-2xl font-bold text-green-600 tabular-nums mt-1">{formatMoney(seasonRevenue)}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Sponsors {formatMoney(seasonSponsors)} · Fundraising {formatMoney(seasonIncome)} · Dues {formatMoney(seasonDues)}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200/70 dark:border-gray-700 p-5">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Expenses</p>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5">{selectedSeason.label}</span>
+            </div>
+            <p className="text-2xl font-bold text-red-600 tabular-nums mt-1">{formatMoney(allSeasonExpenses)}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {seasonExpenseCount} expense{seasonExpenseCount !== 1 ? 's' : ''} this season
+              {seasonRevenue - allSeasonExpenses !== 0 && (
+                <> · net <span className={seasonRevenue - allSeasonExpenses >= 0 ? 'text-green-600' : 'text-red-600'}>{formatSignedMoney(seasonRevenue - allSeasonExpenses)}</span></>
+              )}
+            </p>
           </div>
         </div>
 
@@ -1113,5 +1177,15 @@ export default function ExpensesPage() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+// useSearchParams needs a Suspense boundary so the route can still be
+// statically prerendered (same pattern as the highlights and players pages).
+export default function ExpensesPage() {
+  return (
+    <Suspense fallback={<AdminLayout><div className="p-4 md:p-8"><SkeletonTable /></div></AdminLayout>}>
+      <ExpensesPageContent />
+    </Suspense>
   );
 }

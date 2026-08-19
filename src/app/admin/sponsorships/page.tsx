@@ -14,6 +14,8 @@ import {
   updateSponsorRenewal,
 } from '@/lib/supabase';
 import { uploadToS3Direct } from '@/lib/s3';
+import { formatMoney } from '@/lib/format';
+import { sponsorRevenue } from '@/lib/finance';
 import { logActivity } from '@/lib/audit';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import Breadcrumbs from '@/components/admin/Breadcrumbs';
@@ -63,9 +65,9 @@ const EMPTY_FORM = {
   renewal_date: '',
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
-}
+// Was a local 0-decimal formatter, which rendered $2,500 here against $2,500.00
+// on dues and expenses for the same money. Use the shared one.
+const formatCurrency = formatMoney;
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '-';
@@ -296,9 +298,9 @@ function Content() {
   const total = sponsorships.length;
   const pending = sponsorships.filter((s) => (s.status || 'pending') === 'pending').length;
   const approved = sponsorships.filter((s) => s.status === 'approved').length;
-  const totalRevenue = sponsorships
-    .filter((s) => (s.status === 'approved' || s.status === 'completed') && s.payment_method !== 'Services/In-Kind')
-    .reduce((sum, s) => sum + (parseFloat(String(s.amount)) || 0), 0);
+  // Shared rule — this page, the expenses balance, and the dashboard all read
+  // the same definition of which sponsorships count as cash.
+  const totalRevenue = sponsorRevenue(sponsorships);
 
   const columns: Column<SponsorshipWithStatus>[] = [
     {

@@ -3,9 +3,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
-import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses, getParentPlayers, linkParentToPlayer, unlinkParentFromPlayer, getTeams, type Team } from '@/lib/supabase';
+import { getPlayers, getHighlights, getNews, getSchedule, getNewsletterSubscribers, getSponsorships, getGalleryImages, getExpenses, getIncome, getAllDuesFees, getAllDuesPayments, getAllSettings, getParentPlayers, linkParentToPlayer, unlinkParentFromPlayer, getTeams, type Team } from '@/lib/supabase';
 import { getRecentActivity } from '@/lib/audit';
 import { getCurrentSeason, getAvailableSeasons, isDateInSeason, type Season } from '@/lib/seasons';
+import { computeClubTotals, computeSeasonTotals, expensesByCategory, duesByFeeTitle, duesCollectionRate, formatSignedMoney, parsePassthroughFeeTitles } from '@/lib/finance';
+import { formatMoney } from '@/lib/format';
 import { createClient } from '@/lib/supabase-browser';
 import { SkeletonCard } from '@/components/admin/Skeleton';
 import { parseClubDateTime, formatClubTime } from '@/lib/time';
@@ -45,7 +47,16 @@ export default function AdminDashboard() {
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
   const [allSchedule, setAllSchedule] = useState<any[]>([]);
   const [allNews, setAllNews] = useState<any[]>([]);
-  const [financials, setFinancials] = useState({ revenue: 0, expenses: 0 });
+  // Raw finance rows; all the arithmetic happens in useMemo via @/lib/finance so
+  // this page and the expenses page can never disagree on what "revenue" means.
+  const [sponsorshipRows, setSponsorshipRows] = useState<any[]>([]);
+  const [expenseRows, setExpenseRows] = useState<any[]>([]);
+  const [incomeRows, setIncomeRows] = useState<any[]>([]);
+  const [duesFeeRows, setDuesFeeRows] = useState<any[]>([]);
+  const [duesPaymentRows, setDuesPaymentRows] = useState<any[]>([]);
+  // Fee titles collected for the parent club — excluded from revenue. Editable
+  // in admin Settings because coaches name fees freely.
+  const [passthroughRaw, setPassthroughRaw] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [linkedPlayerIds, setLinkedPlayerIds] = useState<number[]>([]);
@@ -125,7 +136,7 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-        const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes, expensesRes, teamsRes] = await Promise.all([
+        const [playersRes, highlightsRes, newsRes, scheduleRes, subscribersRes, sponsorshipsRes, galleryRes, activityRes, expensesRes, teamsRes, incomeRes, duesFeesRes, duesPaymentsRes, settingsRes] = await Promise.all([
           getPlayers(),
           getHighlights(),
           getNews(),
@@ -136,6 +147,10 @@ export default function AdminDashboard() {
           getRecentActivity(5),
           getExpenses(),
           getTeams(),
+          getIncome(),
+          getAllDuesFees(),
+          getAllDuesPayments(),
+          getAllSettings(),
         ]);
 
         const players = playersRes.data || [];
@@ -157,12 +172,14 @@ export default function AdminDashboard() {
           gallery: galleryRes.data?.length || 0,
         });
 
-        const revenue = (sponsorshipsRes.data || [])
-          .filter((s: any) => (s.status === 'approved' || s.status === 'completed') && s.payment_method !== 'Services/In-Kind')
-          .reduce((sum: number, s: any) => sum + (Number(s.amount) || 0), 0);
-        const totalExpenses = (expensesRes.data || [])
-          .reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
-        setFinancials({ revenue, expenses: totalExpenses });
+        // Revenue previously counted sponsorships only, so the entire income
+        // table and every dues payment were missing from this page's balance.
+        setSponsorshipRows(sponsorshipsRes.data || []);
+        setExpenseRows(expensesRes.data || []);
+        setIncomeRows(incomeRes.data || []);
+        setDuesFeeRows(duesFeesRes.data || []);
+        setDuesPaymentRows(duesPaymentsRes.data || []);
+        setPassthroughRaw(settingsRes.settings?.passthrough_fee_titles ?? null);
 
         setRecentActivity((activityRes.data || []) as ActivityEntry[]);
 
@@ -184,7 +201,103 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  useRealtimeTable(['players','schedule','news','highlights','newsletter_subscribers','sponsorships','gallery_images','expenses','teams'], fetchDashboardData);
+  useRealtimeTable(['players','schedule','news','highlights','newsletter_subscribers','sponsorships','gallery_images','expenses','teams','income','dues_fees','dues_payments'], fetchDashboardData);
+
+  // ------------------------------------------------------------- financials
+  // Every figure below routes through @/lib/finance. Balance is all-time (funds
+  // roll over between seasons); revenue and expenses follow the season picker.
+  const passthroughFeeTitles = useMemo(() => parsePassthroughFeeTitles(passthroughRaw), [passthroughRaw]);
+
+  const financeInput = useMemo(() => ({
+    sponsorships: sponsorshipRows,
+    income: incomeRows,
+    duesPayments: duesPaymentRows,
+    duesFees: duesFeeRows,
+    passthroughFeeTitles,
+    expenses: expenseRows,
+  }), [sponsorshipRows, incomeRows, duesPaymentRows, duesFeeRows, passthroughFeeTitles, expenseRows]);
+
+  const clubTotals = useMemo(() => computeClubTotals(financeInput), [financeInput]);
+  const seasonTotals = useMemo(() => computeSeasonTotals(financeInput, selectedSeason), [financeInput, selectedSeason]);
+
+  /** Prior season's net, so the current season can be shown as up or down on it. */
+  const previousSeasonNet = useMemo(() => {
+    const idx = availableSeasons.findIndex(s => s.key === selectedSeason.key);
+    const prev = idx >= 0 ? availableSeasons[idx + 1] : undefined;
+    return prev ? computeSeasonTotals(financeInput, prev).net : null;
+  }, [financeInput, availableSeasons, selectedSeason]);
+
+  /** Last six seasons oldest-first, for the revenue-vs-expenses trend bars. */
+  const seasonTrend = useMemo(() =>
+    availableSeasons
+      .slice(0, 6)
+      .map(season => ({ season, ...computeSeasonTotals(financeInput, season) }))
+      .reverse(),
+    [financeInput, availableSeasons]
+  );
+
+  /** Shared bar scale so trend rows are comparable to each other. */
+  const trendPeak = useMemo(
+    () => Math.max(...seasonTrend.map(s => Math.max(s.revenue, s.expenses)), 1),
+    [seasonTrend]
+  );
+
+  const topCategories = useMemo(() =>
+    expensesByCategory(expenseRows.filter(e => e.expense_date && isDateInSeason(e.expense_date, selectedSeason))).slice(0, 5),
+    [expenseRows, selectedSeason]
+  );
+
+  /** Fees billed for the selected season, by their season label. */
+  const seasonFees = useMemo(
+    () => duesFeeRows.filter(f => f.season === selectedSeason.label),
+    [duesFeeRows, selectedSeason]
+  );
+
+  const feeTitleTotals = useMemo(
+    () => duesByFeeTitle(seasonFees, duesPaymentRows, passthroughFeeTitles),
+    [seasonFees, duesPaymentRows, passthroughFeeTitles]
+  );
+
+  /**
+   * Players with a balance left this season, biggest debt first.
+   *
+   * Deliberately includes pass-through fee titles: a parent still owes their
+   * season dues even though that money is handed to the parent club, and this
+   * list is about chasing collection, not about team revenue.
+   */
+  const playersWhoOwe = useMemo(() => {
+    const rosterIds = new Set(teamPlayers.map((p: any) => p.id));
+    const nameById = new Map(teamPlayers.map((p: any) => [p.id, p.name]));
+    const byPlayer = new Map<number, { owed: number; paid: number }>();
+
+    for (const fee of seasonFees) {
+      if (!rosterIds.has(fee.player_id)) continue;
+      const entry = byPlayer.get(fee.player_id) || { owed: 0, paid: 0 };
+      entry.owed += Number(fee.amount) || 0;
+      byPlayer.set(fee.player_id, entry);
+    }
+    const feeOwner = new Map(seasonFees.map((f: any) => [f.id, f.player_id]));
+    for (const p of duesPaymentRows) {
+      const owner = feeOwner.get(p.fee_id);
+      if (owner === undefined || !byPlayer.has(owner)) continue;
+      byPlayer.get(owner)!.paid += Number(p.amount) || 0;
+    }
+
+    return [...byPlayer.entries()]
+      .map(([id, t]) => ({ id, name: nameById.get(id) ?? `Player ${id}`, balance: t.owed - t.paid, paid: t.paid }))
+      .filter(p => p.balance > 0)
+      .sort((a, b) => b.balance - a.balance);
+  }, [seasonFees, duesPaymentRows, teamPlayers]);
+
+  const totalOutstanding = useMemo(
+    () => playersWhoOwe.reduce((sum, p) => sum + p.balance, 0),
+    [playersWhoOwe]
+  );
+
+  const collectionRate = useMemo(
+    () => duesCollectionRate(seasonFees, duesPaymentRows.filter(p => seasonFees.some(f => f.id === p.fee_id))),
+    [seasonFees, duesPaymentRows]
+  );
 
   // KPI row. `scoped` cards react to the team switcher; the rest are club-wide
   // (highlights, news, subscribers, etc. aren't tied to a team_id).
@@ -752,27 +865,260 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Financials (club-wide) */}
+        {/* Financials. Balance is all-time and leads; revenue/expenses follow the
+            season picker. Each card carries its own scope chip so the row is never
+            misread as Revenue − Expenses = Balance. */}
         {!loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
-              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Revenue</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <Link href="/admin/expenses" className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5 hover:border-team-blue/40 transition-colors">
+              <div className="flex items-baseline justify-between gap-2 mb-1">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Balance</p>
+                <span className="text-[9px] font-medium uppercase tracking-wide text-gray-400 border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5">All time</span>
+              </div>
+              <p className={`font-display text-2xl font-bold tabular-nums ${clubTotals.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {formatSignedMoney(clubTotals.balance)}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">{formatMoney(clubTotals.revenue)} in · {formatMoney(clubTotals.expenses)} out</p>
+            </Link>
+
+            <Link href={`/admin/expenses?season=${encodeURIComponent(selectedSeason.label)}`} className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5 hover:border-team-blue/40 transition-colors">
+              <div className="flex items-baseline justify-between gap-2 mb-1">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Revenue</p>
+                <span className="text-[9px] font-medium uppercase tracking-wide text-gray-400 border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5">{selectedSeason.label}</span>
+              </div>
               <p className="font-display text-2xl font-bold text-green-600 dark:text-green-400 tabular-nums">
-                ${financials.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatMoney(seasonTotals.revenue)}
               </p>
-            </div>
-            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
-              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Expenses</p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                Sponsors {formatMoney(seasonTotals.sponsors)} · Dues {formatMoney(seasonTotals.dues)}
+                {seasonTotals.passthroughDues > 0 && (
+                  <> · <span title="Collected for the parent club, not team revenue">{formatMoney(seasonTotals.passthroughDues)} to club</span></>
+                )}
+              </p>
+            </Link>
+
+            <Link href={`/admin/expenses?season=${encodeURIComponent(selectedSeason.label)}`} className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5 hover:border-team-blue/40 transition-colors">
+              <div className="flex items-baseline justify-between gap-2 mb-1">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Expenses</p>
+                <span className="text-[9px] font-medium uppercase tracking-wide text-gray-400 border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5">{selectedSeason.label}</span>
+              </div>
               <p className="font-display text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums">
-                ${financials.expenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatMoney(seasonTotals.expenses)}
               </p>
-            </div>
+              <p className="text-[11px] text-gray-400 mt-1">
+                {topCategories.length > 0 ? `Top: ${topCategories[0].name}` : 'No spend logged'}
+              </p>
+            </Link>
+
+            <Link href={`/admin/expenses?season=${encodeURIComponent(selectedSeason.label)}`} className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5 hover:border-team-blue/40 transition-colors">
+              <div className="flex items-baseline justify-between gap-2 mb-1">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Season net</p>
+                <span className="text-[9px] font-medium uppercase tracking-wide text-gray-400 border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5">{selectedSeason.label}</span>
+              </div>
+              <p className={`font-display text-2xl font-bold tabular-nums ${seasonTotals.net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {formatSignedMoney(seasonTotals.net)}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                {previousSeasonNet === null
+                  ? 'No prior season to compare'
+                  : `${formatSignedMoney(seasonTotals.net - previousSeasonNet)} vs last season`}
+              </p>
+            </Link>
+          </div>
+        )}
+
+        {/* Finance analytics: where the money comes from, where it goes, and how
+            the season compares with the ones before it. */}
+        {!loading && (
+          <div className="grid gap-4 lg:grid-cols-3 mb-8">
+            {/* Revenue streams */}
             <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
-              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Balance</p>
-              <p className={`font-display text-2xl font-bold tabular-nums ${financials.revenue - financials.expenses >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                ${(financials.revenue - financials.expenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
+              <h2 className="font-display text-sm font-semibold text-gray-900 dark:text-white mb-4">Revenue streams</h2>
+              {seasonTotals.revenue === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No revenue logged for {selectedSeason.label}.</p>
+              ) : (
+                <div className="space-y-3">
+                  {[
+                    { label: 'Sponsorships', value: seasonTotals.sponsors, color: 'bg-blue-500', href: '/admin/sponsorships' },
+                    { label: 'Fundraising', value: seasonTotals.fundraising, color: 'bg-emerald-500', href: `/admin/expenses?season=${encodeURIComponent(selectedSeason.label)}` },
+                    { label: 'Dues', value: seasonTotals.dues, color: 'bg-amber-500', href: `/admin/dues?season=${encodeURIComponent(selectedSeason.label)}` },
+                  ].map(stream => {
+                    const pct = (stream.value / seasonTotals.revenue) * 100;
+                    return (
+                      <Link key={stream.label} href={stream.href} className="block group" title={`Open ${stream.label}`}>
+                        <div className="flex items-baseline justify-between text-xs mb-1">
+                          <span className="text-gray-600 dark:text-gray-300 group-hover:text-team-blue">{stream.label}</span>
+                          <span className="text-gray-900 dark:text-white font-medium tabular-nums">
+                            {formatMoney(stream.value)} <span className="text-gray-400">{pct.toFixed(0)}%</span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                          <div className={`h-full ${stream.color} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+
+            {/* Top expense categories */}
+            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="font-display text-sm font-semibold text-gray-900 dark:text-white">Top spending</h2>
+                <Link href={`/admin/expenses?season=${encodeURIComponent(selectedSeason.label)}`} className="text-xs text-team-blue hover:underline">All</Link>
+              </div>
+              {topCategories.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No expenses logged for {selectedSeason.label}.</p>
+              ) : (
+                <div className="space-y-3">
+                  {topCategories.map(cat => {
+                    const pct = (cat.value / seasonTotals.expenses) * 100;
+                    return (
+                      <Link
+                        key={cat.name}
+                        href={`/admin/expenses?season=${encodeURIComponent(selectedSeason.label)}&category=${encodeURIComponent(cat.name)}`}
+                        className="block group"
+                        title={`Show ${selectedSeason.label} ${cat.name} expenses`}
+                      >
+                        <div className="flex items-baseline justify-between text-xs mb-1">
+                          <span className="text-gray-600 dark:text-gray-300 truncate pr-2 group-hover:text-team-blue">{cat.name}</span>
+                          <span className="text-gray-900 dark:text-white font-medium tabular-nums whitespace-nowrap">
+                            {formatMoney(cat.value)} <span className="text-gray-400">{pct.toFixed(0)}%</span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                          <div className="h-full bg-red-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Season-over-season trend */}
+            <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5">
+              <h2 className="font-display text-sm font-semibold text-gray-900 dark:text-white mb-4">Revenue vs expenses</h2>
+              {seasonTrend.every(s => s.revenue === 0 && s.expenses === 0) ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">Not enough history yet.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {seasonTrend.map(row => (
+                      <div key={row.season.key} className="flex items-center gap-2">
+                        <span className={`text-[10px] w-20 shrink-0 truncate ${row.season.key === selectedSeason.key ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-400'}`}>
+                          {row.season.label}
+                        </span>
+                        <div className="flex-1 space-y-1">
+                          <div className="h-2 rounded-sm bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                            <div className="h-full bg-green-500 rounded-sm" style={{ width: `${(row.revenue / trendPeak) * 100}%` }} title={`Revenue ${formatMoney(row.revenue)}`} />
+                          </div>
+                          <div className="h-2 rounded-sm bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                            <div className="h-full bg-red-500 rounded-sm" style={{ width: `${(row.expenses / trendPeak) * 100}%` }} title={`Expenses ${formatMoney(row.expenses)}`} />
+                          </div>
+                        </div>
+                        <span className={`text-[10px] w-16 text-right tabular-nums shrink-0 ${row.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatSignedMoney(row.net)}
+                        </span>
+                      </div>
+                  ))}
+                  <p className="text-[10px] text-gray-400 pt-1">
+                    <span className="inline-block w-2 h-2 rounded-sm bg-green-500 align-middle mr-1" />revenue
+                    <span className="inline-block w-2 h-2 rounded-sm bg-red-500 align-middle mr-1 ml-3" />expenses
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Who still owes. Amber rather than red: an outstanding balance mid-season
+            is normal, so this is a to-do list, not an error state. */}
+        {!loading && playersWhoOwe.length > 0 && (
+          <div className="rounded-xl border border-amber-300/70 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-900/10 p-5 mb-4">
+            <div className="flex items-baseline justify-between gap-3 mb-3">
+              <h2 className="font-display text-sm font-semibold text-amber-900 dark:text-amber-200">
+                {playersWhoOwe.length} {playersWhoOwe.length === 1 ? 'player' : 'players'} still owe{playersWhoOwe.length === 1 ? 's' : ''}
+                <span className="font-normal text-amber-700/70 dark:text-amber-300/60"> · {selectedSeason.label}</span>
+              </h2>
+              <span className="text-sm font-bold text-amber-900 dark:text-amber-200 tabular-nums shrink-0">
+                {formatMoney(totalOutstanding)}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {playersWhoOwe.slice(0, 12).map(p => (
+                <Link
+                  key={p.id}
+                  href={`/admin/dues?season=${encodeURIComponent(selectedSeason.label)}&status=owes`}
+                  title={`${p.name} — ${formatMoney(p.balance)} outstanding${p.paid > 0 ? ` (${formatMoney(p.paid)} paid so far)` : ''}`}
+                  className="inline-flex items-baseline gap-1.5 rounded-lg border border-amber-300/70 dark:border-amber-500/30 bg-white dark:bg-gray-800 px-2.5 py-1.5 hover:border-amber-500 transition-colors"
+                >
+                  <span className="text-xs text-gray-900 dark:text-white">{p.name}</span>
+                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{formatMoney(p.balance)}</span>
+                  {p.paid > 0 && <span className="text-[9px] uppercase tracking-wide text-gray-400">part</span>}
+                </Link>
+              ))}
+              {playersWhoOwe.length > 12 && (
+                <Link href={`/admin/dues?season=${encodeURIComponent(selectedSeason.label)}&status=owes`} className="inline-flex items-center text-xs text-amber-800 dark:text-amber-300 hover:underline px-2 py-1.5">
+                  +{playersWhoOwe.length - 12} more
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Dues by fee title — what each line item bills, collects, and is still
+            owed. Reading this next to "Top spending" is how you tell whether a
+            tournament paid for itself or leaned on sponsor money. */}
+        {!loading && (
+          <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-800 p-5 mb-8">
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="font-display text-sm font-semibold text-gray-900 dark:text-white">
+                Dues by fee <span className="text-gray-400 font-normal">· {selectedSeason.label}</span>
+              </h2>
+              <div className="flex items-baseline gap-3">
+                {collectionRate !== null && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">{collectionRate.toFixed(0)}% collected</span>
+                )}
+                <Link href={`/admin/dues?season=${encodeURIComponent(selectedSeason.label)}`} className="text-xs text-team-blue hover:underline">Manage</Link>
+              </div>
+            </div>
+            {feeTitleTotals.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No dues billed for {selectedSeason.label} yet.</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {feeTitleTotals.map(fee => {
+                  const pct = fee.owed > 0 ? (fee.collected / fee.owed) * 100 : 0;
+                  return (
+                    <Link
+                      key={fee.name}
+                      href={`/admin/dues?season=${encodeURIComponent(selectedSeason.label)}&fee=${encodeURIComponent(fee.name)}${fee.outstanding > 0 ? '&status=owes' : ''}`}
+                      title={`Show ${fee.name}${fee.outstanding > 0 ? ' — players who still owe' : ''}`}
+                      className="rounded-lg border border-gray-200/70 dark:border-gray-700/60 p-3 hover:border-team-blue/40 transition-colors"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{fee.name}</p>
+                        {fee.passthrough ? (
+                          <span className="text-[9px] uppercase tracking-wide text-gray-500 bg-gray-100 dark:bg-gray-700 rounded px-1 py-0.5 shrink-0" title="Passed to the parent club — excluded from team revenue">
+                            To club
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">{fee.playerCount} player{fee.playerCount !== 1 ? 's' : ''}</span>
+                        )}
+                      </div>
+                      <p className="font-display text-lg font-bold text-gray-900 dark:text-white tabular-nums mt-1">{formatMoney(fee.collected)}</p>
+                      <p className="text-[11px] text-gray-400">of {formatMoney(fee.owed)} billed</p>
+                      <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden mt-2">
+                        <div className={`h-full rounded-full ${pct >= 100 ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                      </div>
+                      <p className={`text-[11px] mt-1.5 tabular-nums ${fee.outstanding > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {fee.outstanding > 0 ? `${formatMoney(fee.outstanding)} outstanding` : 'Fully collected'}
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
