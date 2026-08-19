@@ -58,6 +58,63 @@ export function parseCommand(text: string): string | null {
  * in a webhook can keep returning 200 — GroupMe retries non-2xx responses, and
  * retrying a message we can't send is pointless noise.
  */
+// ------------------------------------------------------- per-team routing
+
+/** A group the club posts into: one GroupMe bot, bound to one team. */
+export interface GroupTarget {
+  /** Team id as text, or 'all' when the bot isn't team-specific. Log key. */
+  key: string;
+  botId: string;
+  teamId: number | null;
+}
+
+/**
+ * Parse `GROUPME_TEAM_BOTS`, a JSON object of team id → bot id:
+ *
+ *     {"1":"abc123","2":"def456"}
+ *
+ * A bot id is a write credential for one group, so it stays in env rather than
+ * in the `teams` table — that table is client-readable for the public roster,
+ * and anyone who read a bot id could post to the group.
+ *
+ * The key `"all"` registers a bot with no team binding. Malformed JSON yields
+ * an empty list rather than throwing: a bad env var should stop reminders, not
+ * crash an unrelated request.
+ */
+export function parseTeamBots(raw: string | null | undefined): GroupTarget[] {
+  if (!raw || !raw.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+
+  return Object.entries(parsed as Record<string, unknown>)
+    .filter(([, botId]) => typeof botId === 'string' && botId.trim() !== '')
+    .map(([key, botId]) => ({
+      key,
+      botId: String(botId),
+      teamId: key === 'all' ? null : Number(key),
+    }))
+    .filter(t => t.teamId === null || Number.isFinite(t.teamId));
+}
+
+/**
+ * Which groups should receive an item belonging to `teamId`.
+ *
+ * A team's own group gets its items. An item with no team is club-wide and goes
+ * to *every* group — a whole-club meeting must not be silently dropped just
+ * because it isn't tied to a team. Items for a team with no configured group
+ * reach nobody, which is why the cron reports unrouted items rather than
+ * silently succeeding.
+ */
+export function targetsForItem(targets: GroupTarget[], teamId: number | null): GroupTarget[] {
+  if (teamId === null) return targets;
+  return targets.filter(t => t.teamId === teamId || t.teamId === null);
+}
+
 export async function postToGroupMe(text: string, botId = process.env.GROUPME_BOT_ID): Promise<boolean> {
   if (!botId) return false;
   // GroupMe truncates past 1000 chars; trim ourselves so the cut is clean.

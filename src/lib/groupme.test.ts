@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldHandleCallback, parseCommand } from './groupme';
+import { shouldHandleCallback, parseCommand, parseTeamBots, targetsForItem } from './groupme';
 
 describe('shouldHandleCallback', () => {
   const base = { group_id: 'g1', sender_type: 'user', text: 'hello', system: false };
@@ -48,5 +48,57 @@ describe('parseCommand', () => {
   it('ignores a bare bang or non-letter command', () => {
     expect(parseCommand('!')).toBeNull();
     expect(parseCommand('!123')).toBeNull();
+  });
+});
+
+describe('parseTeamBots', () => {
+  it('maps team ids to bot ids', () => {
+    const targets = parseTeamBots('{"1":"botA","2":"botB"}');
+    expect(targets).toEqual([
+      { key: '1', botId: 'botA', teamId: 1 },
+      { key: '2', botId: 'botB', teamId: 2 },
+    ]);
+  });
+
+  it('treats the "all" key as a group with no team binding', () => {
+    expect(parseTeamBots('{"all":"botA"}')).toEqual([{ key: 'all', botId: 'botA', teamId: null }]);
+  });
+
+  it('returns empty for unset, blank, or malformed JSON rather than throwing', () => {
+    // A bad env var should stop reminders, not crash an unrelated request.
+    expect(parseTeamBots(undefined)).toEqual([]);
+    expect(parseTeamBots('   ')).toEqual([]);
+    expect(parseTeamBots('not json')).toEqual([]);
+    expect(parseTeamBots('["botA"]')).toEqual([]);
+  });
+
+  it('drops entries with an empty bot id or a non-numeric team key', () => {
+    expect(parseTeamBots('{"1":"","2":"botB"}')).toEqual([{ key: '2', botId: 'botB', teamId: 2 }]);
+    expect(parseTeamBots('{"purple":"botA"}')).toEqual([]);
+  });
+});
+
+describe('targetsForItem', () => {
+  const targets = [
+    { key: '1', botId: 'botA', teamId: 1 },
+    { key: '2', botId: 'botB', teamId: 2 },
+  ];
+
+  it('sends a team item only to that team\'s group', () => {
+    expect(targetsForItem(targets, 1).map(t => t.botId)).toEqual(['botA']);
+  });
+
+  it('sends a club-wide item to every group', () => {
+    // A whole-club meeting has no team_id and must not be silently dropped.
+    expect(targetsForItem(targets, null).map(t => t.botId)).toEqual(['botA', 'botB']);
+  });
+
+  it('reaches nobody when the team has no configured group', () => {
+    expect(targetsForItem(targets, 99)).toEqual([]);
+  });
+
+  it('includes an untethered "all" group alongside the team group', () => {
+    const withAll = [...targets, { key: 'all', botId: 'botC', teamId: null }];
+    expect(targetsForItem(withAll, 1).map(t => t.botId)).toEqual(['botA', 'botC']);
   });
 });

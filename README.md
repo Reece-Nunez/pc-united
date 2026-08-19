@@ -35,7 +35,8 @@ Set these in `.env.local` (local) and in the Vercel project settings (production
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | Twilio phone number to send from, E.164 (e.g. `+1918...`). Alternatively set `TWILIO_MESSAGING_SERVICE_SID` |
 | `CRON_SECRET` | Auth for the daily SMS reminder cron (`/api/cron/reminders`). Vercel sends it automatically as a Bearer token when set |
-| `GROUPME_BOT_ID` | GroupMe bot id, used to post messages into the group |
+| `GROUPME_BOT_ID` | Default GroupMe bot id, used by the `!command` replies on the callback |
+| `GROUPME_TEAM_BOTS` | JSON map of team id → bot id for reminders, e.g. `{"1":"abc","2":"def"}`. Key `"all"` registers a group with no team binding |
 | `GROUPME_CALLBACK_TOKEN` | Secret path segment for the GroupMe callback URL. **This is the only credential on that endpoint** — treat it like a password |
 | `GROUPME_GROUP_ID` | Group the bot is bound to; callbacks from any other group are ignored. Optional but recommended |
 
@@ -76,6 +77,52 @@ details, medical forms — must never be answerable here.
 
 To post into the group from server code, use `postToGroupMe()` in
 `src/lib/groupme.ts`.
+
+### Automatic reminders to the team groups
+
+Each team's group is one bot. Map them in `GROUPME_TEAM_BOTS`:
+
+```
+GROUPME_TEAM_BOTS={"1":"botIdForTeam1","2":"botIdForTeam2"}
+```
+
+Team ids come from the `teams` table. An item whose `team_id` matches posts to
+that team's group; an item with **no** team is club-wide and posts to *every*
+group, so a whole-club meeting is never silently dropped. An item for a team
+with no configured bot reaches nobody — the cron reports these as `unrouted`
+rather than counting a silent no-op as success.
+
+Bot ids live in env rather than in the `teams` table because that table is
+client-readable for the public roster, and a leaked bot id lets anyone post to
+the group.
+
+Two Vercel Crons drive it (`vercel.json`):
+
+| Run | UTC | Club time | Announces |
+| --- | --- | --- | --- |
+| `?phase=evening` | 23:00 | 6 PM CDT / 5 PM CST | **Tomorrow's** items |
+| `?phase=morning` | 13:00 | 8 AM CDT / 7 AM CST | **Today's** items |
+
+Posted: practices, scheduled games, tournaments, meetings and socials.
+`event_type: 'other'` is skipped as too vague to be useful in a group chat.
+
+`groupme_reminder_log` (migration `20260819_create_groupme_reminder_log.sql`) is
+the idempotency guard, keyed on item + date + **phase** + bot — the phase is in
+the key so the morning run doesn't find the evening row and skip. Rows are
+written only after a confirmed post, so a failed send retries next run instead
+of being marked delivered.
+
+**Cancellations post immediately**, not on the cron — a cancellation that
+arrives with tomorrow's reminder is worthless. Flipping a game to `cancelled` or
+`postponed` in the admin schedule editor calls `/api/groupme/announce`, which
+rebuilds the message from the stored row (a caller cannot dictate arbitrary text
+into the group chats — it only chooses *which game*) and posts once per group.
+
+Reminder text is built by `buildGroupMeItems()` in `src/lib/reminders.ts`,
+deliberately separate from the SMS `buildReminderItems()`: SMS messages carry
+carrier-compliance text ("Reply STOP to opt out") and an RSVP prompt, neither of
+which works in a group chat, where there is no STOP handling and a bare "YES"
+can't be attributed to a particular child.
 
 ## SMS practice/game reminders + reply-to-RSVP
 

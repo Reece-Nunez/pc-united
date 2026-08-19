@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatWallClockTime, isOnClubDay, buildReminderItems, recipientsFor,
   parseRsvpReply, reminderItemLabel, wallClockPlusMinutes, buildCoachDigests,
+  buildGroupMeItems, buildCancellationMessage,
   ReminderItem, ParentLinkRow, RosterPlayer, AttendanceRow,
 } from './reminders';
 import type { Event, Schedule, Team } from '@/lib/supabase';
@@ -192,5 +193,85 @@ describe('buildCoachDigests', () => {
       [game({ status: 'cancelled', game_date: '2026-07-16T10:00:00' })],
       TEAMS, PLAYERS, [], '2026-07-16T09:00:00', 120,
     )).toHaveLength(0);
+  });
+});
+
+describe('buildGroupMeItems', () => {
+  const DAY = '2026-07-16';
+
+  it('announces practices and scheduled games', () => {
+    const items = buildGroupMeItems([practice()], [game()], TEAMS, DAY, 'today');
+    expect(items.map(i => i.message)).toEqual([
+      'U12 — Practice today at 6:30 PM · Wentz Field',
+      'U11 — Game today vs Tulsa FC at 10:00 AM · Sooner Complex',
+    ]);
+  });
+
+  it('omits the SMS carrier text, which is meaningless in a group chat', () => {
+    const [item] = buildGroupMeItems([practice()], [], TEAMS, DAY, 'today');
+    expect(item.message).not.toMatch(/STOP|Reply YES/i);
+  });
+
+  it('includes tournaments, meetings and socials that SMS skips', () => {
+    const events = [
+      practice({ id: 1, event_type: 'tournament', title: 'Tulsa Cup' }),
+      practice({ id: 2, event_type: 'meeting', title: 'Parent meeting' }),
+      practice({ id: 3, event_type: 'social', title: 'End of season party' }),
+    ];
+    const messages = buildGroupMeItems(events, [], TEAMS, DAY, 'today').map(i => i.message);
+    expect(messages[0]).toContain('Tournament: Tulsa Cup');
+    expect(messages[1]).toContain('Meeting: Parent meeting');
+    expect(messages[2]).toContain('Team social: End of season party');
+  });
+
+  it('still skips event_type "other" as too vague to announce', () => {
+    expect(buildGroupMeItems([practice({ event_type: 'other' })], [], TEAMS, DAY, 'today')).toEqual([]);
+  });
+
+  it('says "tomorrow" on the evening run', () => {
+    const [item] = buildGroupMeItems([practice()], [], TEAMS, DAY, 'tomorrow');
+    expect(item.message).toContain('Practice tomorrow');
+  });
+
+  it('skips cancelled and postponed games', () => {
+    expect(buildGroupMeItems([], [game({ status: 'cancelled' })], TEAMS, DAY, 'today')).toEqual([]);
+    expect(buildGroupMeItems([], [game({ status: 'postponed' })], TEAMS, DAY, 'today')).toEqual([]);
+  });
+
+  it('skips items on a different day', () => {
+    expect(buildGroupMeItems([practice({ event_date: '2026-07-17T18:30:00' })], [], TEAMS, DAY, 'today')).toEqual([]);
+  });
+
+  it('spells out a TBD time instead of printing a bare "TBD"', () => {
+    const [item] = buildGroupMeItems([practice({ time_tbd: true })], [], TEAMS, DAY, 'today');
+    expect(item.message).toContain('at a time still TBD');
+  });
+
+  it('carries teamId through for routing, null when club-wide', () => {
+    const items = buildGroupMeItems([practice({ team_id: null })], [game()], TEAMS, DAY, 'today');
+    expect(items[0].teamId).toBeNull();
+    expect(items[1].teamId).toBe(1);
+  });
+});
+
+describe('buildCancellationMessage', () => {
+  it('announces a cancelled game', () => {
+    const msg = buildCancellationMessage(game({ status: 'cancelled' }), TEAMS);
+    expect(msg).toBe('CANCELLED: U11 game vs Tulsa FC on 2026-07-16 at 10:00 AM is cancelled.');
+  });
+
+  it('announces a postponed game with its own word', () => {
+    expect(buildCancellationMessage(game({ status: 'postponed' }), TEAMS)).toMatch(/^POSTPONED:/);
+  });
+
+  it('returns null for a game that is still on', () => {
+    // Guards the immediate-post route against announcing ordinary edits.
+    expect(buildCancellationMessage(game({ status: 'scheduled' }), TEAMS)).toBeNull();
+    expect(buildCancellationMessage(game({ status: 'completed' }), TEAMS)).toBeNull();
+  });
+
+  it('drops the time when it is TBD', () => {
+    const msg = buildCancellationMessage(game({ status: 'cancelled', time_tbd: true }), TEAMS);
+    expect(msg).toContain('on 2026-07-16 is cancelled');
   });
 });

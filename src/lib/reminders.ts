@@ -94,6 +94,93 @@ export function parseRsvpReply(body: string): 'going' | 'not_going' | 'maybe' | 
   return null;
 }
 
+// ─── GroupMe reminders ───────────────────────────────────────────────
+
+export interface GroupMeItem {
+  kind: 'event' | 'game';
+  id: number;
+  teamId: number | null;
+  message: string;
+}
+
+/** Event types worth announcing in a group chat. 'other' is too vague to be useful. */
+const ANNOUNCED_EVENT_TYPES = new Set(['practice', 'tournament', 'meeting', 'social']);
+
+const EVENT_NOUN: Record<string, string> = {
+  practice: 'Practice',
+  tournament: 'Tournament',
+  meeting: 'Meeting',
+  social: 'Team social',
+};
+
+/**
+ * Build the GroupMe post list for one club day.
+ *
+ * Separate from `buildReminderItems` on purpose. That one drives SMS and its
+ * messages carry carrier-compliance text ("Reply STOP to opt out") plus an
+ * RSVP prompt — both meaningless in a group chat, where there is no STOP
+ * handling and a bare "YES" can't be attributed to a particular child the way
+ * a text from a known number can. It also covers only practices and games;
+ * a group chat is the right place for tournaments, meetings and socials too.
+ *
+ * `when` shapes the wording: the evening run announces tomorrow, the morning
+ * run announces today.
+ */
+export function buildGroupMeItems(
+  events: Event[],
+  games: Schedule[],
+  teams: Team[],
+  clubYmd: string,
+  when: 'today' | 'tomorrow',
+): GroupMeItem[] {
+  const items: GroupMeItem[] = [];
+  const day = when === 'today' ? 'today' : 'tomorrow';
+
+  for (const e of events) {
+    if (!ANNOUNCED_EVENT_TYPES.has(e.event_type) || !isOnClubDay(e.event_date, clubYmd)) continue;
+    const team = teamName(teams, e.team_id);
+    const time = formatWallClockTime(e.event_date, e.time_tbd);
+    const noun = EVENT_NOUN[e.event_type] || 'Event';
+    // Meetings and socials carry a real title; a practice's title is noise.
+    const label = e.event_type === 'practice' ? noun : `${noun}: ${e.title}`;
+    const parts = [`${team ? `${team} — ` : ''}${label} ${day}`];
+    if (time) parts.push(time === 'TBD' ? 'at a time still TBD' : `at ${time}`);
+    if (e.location) parts.push(`· ${e.location}`);
+    items.push({ kind: 'event', id: e.id, teamId: e.team_id ?? null, message: parts.join(' ') });
+  }
+
+  for (const g of games) {
+    if (g.status !== 'scheduled' || !isOnClubDay(g.game_date, clubYmd)) continue;
+    const team = teamName(teams, g.team_id);
+    const time = formatWallClockTime(g.game_date, g.time_tbd);
+    const parts = [`${team ? `${team} — ` : ''}Game ${day} ${g.home_game ? 'vs' : '@'} ${g.opponent}`];
+    if (time) parts.push(time === 'TBD' ? 'at a time still TBD' : `at ${time}`);
+    if (g.location) parts.push(`· ${g.location}`);
+    items.push({ kind: 'game', id: g.id, teamId: g.team_id ?? null, message: parts.join(' ') });
+  }
+
+  return items;
+}
+
+/**
+ * Message for a game that has been called off. Written for immediate posting
+ * rather than the daily cron — a cancellation that arrives with tomorrow's
+ * reminder is worthless, since the whole point is reaching families before
+ * they drive to the field.
+ */
+export function buildCancellationMessage(
+  game: Pick<Schedule, 'opponent' | 'game_date' | 'time_tbd' | 'location' | 'home_game' | 'status' | 'team_id'>,
+  teams: Team[],
+): string | null {
+  if (game.status !== 'cancelled' && game.status !== 'postponed') return null;
+  const team = teamName(teams, game.team_id);
+  const time = formatWallClockTime(game.game_date, game.time_tbd);
+  const date = (game.game_date || '').slice(0, 10);
+  const word = game.status === 'cancelled' ? 'CANCELLED' : 'POSTPONED';
+  const when = time && time !== 'TBD' ? `${date} at ${time}` : date;
+  return `${word}: ${team ? `${team} ` : ''}game ${game.home_game ? 'vs' : '@'} ${game.opponent} on ${when} is ${game.status}.`;
+}
+
 /** Short human label for a reminder item ("U12 practice", "game vs Tulsa FC"). */
 export function reminderItemLabel(kind: 'event' | 'game', row: { opponent?: string; home_game?: boolean; team_id?: number | null }, teams: Team[]): string {
   const team = teamName(teams, row.team_id);

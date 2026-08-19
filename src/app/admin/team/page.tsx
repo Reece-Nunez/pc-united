@@ -400,6 +400,23 @@ function TeamAdminContent() {
         toast.success('Schedule item updated successfully!');
         logActivity('update', 'schedule', editingSchedule.id, userEmail, { opponent: scheduleForm.opponent });
 
+        // A game that just got called off goes to the team's GroupMe now, not
+        // with tomorrow's reminder — the point is catching families before they
+        // drive to the field. Fire-and-forget: the status change is already
+        // saved, so a GroupMe outage must not surface as a failed save.
+        const wasOn = editingSchedule.status !== 'cancelled' && editingSchedule.status !== 'postponed';
+        const nowOff = scheduleForm.status === 'cancelled' || scheduleForm.status === 'postponed';
+        if (wasOn && nowOff) {
+          fetch('/api/groupme/announce', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scheduleId: editingSchedule.id }),
+          })
+            .then(r => r.json())
+            .then(res => { if (res?.posted > 0) toast.success('Posted to GroupMe'); })
+            .catch(() => { /* announcement is best-effort; the save already succeeded */ });
+        }
+
         // Send game result newsletter if scores were just added
         const hadScores = editingSchedule.our_score != null && editingSchedule.opponent_score != null;
         const hasScores = scheduleForm.our_score != null && scheduleForm.opponent_score != null;
