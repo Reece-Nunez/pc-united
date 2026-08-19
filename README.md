@@ -39,6 +39,8 @@ Set these in `.env.local` (local) and in the Vercel project settings (production
 | `GROUPME_TEAM_BOTS` | JSON map of team id → `botId:groupId`, e.g. `{"1":"abc:111111111","2":"def:222222222"}`. The `:groupId` suffix is optional but lets inbound `!commands` be answered in the group that asked. Key `"all"` registers a group with no team binding |
 | `GROUPME_CALLBACK_TOKEN` | Secret path segment for the GroupMe callback URL. **This is the only credential on that endpoint** — treat it like a password |
 | `GROUPME_GROUP_ID` | Group the bot is bound to; callbacks from any other group are ignored. Optional but recommended |
+| `GROUPME_ACCESS_TOKEN` | **Personal** GroupMe user token, required only by the calendar sync — bots cannot create calendar events. This token can read every group and DM on the account, so it is far more sensitive than a bot id. Server-side only |
+| `GROUPME_CALENDAR_WINDOW_DAYS` | How far ahead the calendar sync publishes. Defaults to 7 |
 
 > **Twilio / SMS:** sending medical-form links by text uses Twilio. US app-to-person
 > SMS requires A2P 10DLC brand + campaign registration for the sending number, or
@@ -162,6 +164,40 @@ deliberately separate from the SMS `buildReminderItems()`: SMS messages carry
 carrier-compliance text ("Reply STOP to opt out") and an RSVP prompt, neither of
 which works in a group chat, where there is no STOP handling and a bare "YES"
 can't be attributed to a particular child.
+
+### Calendar sync
+
+`/api/cron/groupme-calendar` (daily, 12:00 UTC) publishes the admin calendar into
+each team's GroupMe calendar on a **rolling 7-day window**
+(`GROUPME_CALENDAR_WINDOW_DAYS`). Publishing a whole season at once buries the
+calendar and makes RSVPs meaningless; a week gives families time to answer while
+the message reminders still fire the night before and the morning of. Those are
+separate crons and are untouched by this one.
+
+Each run creates anything newly inside the window, updates one whose details
+changed, and marks one cancelled when the fixture is cancelled or postponed.
+`groupme_calendar_sync` (migration `20260819_create_groupme_calendar_sync.sql`)
+maps each schedule/event row to its GroupMe `event_id` per group — without it
+every run would duplicate, since the event API has no idempotency key. A
+`content_hash` of the fields we publish means an untouched fixture costs zero API
+calls, and a GroupMe-side edit (someone adding a note in the app) is not mistaken
+for a change and overwritten.
+
+A fixture with no confirmed time becomes an **all-day** event rather than being
+pinned to a misleading midnight.
+
+> ⚠ **This uses an undocumented API.** dev.groupme.com documents groups,
+> messages and bots only; the event endpoints were found by probing and are not
+> supported or versioned. Verified working Aug 2026:
+> `GET /conversations/:id/events/list`, `POST …/events/create`,
+> `POST …/events/update`. **There is no delete** — every path shape tried returns
+> a generic 500 while update returns structured JSON errors, so a cancelled
+> fixture is renamed `CANCELLED — …` instead of removed. That also leaves it
+> visible to anyone who already RSVP'd. If GroupMe changes these, the sync breaks
+> and nothing else does.
+
+Unlike bot posting, this needs `GROUPME_ACCESS_TOKEN` — a **user** token, since
+bots cannot touch the calendar. Events are created as that user, not the bot.
 
 ## SMS practice/game reminders + reply-to-RSVP
 
