@@ -3,8 +3,10 @@ import { getAdminClient } from '@/lib/supabase-admin';
 import { parseTeamBots, targetsForItem } from '@/lib/groupme';
 import {
   gameToItem, eventToItem, buildCalendarEvent, calendarContentHash, isWithinWindow,
-  createCalendarEvent, updateCalendarEvent, DEFAULT_WINDOW_DAYS, type CalendarItem,
+  createCalendarEvent, updateCalendarEvent, calendarActivitySummary,
+  DEFAULT_WINDOW_DAYS, type CalendarItem,
 } from '@/lib/groupme-calendar';
+import { logGroupMeActivity } from '@/lib/groupme-log';
 import { CLUB_TIME_ZONE } from '@/lib/time';
 import type { Event, Schedule, Team } from '@/lib/supabase';
 
@@ -97,6 +99,10 @@ export async function GET(request: NextRequest) {
               content_hash: hash, state: 'active',
             });
             created++;
+            await logGroupMeActivity({
+              admin, target, kind: 'calendar_create', itemKind: item.kind, itemId: item.id,
+              message: calendarActivitySummary('created', item),
+            });
             continue;
           }
 
@@ -112,8 +118,24 @@ export async function GET(request: NextRequest) {
             updated_at: new Date().toISOString(),
           }).eq('id', existing.id);
           if (item.cancelled) cancelled++; else updated++;
+          await logGroupMeActivity({
+            admin, target,
+            kind: item.cancelled ? 'calendar_cancel' : 'calendar_update',
+            itemKind: item.kind, itemId: item.id,
+            message: calendarActivitySummary(item.cancelled ? 'cancelled' : 'updated', item),
+          });
         } catch (err: any) {
-          errors.push(`${key}: ${err?.message || 'unknown error'}`);
+          const detail = err?.message || 'unknown error';
+          errors.push(`${key}: ${detail}`);
+          // A failed sync leaves the GroupMe calendar silently out of date --
+          // exactly the kind of gap the activity log exists to explain.
+          await logGroupMeActivity({
+            admin, target,
+            kind: existing ? 'calendar_update' : 'calendar_create',
+            itemKind: item.kind, itemId: item.id,
+            message: calendarActivitySummary(existing ? 'updated' : 'created', item),
+            ok: false, error: detail,
+          });
         }
       }
     }

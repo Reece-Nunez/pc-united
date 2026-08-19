@@ -24,7 +24,22 @@ const KIND_STYLES: Record<string, string> = {
   reminder: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   cancellation: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   command_reply: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  calendar_create: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  calendar_update: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  calendar_cancel: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   test: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+};
+
+// Chat posts and calendar writes are different kinds of action; label them so
+// the list doesn't read as if the bot said "Added calendar event" out loud.
+const KIND_LABELS: Record<string, string> = {
+  reminder: 'reminder',
+  cancellation: 'cancellation',
+  command_reply: 'command reply',
+  calendar_create: 'calendar · added',
+  calendar_update: 'calendar · updated',
+  calendar_cancel: 'calendar · cancelled',
+  test: 'test',
 };
 
 export default function GroupMeActivityPage() {
@@ -70,7 +85,7 @@ export default function GroupMeActivityPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">GroupMe activity</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Every message the bots have posted, and where it went.
+              Every message the bots posted and every calendar event they wrote, and where it went.
             </p>
           </div>
           <button
@@ -82,15 +97,16 @@ export default function GroupMeActivityPage() {
           </button>
         </div>
 
-        {/* A failed send is a message nobody in the chat ever saw — surface it
-            rather than leaving it buried in the list. */}
+        {/* A failure is a message nobody saw, or a calendar event silently out
+            of date — surface it rather than leaving it buried in the list. */}
         {!loading && failures > 0 && (
           <div className="rounded-xl border border-red-300/70 dark:border-red-500/30 bg-red-50/60 dark:bg-red-900/10 p-4 mb-6">
             <p className="text-sm font-semibold text-red-900 dark:text-red-200">
-              {failures} message{failures !== 1 ? 's' : ''} failed to send
+              {failures} action{failures !== 1 ? 's' : ''} failed
             </p>
             <p className="text-xs text-red-700/80 dark:text-red-300/70 mt-1">
-              These never reached the group. Check the error column below.
+              These never reached GroupMe — the message wasn&apos;t delivered, or the calendar
+              event wasn&apos;t written. See the error on each entry below.
             </p>
           </div>
         )}
@@ -105,6 +121,9 @@ export default function GroupMeActivityPage() {
             <option value="reminder">Reminders</option>
             <option value="cancellation">Cancellations</option>
             <option value="command_reply">Command replies</option>
+            <option value="calendar_create">Calendar · added</option>
+            <option value="calendar_update">Calendar · updated</option>
+            <option value="calendar_cancel">Calendar · cancelled</option>
             <option value="test">Tests</option>
           </select>
           <select
@@ -125,7 +144,7 @@ export default function GroupMeActivityPage() {
         ) : entries.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
             <p className="text-gray-500 dark:text-gray-400">
-              Nothing posted yet. Reminders run at 6 PM and 8 AM club time.
+              Nothing yet. Reminders run at 6 PM and 8 AM club time; the calendar sync runs at 7 AM.
             </p>
           </div>
         ) : filtered.length === 0 ? (
@@ -140,7 +159,7 @@ export default function GroupMeActivityPage() {
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded ${KIND_STYLES[e.kind] || KIND_STYLES.test}`}>
-                        {e.kind.replace('_', ' ')}
+                        {KIND_LABELS[e.kind] || e.kind.replace('_', ' ')}
                       </span>
                       <span className="text-xs text-gray-600 dark:text-gray-300">{groupLabel(e)}</span>
                       {!e.ok && (

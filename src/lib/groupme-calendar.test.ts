@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   clubOffset, buildCalendarEvent, calendarContentHash, isWithinWindow,
-  cancelledName, gameToItem, eventToItem, CANCELLED_PREFIX, type CalendarItem,
+  cancelledName, gameToItem, eventToItem, calendarActivitySummary, CANCELLED_PREFIX, type CalendarItem,
 } from './groupme-calendar';
 import type { Schedule, Event, Team } from '@/lib/supabase';
 
@@ -160,5 +160,30 @@ describe('eventToItem', () => {
 
   it('prefixes the team when the event belongs to one', () => {
     expect(eventToItem(event({ team_id: 2 }), TEAMS).name).toBe('U12 Practice');
+  });
+});
+
+describe('calendarActivitySummary', () => {
+  it('names the fixture and when it is, not internal ids', () => {
+    // Read by a coach asking "why did that event appear?", so it has to be
+    // legible without cross-referencing the database.
+    expect(calendarActivitySummary('created', item()).split('\n')).toEqual([
+      'Added calendar event: U11 vs Tulsa FC',
+      'Sat, Sep 12 · 11:00 AM',
+      'Woodridge Soccer Complex',
+    ]);
+  });
+
+  it('uses a distinct verb per action', () => {
+    expect(calendarActivitySummary('updated', item())).toContain('Updated calendar event');
+    expect(calendarActivitySummary('cancelled', item())).toContain('Marked cancelled');
+  });
+
+  it('says the time is TBD rather than printing a fake one', () => {
+    expect(calendarActivitySummary('created', item({ timeTbd: true }))).toContain('time TBD');
+  });
+
+  it('omits the venue line when there is no location', () => {
+    expect(calendarActivitySummary('created', item({ location: null })).split('\n')).toHaveLength(2);
   });
 });

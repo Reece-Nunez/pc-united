@@ -6,7 +6,51 @@
 
 import { postToGroupMe, type GroupTarget } from './groupme';
 
-export type GroupMeActivityKind = 'reminder' | 'cancellation' | 'command_reply' | 'test';
+export type GroupMeActivityKind =
+  | 'reminder'
+  | 'cancellation'
+  | 'command_reply'
+  | 'test'
+  // Calendar sync writes these. They are not chat messages, but they are things
+  // the bots did on the club's behalf, so they belong in the same audit trail —
+  // otherwise "why did that event appear/change?" has no answer anywhere.
+  | 'calendar_create'
+  | 'calendar_update'
+  | 'calendar_cancel';
+
+export interface LogActivityArgs {
+  admin: any;
+  target: Pick<GroupTarget, 'key' | 'teamId'>;
+  message: string;
+  kind: GroupMeActivityKind;
+  itemKind?: 'event' | 'game' | null;
+  itemId?: number | null;
+  ok?: boolean;
+  error?: string | null;
+}
+
+/**
+ * Record one bot action. Best-effort by design: a failed insert must never
+ * change what the caller does, because the action itself already happened.
+ */
+export async function logGroupMeActivity({
+  admin, target, message, kind, itemKind = null, itemId = null, ok = true, error = null,
+}: LogActivityArgs): Promise<void> {
+  try {
+    await admin.from('groupme_activity_log').insert({
+      kind,
+      bot_key: target.key,
+      team_id: target.teamId,
+      item_kind: itemKind,
+      item_id: itemId,
+      message,
+      ok,
+      error,
+    });
+  } catch {
+    // Audit trail is not worth failing a completed action over.
+  }
+}
 
 export interface PostAndLogArgs {
   /** Service-role Supabase client (getAdminClient()). */
@@ -40,20 +84,6 @@ export async function postAndLog({
     error = err?.message || 'post threw';
   }
 
-  try {
-    await admin.from('groupme_activity_log').insert({
-      kind,
-      bot_key: target.key,
-      team_id: target.teamId,
-      item_kind: itemKind,
-      item_id: itemId,
-      message,
-      ok,
-      error,
-    });
-  } catch {
-    // Audit trail is not worth failing a delivered message over.
-  }
-
+  await logGroupMeActivity({ admin, target, message, kind, itemKind, itemId, ok, error });
   return ok;
 }

@@ -140,6 +140,26 @@ export function calendarContentHash(payload: GroupMeEventPayload): string {
   return h.toString(16);
 }
 
+/**
+ * One-line description of a calendar action, for the bot activity log.
+ *
+ * The log is read by a coach asking "why did that event appear, or change?",
+ * so it names the fixture and when it is — not internal ids.
+ */
+export function calendarActivitySummary(
+  action: 'created' | 'updated' | 'cancelled',
+  item: CalendarItem,
+): string {
+  const time = item.timeTbd ? 'time TBD' : formatWallClockTime(item.startsAt);
+  const { venue } = splitLocation(item.location);
+  const verb = action === 'created' ? 'Added' : action === 'updated' ? 'Updated' : 'Marked cancelled';
+  return [
+    `${verb} calendar event: ${item.name}`,
+    `${formatWallClockDate(item.startsAt)}${time ? ` · ${time}` : ''}`,
+    venue,
+  ].filter(Boolean).join('\n');
+}
+
 /** Whether a fixture falls inside the publish window (today .. +days). */
 export function isWithinWindow(dateStr: string, todayYmd: string, days: number): boolean {
   const day = (dateStr || '').slice(0, 10);
