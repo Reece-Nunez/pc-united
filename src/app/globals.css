@@ -70,3 +70,50 @@ h1, h2, h3, h4, .font-display {
   --rdp-today-color: #f87171;
   color: #e5e7eb;
 }
+
+/* Sponsor marquee ("Friends of the Team"). The track holds two identical
+   halves; sliding it exactly -50% lands on the start of the second half, so
+   the loop restart is invisible. Duration is set per-instance via
+   --marquee-duration so speed stays constant as sponsors are added. */
+@keyframes sponsor-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.sponsor-marquee {
+  /* Fade the logos out at both edges instead of clipping them mid-logo. */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 6rem,
+    black calc(100% - 6rem),
+    transparent
+  );
+}
+
+.sponsor-marquee-track {
+  animation: sponsor-marquee var(--marquee-duration, 40s) linear infinite;
+  will-change: transform;
+}
+
+.sponsor-marquee:hover .sponsor-marquee-track,
+.sponsor-marquee:focus-within .sponsor-marquee-track {
+  animation-play-state: paused;
+}
+
+/* The global reduce-motion rule only caps iterations at 1, which would strand
+   the track halfway through its slide. Stop it outright, drop the duplicate
+   half, and let the row be scrolled by hand instead. */
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-marquee-track {
+    animation: none !important;
+    transform: none !important;
+  }
+  .sponsor-marquee {
+    overflow-x: auto;
+    mask-image: none;
+  }
+  .sponsor-marquee-clone {
+    display: none;
+  }
+}

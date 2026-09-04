@@ -82,13 +82,16 @@ export default function CoachesClient() {
                 <div key={coach.id} className="bg-gray-50 rounded-lg overflow-hidden shadow-lg">
                   <div className="md:flex">
                     {/* Coach Photo */}
-                    <div className="md:w-1/3 lg:w-1/4">
-                      <div className="aspect-square md:aspect-auto md:h-full bg-gray-300 relative">
+                    {/* `self-start` keeps the photo at its own aspect ratio. Letting it
+                        stretch to the bio's height (some bios run 2000+ words) turned
+                        headshots into a tall crop of the middle of the face. */}
+                    <div className="md:w-1/3 lg:w-1/4 md:self-start">
+                      <div className="aspect-square md:aspect-[4/5] bg-gray-200 relative">
                         <Image
                           src={coach.photo_url || '/logo.png'}
                           alt={coach.name}
                           fill
-                          className="object-cover"
+                          className={coach.photo_url ? 'object-cover object-top' : 'object-contain p-8'}
                           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 33vw, 25vw"
                         />
                       </div>
@@ -202,13 +205,13 @@ export default function CoachesClient() {
                   <div key={volunteer.id} className="bg-white rounded-lg overflow-hidden shadow-lg">
                     <div className="flex flex-col sm:flex-row">
                       {/* Volunteer Photo */}
-                      <div className="sm:w-1/3">
-                        <div className="aspect-square sm:aspect-auto sm:h-full bg-gray-300 relative">
+                      <div className="sm:w-1/3 sm:self-start">
+                        <div className="aspect-square bg-gray-200 relative">
                           <Image
                             src={volunteer.photo_url || '/logo.png'}
                             alt={volunteer.name}
                             fill
-                            className="object-cover"
+                            className={volunteer.photo_url ? 'object-cover object-top' : 'object-contain p-6'}
                             sizes="(max-width: 640px) 100vw, 33vw"
                           />
                         </div>
